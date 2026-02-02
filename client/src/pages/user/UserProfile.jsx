@@ -205,14 +205,49 @@ export default function UserProfile() {
 
   return (
     <div className="h-full flex flex-col">
-      {/* Header */}
+      {/* Header with Avatar */}
       <div style={{ borderColor: isDarkMode ? 'rgba(255,212,28,0.2)' : 'rgba(59,130,246,0.2)' }} className="mb-6 border-b-2 pb-5">
-        <h2 style={{ color: theme.accent.primary }} className="text-2xl font-bold m-0 mb-2 flex items-center gap-[10px]">
-          <span>👤</span> Manage Profile
-        </h2>
-        <p style={{ color: theme.text.secondary }} className="text-[13px] m-0">
-          Update your personal information and security settings
-        </p>
+        <div className="flex items-center gap-5">
+          {/* Avatar */}
+          <div
+            style={{
+              width: '80px',
+              height: '80px',
+              borderRadius: '50%',
+              background: `linear-gradient(135deg, ${theme.accent.primary} 0%, ${isDarkMode ? '#FFB800' : '#2563EB'} 100%)`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '32px',
+              fontWeight: '700',
+              color: isDarkMode ? '#181D40' : '#FFFFFF',
+              border: `3px solid ${theme.bg.card}`,
+              boxShadow: `0 4px 15px ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}`
+            }}
+          >
+            {userData?.firstName?.charAt(0)?.toUpperCase() || '?'}{userData?.lastName?.charAt(0)?.toUpperCase() || ''}
+          </div>
+          <div>
+            <h2 style={{ color: theme.accent.primary }} className="text-2xl font-bold m-0 mb-1">
+              {userData?.firstName} {userData?.lastName}
+            </h2>
+            <p style={{ color: theme.text.secondary }} className="text-[13px] m-0 mb-1">
+              {userData?.email}
+            </p>
+            <span style={{
+              display: 'inline-block',
+              padding: '3px 10px',
+              borderRadius: '20px',
+              fontSize: '10px',
+              fontWeight: 700,
+              background: isDarkMode ? 'rgba(255,212,28,0.15)' : 'rgba(59,130,246,0.15)',
+              color: theme.accent.primary,
+              textTransform: 'uppercase'
+            }}>
+              {userData?.role || 'Student'}
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Tabs */}

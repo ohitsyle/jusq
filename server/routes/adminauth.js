@@ -224,7 +224,7 @@ router.post('/forgot-password', async (req, res) => {
 
     // Send OTP email
     const mailOptions = {
-      from: process.env.EMAIL_USER || 'noreply@nucash.com',
+      from: `"NUCash System" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: '🔐 NUCash Admin - Password Reset OTP',
       html: `
@@ -422,7 +422,7 @@ router.post('/send-otp', authenticateAdmin, async (req, res) => {
 
     // Send OTP email
     const mailOptions = {
-      from: process.env.EMAIL_USER || 'noreply@nucash.com',
+      from: `"NUCash System" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: '🔐 NUCash Admin - Password Change OTP',
       html: `

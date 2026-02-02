@@ -16,7 +16,7 @@ export default function Footer() {
       className="mt-auto px-[40px] py-[20px] text-center text-[12px]"
     >
       <p className="m-0">
-        © {currentYear} NUCash System | National University Laguna |{" "}
+        © {currentYear} NUCash System | Jose Anjelo Abued, Ashley Gwyneth Cuevas, Jhustine Brylle Logronio |{" "}
         <Link
           to="/terms"
           style={{ color: theme.accent.primary }}

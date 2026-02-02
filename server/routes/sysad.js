@@ -12,6 +12,7 @@ import Concern from '../models/Concern.js';
 import Feedback from '../models/Feedback.js';
 import UserConcern from '../models/UserConcern.js';
 import bcrypt from 'bcrypt';
+import { sendTemporaryPIN } from '../services/emailService.js';
 
 // ============================================================
 // DASHBOARD ENDPOINTS
@@ -250,48 +251,248 @@ router.get('/users/metrics', async (req, res) => {
 });
 
 /**
+ * GET /api/admin/sysad/users/check-rfid
+ * Check if RFID is available
+ */
+router.get('/users/check-rfid', async (req, res) => {
+  try {
+    const { rfidUId } = req.query;
+    if (!rfidUId) {
+      return res.status(400).json({ success: false, message: 'RFID is required' });
+    }
+    const existing = await User.findOne({ rfidUId });
+    res.json({ success: true, available: !existing });
+  } catch (error) {
+    console.error('❌ Check RFID error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * GET /api/admin/sysad/users/check-email
+ * Check if email is available (checks both User and Admin)
+ */
+router.get('/users/check-email', async (req, res) => {
+  try {
+    const { email } = req.query;
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email is required' });
+    }
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    const existingAdmin = await Admin.findOne({ email: email.toLowerCase() });
+    res.json({ success: true, available: !existingUser && !existingAdmin });
+  } catch (error) {
+    console.error('❌ Check email error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * GET /api/admin/sysad/users/check-schoolid
+ * Check if School ID is available (checks both User and Admin)
+ */
+router.get('/users/check-schoolid', async (req, res) => {
+  try {
+    const { schoolUId } = req.query;
+    if (!schoolUId) {
+      return res.status(400).json({ success: false, message: 'School ID is required' });
+    }
+    const existingUser = await User.findOne({ schoolUId });
+    const existingAdmin = await Admin.findOne({ schoolUId });
+    res.json({ success: true, available: !existingUser && !existingAdmin });
+  } catch (error) {
+    console.error('❌ Check School ID error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
  * POST /api/admin/sysad/users
- * Create a new user
+ * Create a new user or admin (same flow as Treasury registration)
  */
 router.post('/users', async (req, res) => {
   try {
-    const { firstName, lastName, email, role, studentId, password } = req.body;
-
-    // Check if email exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ success: false, message: 'Email already exists' });
-    }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password || 'NUCash2024!', 10);
-
-    const user = new User({
+    const {
+      schoolUId,
+      rfidUId,
       firstName,
       lastName,
+      middleName,
       email,
-      role: role || 'student',
-      studentId,
-      password: hashedPassword,
-      status: 'active',
-      balance: 0
-    });
+      pin,
+      role
+    } = req.body;
 
-    await user.save();
+    // Check if this is an admin role
+    const adminRoles = ['sysad', 'treasury', 'accounting', 'motorpool', 'merchant'];
+    const isAdminRole = adminRoles.includes(role);
 
-    // Log action
-    await SystemLog.create({
-      eventType: 'user_created',
-      description: `New user created: ${firstName} ${lastName} (${email})`,
-      severity: 'info',
-      metadata: { userId: user._id, adminAction: true }
-    });
+    // Validate required fields
+    if (!schoolUId || !firstName || !lastName || !email || !pin) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields: schoolUId, firstName, lastName, email, and pin are required'
+      });
+    }
 
-    res.json({
-      success: true,
-      message: 'User created successfully',
-      user: { ...user.toObject(), password: undefined }
-    });
+    // For regular users, RFID is required
+    if (!isAdminRole && !rfidUId) {
+      return res.status(400).json({
+        success: false,
+        message: 'RFID is required for student/employee accounts'
+      });
+    }
+
+    // Check if email already exists in both User and Admin collections
+    const existingUserEmail = await User.findOne({ email: email.toLowerCase() });
+    const existingAdminEmail = await Admin.findOne({ email: email.toLowerCase() });
+    if (existingUserEmail || existingAdminEmail) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email already registered'
+      });
+    }
+
+    // Check if School ID already exists in both collections
+    const existingUserSchoolId = await User.findOne({ schoolUId });
+    const existingAdminSchoolId = await Admin.findOne({ schoolUId });
+    if (existingUserSchoolId || existingAdminSchoolId) {
+      return res.status(400).json({
+        success: false,
+        message: 'School ID already registered'
+      });
+    }
+
+    if (isAdminRole) {
+      // CREATE ADMIN ACCOUNT
+      // Generate adminId (auto-increment)
+      const lastAdmin = await Admin.findOne().sort({ adminId: -1 });
+      const adminId = lastAdmin ? lastAdmin.adminId + 1 : 1000;
+
+      const admin = new Admin({
+        adminId,
+        schoolUId,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        middleName: middleName ? middleName.trim() : '',
+        email: email.trim().toLowerCase(),
+        pin,
+        role,
+        isActive: false
+      });
+
+      await admin.save();
+
+      // Log action
+      await SystemLog.create({
+        eventType: 'admin_created',
+        description: `New admin created by SysAd: ${firstName} ${lastName} (${role})`,
+        severity: 'info',
+        metadata: { adminId: admin._id, schoolUId, role, adminAction: true }
+      });
+
+      // Send email with temporary PIN
+      let emailSent = false;
+      try {
+        const fullName = `${firstName.trim()} ${lastName.trim()}`;
+        const formattedSchoolId = schoolUId.length === 10
+          ? `${schoolUId.slice(0, 4)}-${schoolUId.slice(4)}`
+          : schoolUId;
+        console.log(`📧 Sending temporary PIN email to admin ${email}...`);
+        emailSent = await sendTemporaryPIN(email.trim().toLowerCase(), pin, fullName, formattedSchoolId);
+        console.log(`📧 Temporary PIN email ${emailSent ? 'sent successfully' : 'failed'} for ${email}`);
+      } catch (emailError) {
+        console.error('❌ Email sending failed:', emailError.message || emailError);
+        emailSent = false;
+      }
+
+      res.status(201).json({
+        success: true,
+        message: 'Admin account created successfully',
+        emailSent,
+        user: {
+          adminId: admin.adminId,
+          schoolUId: admin.schoolUId,
+          firstName: admin.firstName,
+          lastName: admin.lastName,
+          email: admin.email,
+          role: admin.role,
+          isActive: admin.isActive
+        }
+      });
+    } else {
+      // CREATE USER ACCOUNT
+      // Check if RFID already exists
+      const existingRFID = await User.findOne({ rfidUId });
+      if (existingRFID) {
+        return res.status(400).json({
+          success: false,
+          message: 'RFID already registered to another user'
+        });
+      }
+
+      // Generate userId (auto-increment)
+      const lastUser = await User.findOne().sort({ userId: -1 });
+      const userId = lastUser ? lastUser.userId + 1 : 100000;
+
+      // Create user - isActive: false until they change PIN
+      const user = new User({
+        userId,
+        schoolUId,
+        rfidUId,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        middleName: middleName ? middleName.trim() : '',
+        email: email.trim().toLowerCase(),
+        pin,
+        role: role || 'student',
+        balance: 0,
+        isActive: false,
+        isDeactivated: false
+      });
+
+      await user.save();
+
+      // Log action
+      await SystemLog.create({
+        eventType: 'user_created',
+        description: `New user created by SysAd: ${firstName} ${lastName} (${schoolUId})`,
+        severity: 'info',
+        metadata: { userId: user._id, schoolUId, adminAction: true }
+      });
+
+      // Send email with temporary PIN
+      let emailSent = false;
+      try {
+        const fullName = `${firstName.trim()} ${lastName.trim()}`;
+        const formattedSchoolId = schoolUId.length === 10
+          ? `${schoolUId.slice(0, 4)}-${schoolUId.slice(4)}`
+          : schoolUId;
+        console.log(`📧 Sending temporary PIN email to ${email}...`);
+        emailSent = await sendTemporaryPIN(email.trim().toLowerCase(), pin, fullName, formattedSchoolId);
+        console.log(`📧 Temporary PIN email ${emailSent ? 'sent successfully' : 'failed'} for ${email}`);
+      } catch (emailError) {
+        console.error('❌ Email sending failed:', emailError.message || emailError);
+        emailSent = false;
+      }
+
+      res.status(201).json({
+        success: true,
+        message: 'User registered successfully',
+        emailSent,
+        user: {
+          userId: user.userId,
+          schoolUId: user.schoolUId,
+          rfidUId: user.rfidUId,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          balance: user.balance,
+          role: user.role,
+          isActive: user.isActive
+        }
+      });
+    }
   } catch (error) {
     console.error('❌ Create user error:', error);
     res.status(500).json({ success: false, message: error.message });
@@ -359,7 +560,7 @@ router.put('/users/:userId', async (req, res) => {
 
 /**
  * DELETE /api/admin/sysad/users/:userId
- * Delete a user (soft delete - set isDeactivated to true and isActive to false)
+ * Permanently delete a user from the database
  */
 router.delete('/users/:userId', async (req, res) => {
   try {
@@ -370,21 +571,26 @@ router.delete('/users/:userId', async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    // Soft delete - using the correct User model fields
-    user.isActive = false;
-    user.isDeactivated = true;
-    user.deactivatedAt = new Date();
-    await user.save();
+    // Store user info for logging before deletion
+    const userInfo = {
+      id: user._id,
+      name: `${user.firstName} ${user.lastName}`,
+      email: user.email,
+      schoolUId: user.schoolUId
+    };
+
+    // Permanently delete the user
+    await User.findByIdAndDelete(userId);
 
     // Log action
     await SystemLog.create({
       eventType: 'user_deleted',
-      description: `User deleted: ${user.firstName} ${user.lastName}`,
+      description: `User permanently deleted: ${userInfo.name} (${userInfo.email})`,
       severity: 'warning',
-      metadata: { userId: user._id, adminAction: true }
+      metadata: { userId: userInfo.id, schoolUId: userInfo.schoolUId, adminAction: true }
     });
 
-    res.json({ success: true, message: 'User deleted successfully' });
+    res.json({ success: true, message: 'User permanently deleted' });
   } catch (error) {
     console.error('❌ Delete user error:', error);
     res.status(500).json({ success: false, message: error.message });

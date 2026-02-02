@@ -21,6 +21,7 @@ export default function LogsList() {
   const [endDate, setEndDate] = useState('');
   const [selectedLog, setSelectedLog] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [sortBy, setSortBy] = useState('timestamp'); // 'timestamp', 'type', 'user'
   const logsPerPage = 20;
   const [adminData] = useState(() => {
     const data = localStorage.getItem('adminData');
@@ -189,10 +190,22 @@ export default function LogsList() {
     return true;
   });
 
-  const totalPages = Math.ceil(filteredLogs.length / logsPerPage);
+  // Sort logs based on sortBy selection
+  const sortedLogs = [...filteredLogs].sort((a, b) => {
+    if (sortBy === 'timestamp') {
+      return new Date(b.timestamp) - new Date(a.timestamp);
+    } else if (sortBy === 'type') {
+      return (a.eventType || a.type || '').localeCompare(b.eventType || b.type || '');
+    } else if (sortBy === 'user') {
+      return (a.adminName || a.driverName || '').localeCompare(b.adminName || b.driverName || '');
+    }
+    return 0;
+  });
+
+  const totalPages = Math.ceil(sortedLogs.length / logsPerPage);
   const startIndex = (currentPage - 1) * logsPerPage;
   const endIndex = startIndex + logsPerPage;
-  const currentLogs = filteredLogs.slice(startIndex, endIndex);
+  const currentLogs = sortedLogs.slice(startIndex, endIndex);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -307,12 +320,34 @@ export default function LogsList() {
           onStartChange={setStartDate}
           onEndChange={setEndDate}
         />
-        <ExportButton onClick={handleExport} disabled={filteredLogs.length === 0} />
+        
+        {/* Sort Buttons */}
+        <div className="flex gap-1 p-1 rounded-xl" style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F3F4F6' }}>
+          {[
+            { value: 'timestamp', label: 'Date' },
+            { value: 'type', label: 'Type' },
+            { value: 'user', label: 'User' }
+          ].map((option) => (
+            <button
+              key={option.value}
+              onClick={() => { setSortBy(option.value); setCurrentPage(1); }}
+              style={{
+                background: sortBy === option.value ? theme.accent.primary : 'transparent',
+                color: sortBy === option.value ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.secondary
+              }}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+        
+        <ExportButton onClick={handleExport} disabled={sortedLogs.length === 0} />
       </div>
 
       {/* Logs Table */}
       <div className="flex-1 overflow-y-auto">
-        {filteredLogs.length === 0 ? (
+        {sortedLogs.length === 0 ? (
           <div style={{ color: theme.text.tertiary }} className="text-center py-20">
             <div className="text-5xl mb-4">🔍</div>
             <p className="font-semibold">No logs found</p>
@@ -416,7 +451,7 @@ export default function LogsList() {
                 className="flex justify-between items-center p-4 rounded-xl border"
               >
                 <div style={{ color: theme.text.secondary }} className="text-sm">
-                  Showing {startIndex + 1}-{Math.min(endIndex, filteredLogs.length)} of {filteredLogs.length}
+                  Showing {startIndex + 1}-{Math.min(endIndex, sortedLogs.length)} of {sortedLogs.length}
                 </div>
                 <div className="flex gap-2">
                   <button

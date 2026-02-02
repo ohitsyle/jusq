@@ -452,7 +452,24 @@ router.post('/phones', verifyMerchantToken, async (req, res) => {
   try {
     const { default: Phone } = await import('../models/Phone.js');
 
-    const phone = new Phone(req.body);
+    // Generate phoneId server-side to avoid duplicate key errors
+    // Find the highest existing phoneId and increment
+    const allPhones = await Phone.find({}).select('phoneId').lean();
+    let highestNum = 0;
+    for (const p of allPhones) {
+      if (p.phoneId) {
+        const match = p.phoneId.match(/PHONE_(\d+)/i);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (num > highestNum) highestNum = num;
+        }
+      }
+    }
+    const newPhoneId = `PHONE_${String(highestNum + 1).padStart(3, '0')}`;
+
+    // Create phone with server-generated phoneId
+    const phoneData = { ...req.body, phoneId: newPhoneId };
+    const phone = new Phone(phoneData);
     await phone.save();
 
     const populatedPhone = await Phone.findById(phone._id)
@@ -462,7 +479,7 @@ router.post('/phones', verifyMerchantToken, async (req, res) => {
     res.status(201).json(populatedPhone);
   } catch (error) {
     console.error('Create phone error:', error);
-    res.status(500).json({ error: 'Failed to create phone' });
+    res.status(500).json({ error: error.message || 'Failed to create phone' });
   }
 });
 

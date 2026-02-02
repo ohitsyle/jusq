@@ -58,14 +58,16 @@ export const sendReceipt = async (transaction) => {
   <style>
     body { font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px; }
     .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-    .header { text-align: center; border-bottom: 3px solid #4CAF50; padding-bottom: 20px; margin-bottom: 30px; }
-    .header h1 { color: #4CAF50; margin: 0; }
+    .header { text-align: center; background: #181D40; border-radius: 10px 10px 0 0; margin: -30px -30px 30px -30px; padding: 30px; }
+    .header h1 { color: #FFD41C; margin: 0; }
+    .header p { color: rgba(255,255,255,0.7); margin: 8px 0 0 0; }
     .receipt-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; }
     .label { color: #666; font-weight: 500; }
     .value { color: #333; font-weight: 600; }
-    .amount-paid { background: #f0f9f4; padding: 15px; border-radius: 8px; margin-top: 20px; }
-    .amount-paid .value { color: #f44336; font-size: 24px; }
-    .balance-row { background: #e3f2fd; padding: 15px; border-radius: 8px; margin-top: 15px; }
+    .amount-paid { background: #181D40; padding: 20px; border-radius: 8px; margin-top: 20px; }
+    .amount-paid .label { color: rgba(255,255,255,0.8); font-size: 14px; }
+    .amount-paid .value { color: #FFD41C; font-size: 28px; }
+    .balance-row { background: #F8F9FA; padding: 15px; border-radius: 8px; margin-top: 15px; border: 1px solid #E5E7EB; }
     .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; color: #999; font-size: 12px; }
     .warning-box { background: #fff3e0; padding: 15px; border-radius: 8px; margin-top: 15px; border-left: 4px solid #ff9800; }
     .warning-box strong { color: #f57c00; }
@@ -76,7 +78,7 @@ export const sendReceipt = async (transaction) => {
   <div class="container">
     <div class="header">
       <h1>💳 NUCash Receipt</h1>
-      <p style="color: #666; margin: 5px 0;">Payment Confirmation</p>
+      <p>Payment Confirmation</p>
     </div>
     
     <div class="receipt-row">
@@ -125,7 +127,7 @@ export const sendReceipt = async (transaction) => {
       </div>
       <div class="receipt-row" style="border: none;">
         <span class="label">New Balance:</span>
-        <span class="value" style="color: ${newBalance < 0 ? '#f44336' : '#4CAF50'};">₱${newBalance.toFixed(2)}</span>
+        <span class="value" style="color: ${newBalance < 0 ? '#EF4444' : '#22C55E'};">₱${newBalance.toFixed(2)}</span>
       </div>
     </div>
     
@@ -140,9 +142,10 @@ export const sendReceipt = async (transaction) => {
     ` : ''}
     
     <div class="footer">
-      <p>Thank you for using NUCash!</p>
+      <p><strong style="color: #181D40;">Thank you for using NUCash!</strong></p>
       <p>This is an automated receipt. Please do not reply to this email.</p>
-      <p style="margin-top: 10px; color: #aaa;">For balance inquiries, please log on to the NUCash Website.</p>
+      <p style="margin-top: 15px;">National University - Laguna Campus</p>
+      <p>&copy; 2026 NUCash. All rights reserved.</p>
     </div>
   </div>
 </body>
@@ -153,7 +156,8 @@ export const sendReceipt = async (transaction) => {
     from: `"NUCash System" <${process.env.EMAIL_USER}>`,
     to: userEmail,
     subject: `NUCash Receipt - ₱${fareAmount.toFixed(2)} Payment`,
-    html: emailContent
+    html: emailContent,
+    text: `NUCash Receipt - Payment of ₱${fareAmount.toFixed(2)} confirmed. New Balance: ₱${newBalance.toFixed(2)}`
   };
 
   try {
@@ -192,16 +196,18 @@ export const sendRefundReceipt = async (refundData) => {
   <style>
     body { font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px; }
     .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-    .header { text-align: center; border-bottom: 3px solid #2196F3; padding-bottom: 20px; margin-bottom: 30px; }
-    .header h1 { color: #2196F3; margin: 0; }
+    .header { text-align: center; background: #181D40; border-radius: 10px 10px 0 0; margin: -30px -30px 30px -30px; padding: 30px; }
+    .header h1 { color: #FFD41C; margin: 0; }
+    .header p { color: rgba(255,255,255,0.7); margin: 8px 0 0 0; }
     .receipt-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; }
     .label { color: #666; font-weight: 500; }
     .value { color: #333; font-weight: 600; }
-    .refund-amount { background: #e3f2fd; padding: 15px; border-radius: 8px; margin-top: 20px; }
-    .refund-amount .value { color: #4CAF50; font-size: 24px; }
-    .balance-row { background: #f0f9f4; padding: 15px; border-radius: 8px; margin-top: 15px; }
-    .info-box { background: #e8f5e9; padding: 15px; border-radius: 8px; margin-top: 15px; border-left: 4px solid #4CAF50; }
-    .info-box strong { color: #2e7d32; }
+    .refund-amount { background: #181D40; padding: 20px; border-radius: 8px; margin-top: 20px; }
+    .refund-amount .label { color: rgba(255,255,255,0.8); font-size: 14px; }
+    .refund-amount .value { color: #22C55E; font-size: 28px; }
+    .balance-row { background: #F8F9FA; padding: 15px; border-radius: 8px; margin-top: 15px; border: 1px solid #E5E7EB; }
+    .info-box { background: #DCFCE7; padding: 15px; border-radius: 8px; margin-top: 15px; border-left: 4px solid #22C55E; }
+    .info-box strong { color: #166534; }
     .info-box p { margin: 5px 0 0 0; color: #666; }
     .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; color: #999; font-size: 12px; }
   </style>
@@ -210,7 +216,7 @@ export const sendRefundReceipt = async (refundData) => {
   <div class="container">
     <div class="header">
       <h1>💰 NUCash Refund</h1>
-      <p style="color: #666; margin: 5px 0;">Refund Confirmation</p>
+      <p>Refund Confirmation</p>
     </div>
     
     <div class="receipt-row">
@@ -259,7 +265,7 @@ export const sendRefundReceipt = async (refundData) => {
       </div>
       <div class="receipt-row" style="border: none;">
         <span class="label">New Balance:</span>
-        <span class="value" style="color: #4CAF50;">₱${newBalance.toFixed(2)}</span>
+        <span class="value" style="color: #22C55E;">₱${newBalance.toFixed(2)}</span>
       </div>
     </div>
     
@@ -269,9 +275,10 @@ export const sendRefundReceipt = async (refundData) => {
     </div>
     
     <div class="footer">
-      <p>Thank you for using NUCash!</p>
+      <p><strong style="color: #181D40;">Thank you for using NUCash!</strong></p>
       <p>This is an automated receipt. Please do not reply to this email.</p>
-      <p style="margin-top: 10px; color: #aaa;">For balance inquiries, please log on to the NUCash Website.</p>
+      <p style="margin-top: 15px;">National University - Laguna Campus</p>
+      <p>&copy; 2026 NUCash. All rights reserved.</p>
     </div>
   </div>
 </body>
@@ -282,7 +289,8 @@ export const sendRefundReceipt = async (refundData) => {
     from: `"NUCash System" <${process.env.EMAIL_USER}>`,
     to: userEmail,
     subject: `NUCash Refund - ₱${refundAmount.toFixed(2)} Credited`,
-    html: emailContent
+    html: emailContent,
+    text: `NUCash Refund - ₱${refundAmount.toFixed(2)} has been credited to your account. New Balance: ₱${newBalance.toFixed(2)}`
   };
 
   try {
@@ -335,17 +343,17 @@ export const sendActivationOTP = async (email, otp, fullName) => {
   <style>
     body { font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px; }
     .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-    .header { text-align: center; border-bottom: 3px solid #4CAF50; padding-bottom: 20px; margin-bottom: 30px; }
-    .header h1 { color: #4CAF50; margin: 0; }
-    .header p { color: #666; margin: 10px 0 0 0; }
-    .otp-box { background: #f0f9f4; padding: 30px; text-align: center; border-radius: 10px; margin: 20px 0; border: 2px solid #4CAF50; }
-    .otp-code { font-size: 48px; font-weight: bold; letter-spacing: 10px; color: #2e7d32; margin: 20px 0; font-family: monospace; }
-    .otp-label { color: #666; font-size: 16px; font-weight: 600; margin: 0; }
-    .otp-expiry { color: #666; font-size: 14px; margin: 10px 0 0 0; }
-    .info-box { background: #e8f5e9; padding: 15px; border-left: 4px solid #4CAF50; margin: 20px 0; }
-    .info-box strong { color: #2e7d32; }
-    .warning-box { background: #fff3e0; padding: 15px; border-left: 4px solid #ff9800; margin: 20px 0; color: #e65100; }
-    .warning-box strong { color: #e65100; }
+    .header { text-align: center; background: #181D40; border-radius: 10px 10px 0 0; margin: -30px -30px 30px -30px; padding: 30px; }
+    .header h1 { color: #FFD41C; margin: 0; }
+    .header p { color: rgba(255,255,255,0.7); margin: 8px 0 0 0; }
+    .otp-box { background: #181D40; padding: 30px; text-align: center; border-radius: 10px; margin: 20px 0; }
+    .otp-code { font-size: 48px; font-weight: bold; letter-spacing: 12px; color: #FFD41C; margin: 15px 0; font-family: monospace; }
+    .otp-label { color: rgba(255,255,255,0.8); font-size: 14px; font-weight: 600; margin: 0; }
+    .otp-expiry { color: rgba(255,255,255,0.6); font-size: 13px; margin: 10px 0 0 0; }
+    .info-box { background: #F0F9FF; padding: 15px; border-left: 4px solid #3B82F6; margin: 20px 0; }
+    .info-box strong { color: #1D4ED8; }
+    .warning-box { background: #FEF3C7; padding: 15px; border-left: 4px solid #F59E0B; margin: 20px 0; }
+    .warning-box strong { color: #D97706; }
     .footer { text-align: center; color: #999; font-size: 12px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; }
   </style>
 </head>
@@ -387,10 +395,10 @@ export const sendActivationOTP = async (email, otp, fullName) => {
 
     <p>If you didn't request account activation, please disregard this email. Your account will remain inactive.</p>
 
-    <p>Need help? Contact us at <a href="mailto:nucashsystem@gmail.com" style="color: #4CAF50; text-decoration: none;">nucashsystem@gmail.com</a></p>
+    <p>Need help? Contact us at <a href="mailto:nucashsystem@gmail.com" style="color: #FFD41C; text-decoration: none; font-weight: 600;">nucashsystem@gmail.com</a></p>
 
     <div class="footer">
-      <p>This is an automated message from NUCash System</p>
+      <p><strong style="color: #181D40;">NUCash System</strong></p>
       <p>National University - Laguna Campus</p>
       <p>&copy; 2026 NUCash. All rights reserved.</p>
     </div>
@@ -403,7 +411,8 @@ export const sendActivationOTP = async (email, otp, fullName) => {
     from: `"NUCash System" <${process.env.EMAIL_USER}>`,
     to: email,
     subject: '🔐 NUCash Account Activation - Verification Code',
-    html: emailContent
+    html: emailContent,
+    text: `Your NUCash verification code is: ${otp}. Valid for 10 minutes. Do not share this code.`
   };
 
   try {
@@ -431,23 +440,23 @@ export const sendTemporaryPIN = async (email, pin, fullName, schoolUId) => {
   <style>
     body { font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px; }
     .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-    .header { text-align: center; border-bottom: 3px solid #35408E; padding-bottom: 20px; margin-bottom: 30px; }
-    .header h1 { color: #35408E; margin: 0; }
-    .header p { color: #666; margin: 10px 0 0 0; }
-    .welcome-box { background: #f0f4ff; padding: 20px; border-radius: 10px; margin: 20px 0; text-align: center; }
-    .welcome-box h2 { color: #35408E; margin: 0 0 10px 0; }
-    .pin-box { background: #FFD41C; padding: 30px; text-align: center; border-radius: 10px; margin: 20px 0; }
-    .pin-code { font-size: 48px; font-weight: bold; letter-spacing: 15px; color: #181D40; margin: 10px 0; font-family: monospace; }
-    .pin-label { color: #181D40; font-size: 16px; font-weight: 600; margin: 0; }
+    .header { text-align: center; background: #181D40; border-radius: 10px 10px 0 0; margin: -30px -30px 30px -30px; padding: 30px; }
+    .header h1 { color: #FFD41C; margin: 0; }
+    .header p { color: rgba(255,255,255,0.7); margin: 8px 0 0 0; }
+    .welcome-box { background: #F8F9FA; padding: 20px; border-radius: 10px; margin: 20px 0; text-align: center; border: 1px solid #E5E7EB; }
+    .welcome-box h2 { color: #181D40; margin: 0 0 10px 0; }
+    .pin-box { background: #181D40; padding: 30px; text-align: center; border-radius: 10px; margin: 20px 0; }
+    .pin-code { font-size: 48px; font-weight: bold; letter-spacing: 15px; color: #FFD41C; margin: 10px 0; font-family: monospace; }
+    .pin-label { color: rgba(255,255,255,0.8); font-size: 14px; font-weight: 600; margin: 0; }
     .info-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; }
     .label { color: #666; font-weight: 500; }
     .value { color: #333; font-weight: 600; }
-    .steps-box { background: #e8f5e9; padding: 20px; border-left: 4px solid #4CAF50; margin: 20px 0; }
-    .steps-box h3 { color: #2e7d32; margin: 0 0 15px 0; }
+    .steps-box { background: #F0F9FF; padding: 20px; border-left: 4px solid #3B82F6; margin: 20px 0; }
+    .steps-box h3 { color: #1D4ED8; margin: 0 0 15px 0; }
     .steps-box ol { margin: 0; padding-left: 20px; }
     .steps-box li { margin: 8px 0; color: #333; }
-    .warning-box { background: #fff3e0; padding: 15px; border-left: 4px solid #ff9800; margin: 20px 0; }
-    .warning-box strong { color: #e65100; }
+    .warning-box { background: #FEF3C7; padding: 15px; border-left: 4px solid #F59E0B; margin: 20px 0; }
+    .warning-box strong { color: #D97706; }
     .footer { text-align: center; color: #999; font-size: 12px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; }
   </style>
 </head>
@@ -501,10 +510,10 @@ export const sendTemporaryPIN = async (email, pin, fullName, schoolUId) => {
       </ul>
     </div>
 
-    <p>If you did not request a NUCash account, please contact us immediately at <a href="mailto:nucashsystem@gmail.com" style="color: #35408E; text-decoration: none;">nucashsystem@gmail.com</a></p>
+    <p>If you did not request a NUCash account, please contact us immediately at <a href="mailto:nucashsystem@gmail.com" style="color: #FFD41C; text-decoration: none; font-weight: 600;">nucashsystem@gmail.com</a></p>
 
     <div class="footer">
-      <p>This is an automated message from NUCash System</p>
+      <p><strong style="color: #181D40;">NUCash System</strong></p>
       <p>National University - Laguna Campus</p>
       <p>&copy; 2026 NUCash. All rights reserved.</p>
     </div>
@@ -517,7 +526,8 @@ export const sendTemporaryPIN = async (email, pin, fullName, schoolUId) => {
     from: `"NUCash System" <${process.env.EMAIL_USER}>`,
     to: email,
     subject: '🎓 Welcome to NUCash - Your Temporary PIN',
-    html: emailContent
+    html: emailContent,
+    text: `Welcome to NUCash, ${fullName}! Your temporary PIN is: ${pin}. Please change it after your first login.`
   };
 
   try {
@@ -551,17 +561,17 @@ export const sendConcernInProgressEmail = async (userEmail, userName, concernDat
   <style>
     body { font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px; }
     .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-    .header { text-align: center; border-bottom: 3px solid #35408E; padding-bottom: 20px; margin-bottom: 30px; }
-    .header h1 { color: #35408E; margin: 0; }
-    .header p { color: #666; margin: 10px 0 0 0; }
-    .status-box { background: #FFD41C; padding: 20px; text-align: center; border-radius: 10px; margin: 20px 0; }
+    .header { text-align: center; background: #181D40; border-radius: 10px 10px 0 0; margin: -30px -30px 30px -30px; padding: 30px; }
+    .header h1 { color: #FFD41C; margin: 0; }
+    .header p { color: rgba(255,255,255,0.7); margin: 8px 0 0 0; }
+    .status-box { background: #181D40; padding: 20px; text-align: center; border-radius: 10px; margin: 20px 0; }
     .status-box .status-icon { font-size: 36px; margin-bottom: 10px; }
-    .status-box .status-text { font-size: 18px; font-weight: bold; color: #181D40; margin: 0; }
+    .status-box .status-text { font-size: 18px; font-weight: bold; color: #FFD41C; margin: 0; }
     .info-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; }
     .label { color: #666; font-weight: 500; }
     .value { color: #333; font-weight: 600; }
-    .message-box { background: #f0f4ff; padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 4px solid #35408E; }
-    .message-box h3 { color: #35408E; margin: 0 0 10px 0; }
+    .message-box { background: #F0F9FF; padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 4px solid #3B82F6; }
+    .message-box h3 { color: #1D4ED8; margin: 0 0 10px 0; }
     .message-box p { margin: 0; color: #333; line-height: 1.6; }
     .footer { text-align: center; color: #999; font-size: 12px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; }
   </style>
@@ -606,7 +616,7 @@ export const sendConcernInProgressEmail = async (userEmail, userName, concernDat
     <p>Thank you for your patience!</p>
 
     <div class="footer">
-      <p>This is an automated message from NUCash System</p>
+      <p><strong style="color: #181D40;">NUCash Support Team</strong></p>
       <p>National University - Laguna Campus</p>
       <p>&copy; 2026 NUCash. All rights reserved.</p>
     </div>
@@ -619,7 +629,8 @@ export const sendConcernInProgressEmail = async (userEmail, userName, concernDat
     from: `"NUCash Support" <${process.env.EMAIL_USER}>`,
     to: userEmail,
     subject: `🔄 Your Concern is Being Reviewed - ${concernId}`,
-    html: emailContent
+    html: emailContent,
+    text: `Your concern (${concernId}) is now being reviewed. Subject: ${subject}. We'll get back to you soon.`
   };
 
   try {
@@ -668,7 +679,7 @@ export const sendConcernNoteEmail = async (userEmail, userName, concernData) => 
       box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
     .header {
-      background: linear-gradient(135deg, #3B82F6 0%, #1E40AF 100%);
+      background: #181D40;
       color: white;
       padding: 30px;
       text-align: center;
@@ -677,11 +688,12 @@ export const sendConcernNoteEmail = async (userEmail, userName, concernData) => 
       margin: 0;
       font-size: 24px;
       font-weight: 700;
+      color: #FFD41C;
     }
     .header p {
       margin: 8px 0 0 0;
       font-size: 14px;
-      opacity: 0.9;
+      color: rgba(255,255,255,0.7);
     }
     .content {
       padding: 30px;
@@ -859,7 +871,8 @@ export const sendConcernNoteEmail = async (userEmail, userName, concernData) => 
     from: `"NUCash Support" <${process.env.EMAIL_USER}>`,
     to: userEmail,
     subject: `💬 Update on Your Concern: ${subject}`,
-    html: emailContent
+    html: emailContent,
+    text: `Update on your concern (${concernId}): ${noteMessage.substring(0, 100)}...`
   };
 
   try {
@@ -890,19 +903,19 @@ export const sendConcernResolvedEmail = async (userEmail, userName, concernData)
   <style>
     body { font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px; }
     .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-    .header { text-align: center; border-bottom: 3px solid #35408E; padding-bottom: 20px; margin-bottom: 30px; }
-    .header h1 { color: #35408E; margin: 0; }
-    .header p { color: #666; margin: 10px 0 0 0; }
-    .status-box { background: #4CAF50; padding: 20px; text-align: center; border-radius: 10px; margin: 20px 0; }
+    .header { text-align: center; background: #181D40; border-radius: 10px 10px 0 0; margin: -30px -30px 30px -30px; padding: 30px; }
+    .header h1 { color: #22C55E; margin: 0; }
+    .header p { color: rgba(255,255,255,0.7); margin: 8px 0 0 0; }
+    .status-box { background: #22C55E; padding: 20px; text-align: center; border-radius: 10px; margin: 20px 0; }
     .status-box .status-icon { font-size: 36px; margin-bottom: 10px; }
     .status-box .status-text { font-size: 18px; font-weight: bold; color: #FFFFFF; margin: 0; }
     .info-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; }
     .label { color: #666; font-weight: 500; }
     .value { color: #333; font-weight: 600; }
-    .reply-box { background: #e8f5e9; padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 4px solid #4CAF50; }
-    .reply-box h3 { color: #2e7d32; margin: 0 0 15px 0; }
-    .reply-box .reply-content { color: #333; white-space: pre-wrap; line-height: 1.6; background: white; padding: 15px; border-radius: 8px; border: 1px solid #c8e6c9; }
-    .next-steps { background: #f0f4ff; padding: 15px; border-left: 4px solid #35408E; margin: 20px 0; }
+    .reply-box { background: #DCFCE7; padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 4px solid #22C55E; }
+    .reply-box h3 { color: #166534; margin: 0 0 15px 0; }
+    .reply-box .reply-content { color: #333; white-space: pre-wrap; line-height: 1.6; background: white; padding: 15px; border-radius: 8px; border: 1px solid #BBF7D0; }
+    .next-steps { background: #F0F9FF; padding: 15px; border-left: 4px solid #3B82F6; margin: 20px 0; }
     .next-steps p { margin: 0; color: #333; }
     .footer { text-align: center; color: #999; font-size: 12px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; }
   </style>
@@ -957,7 +970,7 @@ export const sendConcernResolvedEmail = async (userEmail, userName, concernData)
     <p>Thank you for using NUCash!</p>
 
     <div class="footer">
-      <p>This is an automated message from NUCash System</p>
+      <p><strong style="color: #181D40;">NUCash Support Team</strong></p>
       <p>National University - Laguna Campus</p>
       <p>&copy; 2026 NUCash. All rights reserved.</p>
     </div>
@@ -970,7 +983,8 @@ export const sendConcernResolvedEmail = async (userEmail, userName, concernData)
     from: `"NUCash Support" <${process.env.EMAIL_USER}>`,
     to: userEmail,
     subject: `✅ Your Concern Has Been Resolved - ${concernId}`,
-    html: emailContent
+    html: emailContent,
+    text: `Your concern (${concernId}) has been resolved! Subject: ${subject}. Check your email for the full response.`
   };
 
   try {
@@ -988,7 +1002,7 @@ export const sendConcernResolvedEmail = async (userEmail, userName, concernData)
  */
 export const sendDeactivationOtpEmail = async (email, userName, otp) => {
   const mailOptions = {
-    from: process.env.EMAIL_USER || 'noreply@nucash.com',
+    from: `"NUCash System" <${process.env.EMAIL_USER}>`,
     to: email,
     subject: '⚠️ NUCash - Account Deactivation Verification Code',
     html: `
@@ -998,17 +1012,17 @@ export const sendDeactivationOtpEmail = async (email, userName, otp) => {
   <style>
     body { font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px; }
     .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-    .header { text-align: center; border-bottom: 3px solid #EF4444; padding-bottom: 20px; margin-bottom: 30px; }
+    .header { text-align: center; background: #181D40; border-radius: 10px 10px 0 0; margin: -30px -30px 30px -30px; padding: 30px; }
     .header h1 { color: #EF4444; margin: 0; }
-    .header p { color: #666; margin: 10px 0 0 0; }
-    .otp-box { background: #fef2f2; padding: 30px; text-align: center; border-radius: 10px; margin: 20px 0; border: 2px solid #EF4444; }
-    .otp-code { font-size: 48px; font-weight: bold; letter-spacing: 10px; color: #DC2626; margin: 20px 0; font-family: monospace; }
-    .otp-label { color: #666; font-size: 16px; font-weight: 600; margin: 0; }
-    .otp-expiry { color: #666; font-size: 14px; margin: 10px 0 0 0; }
-    .warning-box { background: #fff3e0; padding: 15px; border-left: 4px solid #ff9800; margin: 20px 0; color: #e65100; }
-    .warning-box strong { color: #e65100; }
-    .info-box { background: #e3f2fd; padding: 15px; border-left: 4px solid #2196f3; margin: 20px 0; }
-    .info-box strong { color: #1976d2; }
+    .header p { color: rgba(255,255,255,0.7); margin: 8px 0 0 0; }
+    .otp-box { background: #181D40; padding: 30px; text-align: center; border-radius: 10px; margin: 20px 0; }
+    .otp-code { font-size: 48px; font-weight: bold; letter-spacing: 12px; color: #EF4444; margin: 15px 0; font-family: monospace; }
+    .otp-label { color: rgba(255,255,255,0.8); font-size: 14px; font-weight: 600; margin: 0; }
+    .otp-expiry { color: rgba(255,255,255,0.6); font-size: 13px; margin: 10px 0 0 0; }
+    .warning-box { background: #FEF2F2; padding: 15px; border-left: 4px solid #EF4444; margin: 20px 0; }
+    .warning-box strong { color: #DC2626; }
+    .info-box { background: #F0F9FF; padding: 15px; border-left: 4px solid #3B82F6; margin: 20px 0; }
+    .info-box strong { color: #1D4ED8; }
     .footer { text-align: center; color: #999; font-size: 12px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; }
   </style>
 </head>
@@ -1044,17 +1058,18 @@ export const sendDeactivationOtpEmail = async (email, userName, otp) => {
       <p style="margin: 5px 0 0 0;">Please ignore this email and consider changing your PIN for security. Your account will remain active.</p>
     </div>
 
-    <p>Need help? Contact the Treasury Office or email <a href="mailto:nucashsystem@gmail.com" style="color: #EF4444; text-decoration: none;">nucashsystem@gmail.com</a></p>
+    <p>Need help? Contact the Treasury Office or email <a href="mailto:nucashsystem@gmail.com" style="color: #FFD41C; text-decoration: none; font-weight: 600;">nucashsystem@gmail.com</a></p>
 
     <div class="footer">
-      <p>This is an automated message from NUCash System</p>
+      <p><strong style="color: #181D40;">NUCash System</strong></p>
       <p>National University - Laguna Campus</p>
       <p>&copy; 2026 NUCash. All rights reserved.</p>
     </div>
   </div>
 </body>
 </html>
-    `
+    `,
+    text: `Your NUCash deactivation code is: ${otp}. Valid for 10 minutes. Do not share this code.`
   };
 
   try {

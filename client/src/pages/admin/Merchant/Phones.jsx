@@ -97,8 +97,8 @@ export default function MerchantPhonesList() {
         await api.put(`/merchant/phones/${editingPhone._id}`, formData);
         setAlert({ type: 'success', message: 'Phone updated successfully!' });
       } else {
-        const newPhoneId = getNextPhoneId();
-        await api.post('/merchant/phones', { ...formData, phoneId: newPhoneId });
+        // phoneId is now generated server-side to avoid duplicate key errors
+        await api.post('/merchant/phones', formData);
         setAlert({ type: 'success', message: 'Phone created successfully!' });
       }
       setShowModal(false);

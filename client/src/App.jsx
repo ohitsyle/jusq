@@ -76,6 +76,13 @@ import TransferCard from './pages/admin/Sysad/TransferCard';
 import SysadConcernsPage from './pages/admin/Sysad/ConcernsPage';
 import SysadConfigPage from './pages/admin/Sysad/ConfigPage';
 
+// Maintenance Mode Page
+import MaintenanceMode from './pages/MaintenanceMode';
+
+// Legal Pages
+import TermsAndConditions from './pages/legal/TermsAndConditions';
+import PrivacyPolicy from './pages/legal/PrivacyPolicy';
+
 // Protected Route wrapper for Motorpool Admin
 const MotorpoolProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('adminToken');
@@ -153,6 +160,11 @@ function App() {
             {/* Login Routes */}
             <Route path="/login" element={<UnifiedLogin />} />
             <Route path="/activate" element={<AccountActivation />} />
+            <Route path="/maintenance" element={<MaintenanceMode />} />
+            
+            {/* Legal Pages */}
+            <Route path="/terms" element={<TermsAndConditions />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
 
             {/* ================= USER ROUTES ================= */}
             <Route
@@ -519,6 +531,15 @@ function App() {
               element={
                 <MerchantProtectedRoute>
                   <ProfilePage />
+                </MerchantProtectedRoute>
+              }
+            />
+            {/* Merchant Logs */}
+            <Route
+              path="/admin/merchant/logs"
+              element={
+                <MerchantProtectedRoute>
+                  <LogsPage />
                 </MerchantProtectedRoute>
               }
             />

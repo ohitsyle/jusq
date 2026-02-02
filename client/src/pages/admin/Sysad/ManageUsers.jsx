@@ -660,7 +660,11 @@ function AddUserModal({ theme, isDarkMode, onClose, onSuccess, showNotification 
   });
   const [submitting, setSubmitting] = useState(false);
   const [checkingRfid, setCheckingRfid] = useState(false);
+  const [checkingEmail, setCheckingEmail] = useState(false);
+  const [checkingSchoolId, setCheckingSchoolId] = useState(false);
   const [rfidStatus, setRfidStatus] = useState(null); // 'available', 'taken', null
+  const [emailStatus, setEmailStatus] = useState(null);
+  const [schoolIdStatus, setSchoolIdStatus] = useState(null);
   const [validationError, setValidationError] = useState(null);
   const rfidInputRef = useRef(null);
 
@@ -670,6 +674,11 @@ function AddUserModal({ theme, isDarkMode, onClose, onSuccess, showNotification 
     }
   }, []);
 
+  // Debounce timer refs
+  const rfidTimer = useRef(null);
+  const emailTimer = useRef(null);
+  const schoolIdTimer = useRef(null);
+
   const handleRfidChange = async (e) => {
     const value = e.target.value.toUpperCase();
     setFormData({ ...formData, rfidUId: value });
@@ -678,35 +687,98 @@ function AddUserModal({ theme, isDarkMode, onClose, onSuccess, showNotification 
 
     if (!value.trim()) return;
 
-    // Auto-check RFID after a short delay
-    const normalizedRfid = normalizeRfidHex(value.trim());
-    if (normalizedRfid.length >= 8) {
-      setCheckingRfid(true);
-      try {
-        const response = await api.get(`/admin/treasury/users/check-rfid?rfidUId=${normalizedRfid}`);
-        setRfidStatus(response.available ? 'available' : 'taken');
-      } catch (error) {
-        console.error('RFID check error:', error);
-        setRfidStatus(null);
-      } finally {
-        setCheckingRfid(false);
+    // Debounce the check
+    if (rfidTimer.current) clearTimeout(rfidTimer.current);
+    rfidTimer.current = setTimeout(async () => {
+      const normalizedRfid = normalizeRfidHex(value.trim());
+      if (normalizedRfid.length >= 8) {
+        setCheckingRfid(true);
+        try {
+          const response = await api.get(`/admin/sysad/users/check-rfid?rfidUId=${normalizedRfid}`);
+          setRfidStatus(response.available === true ? 'available' : 'taken');
+        } catch (error) {
+          console.error('RFID check error:', error);
+          setRfidStatus(null);
+        } finally {
+          setCheckingRfid(false);
+        }
       }
-    }
+    }, 300);
+  };
+
+  const handleEmailChange = async (e) => {
+    const value = e.target.value;
+    setFormData({ ...formData, email: value });
+    setEmailStatus(null);
+    setValidationError(null);
+
+    if (!value.trim()) return;
+
+    // Debounce the check
+    if (emailTimer.current) clearTimeout(emailTimer.current);
+    emailTimer.current = setTimeout(async () => {
+      if (value.includes('@')) {
+        setCheckingEmail(true);
+        try {
+          const response = await api.get(`/admin/sysad/users/check-email?email=${encodeURIComponent(value.trim())}`);
+          setEmailStatus(response.available === true ? 'available' : 'taken');
+        } catch (error) {
+          console.error('Email check error:', error);
+          setEmailStatus(null);
+        } finally {
+          setCheckingEmail(false);
+        }
+      }
+    }, 300);
+  };
+
+  const handleSchoolIdChange = async (e) => {
+    const value = e.target.value;
+    setFormData({ ...formData, schoolUId: value });
+    setSchoolIdStatus(null);
+    setValidationError(null);
+
+    if (!value.trim()) return;
+
+    // Debounce the check
+    if (schoolIdTimer.current) clearTimeout(schoolIdTimer.current);
+    schoolIdTimer.current = setTimeout(async () => {
+      if (value.length >= 6) {
+        setCheckingSchoolId(true);
+        try {
+          const response = await api.get(`/admin/sysad/users/check-schoolid?schoolUId=${encodeURIComponent(value.trim())}`);
+          setSchoolIdStatus(response.available === true ? 'available' : 'taken');
+        } catch (error) {
+          console.error('School ID check error:', error);
+          setSchoolIdStatus(null);
+        } finally {
+          setCheckingSchoolId(false);
+        }
+      }
+    }, 300);
+  };
+
+  // Generate random 6-digit PIN
+  const generatePin = () => {
+    return Math.floor(100000 + Math.random() * 900000).toString();
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setValidationError(null);
 
-    // Validate RFID
-    if (!formData.rfidUId.trim()) {
-      setValidationError('RFID is required');
-      return;
-    }
+    const isAdminRole = formData.role === 'admin';
 
-    if (rfidStatus === 'taken') {
-      setValidationError('This RFID is already registered to another user');
-      return;
+    // Validate RFID (only required for non-admin users)
+    if (!isAdminRole) {
+      if (!formData.rfidUId.trim()) {
+        setValidationError('RFID is required for student/employee accounts');
+        return;
+      }
+      if (rfidStatus === 'taken') {
+        setValidationError('This RFID is already registered to another user');
+        return;
+      }
     }
 
     if (!formData.firstName || !formData.lastName || !formData.email || !formData.schoolUId) {
@@ -714,26 +786,51 @@ function AddUserModal({ theme, isDarkMode, onClose, onSuccess, showNotification 
       return;
     }
 
+    // Validate email status
+    if (emailStatus === 'taken') {
+      setValidationError('This email is already registered');
+      return;
+    }
+
+    // Validate school ID status
+    if (schoolIdStatus === 'taken') {
+      setValidationError('This School ID is already registered');
+      return;
+    }
+
     // Validate admin role if role is admin
-    if (formData.role === 'admin' && !formData.adminRole) {
+    if (isAdminRole && !formData.adminRole) {
       setValidationError('Please select an admin type');
       return;
     }
 
     setSubmitting(true);
     try {
+      // Generate a random 6-digit PIN for the user
+      const temporaryPin = generatePin();
+      
       const payload = {
         ...formData,
-        rfidUId: normalizeRfidHex(formData.rfidUId.trim()),
+        rfidUId: isAdminRole ? undefined : normalizeRfidHex(formData.rfidUId.trim()),
+        pin: temporaryPin,
         // If it's an admin user, use the adminRole as the actual role
-        role: formData.role === 'admin' ? formData.adminRole : formData.role
+        role: isAdminRole ? formData.adminRole : formData.role
       };
       delete payload.adminRole;
 
-      await api.post('/admin/sysad/users', payload);
+      const response = await api.post('/admin/sysad/users', payload);
+      
+      // Show success notification with email status
+      const accountType = isAdminRole ? 'Admin' : 'User';
+      if (response.emailSent) {
+        showNotification?.('success', `${accountType} created! Temporary PIN sent to ${formData.email}`);
+      } else {
+        showNotification?.('warning', `${accountType} created but email failed. Temporary PIN: ${temporaryPin}`);
+      }
+      
       onSuccess();
     } catch (error) {
-      setValidationError(error.message || 'Failed to create user');
+      setValidationError(error.response?.data?.message || error.message || 'Failed to create user');
     } finally {
       setSubmitting(false);
     }
@@ -765,7 +862,8 @@ function AddUserModal({ theme, isDarkMode, onClose, onSuccess, showNotification 
             </div>
           )}
 
-          {/* RFID Field */}
+          {/* RFID Field - Only show for non-admin users */}
+          {formData.role !== 'admin' && (
           <div>
             <label style={{ color: theme.text.secondary }} className="block text-xs font-semibold uppercase mb-2">
               RFID Tag <span className="text-red-500">*</span>
@@ -807,6 +905,7 @@ function AddUserModal({ theme, isDarkMode, onClose, onSuccess, showNotification 
               </p>
             )}
           </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -844,25 +943,67 @@ function AddUserModal({ theme, isDarkMode, onClose, onSuccess, showNotification 
           </div>
           <div>
             <label style={{ color: theme.text.secondary }} className="block text-xs font-semibold uppercase mb-2">Email *</label>
-            <input
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              style={{ background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }}
-              className="w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none"
-              required
-            />
+            <div className="relative">
+              <input
+                type="email"
+                value={formData.email}
+                onChange={handleEmailChange}
+                style={{
+                  background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB',
+                  color: theme.text.primary,
+                  borderColor: emailStatus === 'taken' ? '#EF4444' : emailStatus === 'available' ? '#10B981' : theme.border.primary
+                }}
+                className="w-full px-4 pr-10 py-2.5 rounded-xl border text-sm focus:outline-none"
+                required
+              />
+              {checkingEmail && (
+                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 animate-spin text-blue-500" />
+              )}
+              {emailStatus === 'available' && !checkingEmail && (
+                <Check className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />
+              )}
+              {emailStatus === 'taken' && !checkingEmail && (
+                <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-red-500" />
+              )}
+            </div>
+            {emailStatus === 'taken' && (
+              <p className="text-red-500 text-xs mt-1">This email is already registered</p>
+            )}
+            {emailStatus === 'available' && (
+              <p className="text-green-500 text-xs mt-1">Email is available</p>
+            )}
           </div>
           <div>
             <label style={{ color: theme.text.secondary }} className="block text-xs font-semibold uppercase mb-2">School ID *</label>
-            <input
-              type="text"
-              value={formData.schoolUId}
-              onChange={(e) => setFormData({ ...formData, schoolUId: e.target.value })}
-              style={{ background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }}
-              className="w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none transition-all"
-              required
-            />
+            <div className="relative">
+              <input
+                type="text"
+                value={formData.schoolUId}
+                onChange={handleSchoolIdChange}
+                style={{
+                  background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB',
+                  color: theme.text.primary,
+                  borderColor: schoolIdStatus === 'taken' ? '#EF4444' : schoolIdStatus === 'available' ? '#10B981' : theme.border.primary
+                }}
+                className="w-full px-4 pr-10 py-2.5 rounded-xl border text-sm focus:outline-none transition-all"
+                required
+              />
+              {checkingSchoolId && (
+                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 animate-spin text-blue-500" />
+              )}
+              {schoolIdStatus === 'available' && !checkingSchoolId && (
+                <Check className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />
+              )}
+              {schoolIdStatus === 'taken' && !checkingSchoolId && (
+                <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-red-500" />
+              )}
+            </div>
+            {schoolIdStatus === 'taken' && (
+              <p className="text-red-500 text-xs mt-1">This School ID is already registered</p>
+            )}
+            {schoolIdStatus === 'available' && (
+              <p className="text-green-500 text-xs mt-1">School ID is available</p>
+            )}
           </div>
 
           {/* Role Selection - Selection Buttons like Treasury */}

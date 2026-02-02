@@ -31,7 +31,7 @@ export default function MerchantLayout({ children }) {
 
   // System tabs (shared with admin)
   const systemTabs = [
-    { path: '/admin/logs', icon: '📋', label: 'Logs' },
+    { path: '/admin/merchant/logs', icon: '📋', label: 'Logs' },
     { path: '/admin/merchant/concerns', icon: '💬', label: 'Concerns' },
     { path: '/admin/merchant/configurations', icon: '⚙️', label: 'Settings' },
   ];

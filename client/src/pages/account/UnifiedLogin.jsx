@@ -20,6 +20,46 @@ export default function UnifiedLogin() {
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
 
+  // Check maintenance mode on load
+  useEffect(() => {
+    const checkMaintenanceMode = async () => {
+      try {
+        const response = await fetch('http://localhost:3000/api/admin/sysad/config');
+        const data = await response.json();
+        if (data?.config?.maintenanceMode) {
+          navigate('/maintenance', { replace: true });
+        }
+      } catch (error) {
+        console.log('Could not check maintenance status:', error.message);
+      }
+    };
+    checkMaintenanceMode();
+  }, [navigate]);
+
+  // Guard Gate: Redirect if already logged in
+  useEffect(() => {
+    const adminToken = localStorage.getItem('adminToken');
+    const userToken = localStorage.getItem('userToken');
+    const adminData = localStorage.getItem('adminData');
+    
+    if (adminToken && adminData) {
+      try {
+        const admin = JSON.parse(adminData);
+        const role = admin.role;
+        if (role === 'motorpool') navigate('/admin/motorpool', { replace: true });
+        else if (role === 'merchant') navigate('/admin/merchant', { replace: true });
+        else if (role === 'treasury') navigate('/admin/treasury/dashboard', { replace: true });
+        else if (role === 'accounting') navigate('/admin/accounting/home', { replace: true });
+        else if (role === 'sysad') navigate('/admin/sysad/dashboard', { replace: true });
+        else navigate('/admin/motorpool', { replace: true });
+      } catch (e) {
+        console.error('Error parsing adminData:', e);
+      }
+    } else if (userToken) {
+      navigate('/user/dashboard', { replace: true });
+    }
+  }, [navigate]);
+
   // Navigate when authentication state updates
   useEffect(() => {
     if (isLoggedin && pendingRedirect && loginAttemptRef.current) {
@@ -238,8 +278,8 @@ export default function UnifiedLogin() {
     setError('');
 
     try {
-      const config = getRoleConfig(detectedRole);
-      const response = await fetch(`${config.endpoint.replace('/login', '/forgot-password')}`, {
+      // Use the forgot-pin endpoint for users
+      const response = await fetch('http://localhost:3000/api/login/forgot-pin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: forgotEmail })
@@ -267,8 +307,8 @@ export default function UnifiedLogin() {
     setError('');
 
     try {
-      const config = getRoleConfig(detectedRole);
-      const response = await fetch(`${config.endpoint.replace('/login', '/verify-otp')}`, {
+      // Use the verify-otp endpoint for users
+      const response = await fetch('http://localhost:3000/api/login/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: forgotEmail, otp })
@@ -307,11 +347,11 @@ export default function UnifiedLogin() {
     setError('');
 
     try {
-      const config = getRoleConfig(detectedRole);
-      const response = await fetch(`${config.endpoint.replace('/login', '/reset-password')}`, {
+      // Use the reset-pin endpoint for users
+      const response = await fetch('http://localhost:3000/api/login/reset-pin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: forgotEmail, otp, newPassword: newPin })
+        body: JSON.stringify({ email: forgotEmail, newPin })
       });
 
       const data = await response.json();
@@ -321,16 +361,15 @@ export default function UnifiedLogin() {
       }
 
       console.log('✅ PIN reset successful');
-      // Reset to login screen
-      setStep('email');
+      // Show success step before returning to login
+      setStep('forgot-confirm');
+      // Reset form fields
       setEmail('');
       setPin('');
-      setForgotEmail('');
       setOtp('');
       setNewPin('');
       setConfirmPin('');
       setError('');
-      alert('PIN reset successful! Please login with your new PIN.');
     } catch (err) {
       console.error('❌ Reset PIN error:', err);
       setError(err.message || 'Failed to reset PIN');
@@ -673,6 +712,37 @@ export default function UnifiedLogin() {
               ) : (
                 'Reset PIN'
               )}
+            </button>
+          </div>
+        )}
+
+        {/* Step: PIN Reset Success */}
+        {step === 'forgot-confirm' && (
+          <div className="text-center">
+            {/* Success Icon */}
+            <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-[rgba(34,197,94,0.15)] flex items-center justify-center border-2 border-[#22C55E]">
+              <svg className="w-12 h-12 text-[#22C55E]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+
+            <h2 className="text-2xl font-bold text-[#22C55E] mb-3">
+              PIN Reset Successful!
+            </h2>
+
+            <p className="text-[rgba(251,251,251,0.7)] mb-8 text-sm leading-relaxed">
+              Your PIN has been successfully reset.<br />
+              You can now login with your new 6-digit PIN.
+            </p>
+
+            <button
+              onClick={() => {
+                setStep('email');
+                setForgotEmail('');
+              }}
+              className="w-full bg-[#FFD41C] text-[#181D40] py-4 rounded-xl font-bold text-base uppercase tracking-wider hover:bg-[#FFC700] transition-all duration-200 hover:-translate-y-1 shadow-lg hover:shadow-2xl hover:shadow-[rgba(255,212,28,0.3)]"
+            >
+              Back to Login
             </button>
           </div>
         )}
