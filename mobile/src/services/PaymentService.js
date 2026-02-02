@@ -1,10 +1,12 @@
 // src/services/PaymentService.js
-// FIXED: 
+// FIXED:
 // 1. Now accepts fareAmount parameter from route instead of hardcoding 15
 // 2. Passes fareAmount to backend API
+// 3. OFFLINE MODE: Now looks up user names from cached card data
 
 import api from './api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import OfflineStorageService from './OfflineStorageService';
 
 const DEVICE_ID = 'SHUTTLE_01';
 const DEFAULT_FARE = 15; // Fallback if no fare specified
@@ -31,6 +33,11 @@ const PaymentService = {
     console.log('💳 Processing fare:', fare, 'for route:', routeId);
 
     if (!isOnline) {
+      // Look up user from cached card data
+      const cachedCard = await OfflineStorageService.lookupCard(rfidUId);
+      const studentName = cachedCard?.fullName || 'Unknown Student';
+      const cachedBalance = cachedCard?.balance ?? 0;
+
       // Buffer transaction for later sync
       await this.bufferOfflineTransaction({
         rfidUId,
@@ -39,18 +46,22 @@ const PaymentService = {
         routeId,
         tripId,
         fareAmount: fare,
+        studentName: studentName, // Store name for reference
         timestamp: new Date().toISOString()
       });
+
+      console.log('📦 Offline payment for:', studentName, '- ₱', fare);
 
       return {
         success: true,
         mode: 'offline',
         offlineMode: true,
         data: {
-          studentName: 'Student (Offline)',
+          studentName: studentName,
           fareAmount: fare,
-          previousBalance: 0,
-          newBalance: 0
+          previousBalance: cachedBalance,
+          newBalance: cachedBalance - fare, // Estimated balance
+          isEstimated: true // Flag to indicate this is estimated
         }
       };
     }
@@ -90,7 +101,11 @@ const PaymentService = {
         };
       }
 
-      // Network error - buffer for offline
+      // Network error - buffer for offline with cached user data
+      const cachedCard = await OfflineStorageService.lookupCard(rfidUId);
+      const studentName = cachedCard?.fullName || 'Unknown Student';
+      const cachedBalance = cachedCard?.balance ?? 0;
+
       await this.bufferOfflineTransaction({
         rfidUId,
         driverId,
@@ -98,18 +113,22 @@ const PaymentService = {
         routeId,
         tripId,
         fareAmount: fare,
+        studentName: studentName,
         timestamp: new Date().toISOString()
       });
+
+      console.log('📦 Network error - Offline payment for:', studentName, '- ₱', fare);
 
       return {
         success: true,
         mode: 'offline',
         offlineMode: true,
         data: {
-          studentName: 'Student (Offline)',
+          studentName: studentName,
           fareAmount: fare,
-          previousBalance: 0,
-          newBalance: 0
+          previousBalance: cachedBalance,
+          newBalance: cachedBalance - fare,
+          isEstimated: true
         }
       };
     }

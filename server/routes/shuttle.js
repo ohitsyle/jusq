@@ -1,4 +1,4 @@
-// nucash-server/routes/shuttle.js
+// server/routes/shuttle.js
 // FIXED: 
 // 1. Uses fareAmount from request body, or fetches from Route model
 // 2. Proper shuttle release on end-route

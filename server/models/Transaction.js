@@ -1,4 +1,4 @@
-// nucash-server/models/Transaction.js
+// server/models/Transaction.js
 // Schema v3.0 - Unified transaction model with TXN+date+hex format
 
 import mongoose from 'mongoose';
@@ -34,10 +34,11 @@ const TransactionSchema = new mongoose.Schema({
   
   // Context Fields (nullable based on transaction type)
   shuttleId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Shuttle',
-    default: null
+  type: String,
+  default: null,
+  index: true
   },
+
   driverId: {
     type: String,
     default: null
