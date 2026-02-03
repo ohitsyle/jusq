@@ -58,7 +58,7 @@ import sysadRoutes from './routes/sysad.js';
 import { initializeAutoExportCron } from './jobs/autoExportCron.js';
 import { checkMaintenanceMode } from './middlewares/maintenanceMode.js';
 
-// Apply maintenance mode middleware to all routes
+// Apply maintenance mode middleware to all routes (but we'll handle auth checking inside)
 app.use(checkMaintenanceMode);
 
 // Mount all API routes at /api

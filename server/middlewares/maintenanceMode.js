@@ -2,6 +2,7 @@
 // Maintenance mode middleware - logs out non-sysadmin users when maintenance is enabled
 
 import Admin from '../models/Admin.js';
+import jwt from 'jsonwebtoken';
 
 // In-memory maintenance mode state (in production, use Redis or database)
 let maintenanceMode = false;
@@ -35,21 +36,27 @@ export async function checkMaintenanceMode(req, res, next) {
     }
 
     // Check if user is sysadmin
-    const isAdmin = req.admin || req.user;
+    let isAdmin = false;
     let isSysadmin = false;
 
-    console.log('🔍 Maintenance check - isAdmin:', !!isAdmin, 'req.admin:', req.admin, 'req.user:', req.user);
-
-    if (isAdmin) {
-      // For admin users, check if they have sysad role
-      if (req.admin) {
-        isSysadmin = req.admin.role === 'sysad';
-        console.log('🔍 Admin role check - req.admin.role:', req.admin.role, 'isSysadmin:', isSysadmin);
-      } else if (req.user) {
-        // For regular users, they're never sysadmins
-        isSysadmin = false;
-        console.log('🔍 Regular user - not sysadmin');
+    // Try to extract JWT token from request
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const token = authHeader.substring(7);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        
+        if (decoded.role === 'sysad' || decoded.role === 'admin' || decoded.role === 'merchant') {
+          isAdmin = true;
+          isSysadmin = decoded.role === 'sysad';
+        }
+        
+        console.log('🔍 Maintenance check - isAdmin:', isAdmin, 'decoded.role:', decoded.role, 'isSysadmin:', isSysadmin);
+      } catch (error) {
+        console.log('🔍 Invalid token - treating as non-admin');
       }
+    } else {
+      console.log('🔍 No auth token found - treating as non-admin');
     }
 
     // If maintenance mode is enabled and user is not sysadmin, force logout
