@@ -20,7 +20,7 @@ const app = express();
 
 // CORS Configuration - Allow credentials from frontend
 const corsOptions = {
-  origin: ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'],
+  origin: ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173', 'http://18.166.29.239:3000'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -79,22 +79,22 @@ app.use('/api', apiRoutes); // General API routes last
 
 // Serve admin dashboard (production build)
 app.get('/admin', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'admin-dist', 'index.html'));
+  res.sendFile(path.join(__dirname, 'public', 'dist', 'index.html'));
 });
 
 // Serve motorpool admin dashboard
 app.get('/motorpool', (req, res) => {
-  const motorpoolPath = path.join(__dirname, 'public', 'motorpool-admin.html');
-  res.sendFile(motorpoolPath, (err) => {
-    if (err) {
-      res.status(404).send('Motorpool dashboard not found. Make sure motorpool-admin.html is in the public folder.');
-    }
-  });
+  res.sendFile(path.join(__dirname, 'public', 'dist', 'index.html'));
 });
 
 // Serve merchant admin dashboard (production build)
 app.get('/merchant', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'merchant-dist', 'index.html'));
+  res.sendFile(path.join(__dirname, 'public', 'dist', 'index.html'));
+});
+
+// Serve main page
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'dist', 'index.html'));
 });
 
 // Serve activation page

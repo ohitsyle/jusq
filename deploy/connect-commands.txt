@@ -1,0 +1,23 @@
+# EC2 Connection Commands
+# Replace YOUR_PUBLIC_IP with your actual EC2 public IP
+
+# 1. Connect to EC2 instance
+ssh -i "nucash.pem" ubuntu@YOUR_PUBLIC_IP
+
+# 2. Navigate to app directory
+cd /var/www/nucash/server
+
+# 3. Start the server
+pm2 start server.js --name nucash-server
+
+# 4. Check server status
+pm2 status
+
+# 5. View server logs
+pm2 logs nucash-server
+
+# 6. Test API
+curl http://localhost:3000/health
+
+# 7. Exit SSH
+exit

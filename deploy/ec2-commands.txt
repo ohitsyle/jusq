@@ -1,0 +1,37 @@
+# AWS EC2 Commands for NUCash Deployment
+
+## 1. Connect to EC2 Instance
+ssh -i "your-key-pair.pem" ubuntu@your-ec2-public-ip
+
+## 2. Run Setup Script
+chmod +x aws-setup.sh
+./aws-setup.sh
+
+## 3. Configure Environment
+nano /var/www/nucash/server/.env
+# Add your MongoDB Atlas connection string
+
+## 4. Start Server
+cd /var/www/nucash/server
+pm2 start server.js --name nucash-server
+pm2 startup
+pm2 save
+
+## 5. Check Server Status
+pm2 status
+pm2 logs nucash-server
+
+## 6. Test API
+curl http://localhost:3000/health
+
+## 7. Useful PM2 Commands
+pm2 restart nucash-server
+pm2 stop nucash-server
+pm2 monit
+
+## 8. Update Code
+cd /var/www/nucash
+git pull origin main
+cd server
+npm install
+pm2 restart nucash-server
