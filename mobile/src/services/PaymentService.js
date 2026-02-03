@@ -32,6 +32,19 @@ const PaymentService = {
 
     // Validate student status first
     const statusValidation = await this.validateStudentStatus(rfidUId);
+    
+    // Ensure we always have a validation result
+    if (!statusValidation) {
+      return {
+        success: false,
+        error: {
+          message: 'Student validation failed',
+          code: 'VALIDATION_ERROR'
+        },
+        transactionType: 'refund'
+      };
+    }
+    
     if (!statusValidation.valid) {
       return {
         success: false,
@@ -213,7 +226,25 @@ const PaymentService = {
           user: user
         };
       }
+      
+      // No user data found - card not recognized
+      return {
+        valid: false,
+        reason: 'Card not recognized',
+        code: 'CARD_NOT_RECOGNIZED'
+      };
     } catch (error) {
+      console.log('🔄 Student status validation error:', error.message);
+      
+      // If it's a 404 or similar error, card is not recognized
+      if (error.response && (error.response.status === 404 || error.response.status === 400)) {
+        return {
+          valid: false,
+          reason: 'Card not recognized',
+          code: 'CARD_NOT_RECOGNIZED'
+        };
+      }
+      
       // If we can't reach server, check cached data for offline validation
       console.log('🔄 Server unreachable, checking cached student status...');
       const cachedCard = await OfflineStorageService.lookupCard(rfidUId);
@@ -301,6 +332,18 @@ const PaymentService = {
 
     // Validate student status first
     const statusValidation = await this.validateStudentStatus(rfidUId);
+    
+    // Ensure we always have a validation result
+    if (!statusValidation) {
+      return {
+        success: false,
+        error: {
+          message: 'Student validation failed',
+          code: 'VALIDATION_ERROR'
+        }
+      };
+    }
+    
     if (!statusValidation.valid) {
       return {
         success: false,
