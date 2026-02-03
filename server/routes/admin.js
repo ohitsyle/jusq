@@ -593,7 +593,7 @@ router.get('/event-logs', async (req, res) => {
           { eventType: { $in: [
             'driver_login', 'driver_logout', 'trip_start', 'trip_end', 
             'route_change', 'refund', 'phone_assigned', 'phone_unassigned'
-          ]},
+          ]}},
           // Old format: admin actions by motorpool
           { eventType: 'admin_action', 'metadata.adminId': 'motorpool' },
           // Any logs with driverId (motorpool related)
