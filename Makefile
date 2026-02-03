@@ -12,9 +12,9 @@ deploy-aws-advanced:
 	@echo "🚀 Advanced deployment to AWS..."
 	./deploy-aws-advanced.sh
 
-# Full deployment to AWS (includes client build)
+# Full deployment to AWS (includes git push and client build)
 deploy-aws-full:
-	@echo "🚀 Full deployment to AWS (including client build)..."
+	@echo "🚀 Full deployment to AWS (including git push and client build)..."
 	./deploy-aws-full.sh
 
 # Quick local server restart
@@ -27,6 +27,6 @@ help:
 	@echo "📋 Available commands:"
 	@echo "  make deploy-aws         - Deploy to AWS server (server only)"
 	@echo "  make deploy-aws-advanced - Advanced deployment to AWS with error checking"
-	@echo "  make deploy-aws-full    - Full deployment including client build"
+	@echo "  make deploy-aws-full    - Full deployment including git push and client build"
 	@echo "  make restart-local      - Restart local server"
 	@echo "  make help               - Show this help message"
