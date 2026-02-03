@@ -35,6 +35,11 @@ export async function checkMaintenanceMode(req, res, next) {
       return next();
     }
 
+    // Only apply maintenance mode to API requests
+    if (!req.path.startsWith('/api/')) {
+      return next();
+    }
+
     // Check if user is sysadmin
     let isAdmin = false;
     let isSysadmin = false;
