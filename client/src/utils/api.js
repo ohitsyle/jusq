@@ -41,6 +41,17 @@ api.interceptors.response.use(
       localStorage.clear();
       window.location.href = '/login';
     }
+    
+    // Handle maintenance mode (503) - force logout and redirect to login
+    if (error.response?.status === 503) {
+      const data = error.response.data;
+      if (data?.maintenanceMode && data?.forceLogout) {
+        console.log('🔧 Maintenance mode detected - forcing logout');
+        localStorage.clear();
+        window.location.href = '/login';
+      }
+    }
+    
     return Promise.reject(error.response?.data || { message: error.message });
   }
 );

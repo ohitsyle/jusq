@@ -23,7 +23,8 @@ export async function checkMaintenanceMode(req, res, next) {
       '/terms-and-conditions',
       '/privacy-policy',
       '/api/admin/sysad/config',
-      '/api/admin/sysad/maintenance-status'
+      '/api/admin/sysad/maintenance-status',
+      '/api/login'  // Allow login during maintenance mode
     ];
     
     const isPublicRoute = req.path === '/force-logout' || publicRoutes.some(route => req.path === route || req.path.startsWith(route));
