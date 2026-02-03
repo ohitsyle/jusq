@@ -48,81 +48,412 @@ function TransferNotificationModal({ isOpen, onClose, type, title, message }) {
   );
 }
 
-// Card Input Modal for TransferCard
-function CardInputModal({ isOpen, onClose, onSubmit, selectedUser }) {
+// Multi-step Transfer Modal
+function TransferModal({ isOpen, onClose, selectedUser }) {
   const { theme, isDarkMode } = useTheme();
-  const [cardId, setCardId] = useState('');
+  const [currentStep, setCurrentStep] = useState(1);
+  const [newRfid, setNewRfid] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
   const accentColor = theme.accent.primary;
-  
+
+  const steps = [
+    { id: 1, name: 'RFID', icon: CreditCard },
+    { id: 2, name: 'Details', icon: User },
+    { id: 3, name: 'Summary', icon: CheckCircle },
+    { id: 4, name: 'Complete', icon: CheckCircle }
+  ];
+
+  // Convert RFID to hex little endian
+  const convertToHexLittleEndian = (rfid) => {
+    if (!rfid) return '';
+    
+    // If already hex, return as is
+    if (/^[0-9A-Fa-f]+$/.test(rfid)) {
+      return rfid.toUpperCase();
+    }
+    
+    // If decimal, convert to hex
+    const decimalValue = parseInt(rfid, 10);
+    if (!isNaN(decimalValue)) {
+      return decimalValue.toString(16).toUpperCase();
+    }
+    
+    return rfid.toUpperCase();
+  };
+
+  const handleRfidSubmit = () => {
+    if (newRfid.trim()) {
+      setCurrentStep(2);
+    }
+  };
+
+  const handleTransfer = async () => {
+    setIsProcessing(true);
+    try {
+      const response = await api.post('/admin/sysad/transfer-card', {
+        oldCardUid: selectedUser.rfidUId,
+        newCardUid: convertToHexLittleEndian(newRfid.trim()),
+        adminId: 'sysad'
+      });
+      
+      setCurrentStep(4);
+    } catch (error) {
+      console.error('Transfer failed:', error);
+      alert('Transfer failed. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   if (!isOpen) return null;
+
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 1:
+        return (
+          <div className="space-y-5">
+            <div className="p-4 rounded-xl border flex items-start gap-3" style={{ background: 'rgba(255, 212, 28, 0.1)', borderColor: 'rgba(255, 212, 28, 0.3)' }}>
+              <CreditCard className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: accentColor }} />
+              <div>
+                <p className="font-semibold" style={{ color: theme.text.primary }}>Scan New RFID Card</p>
+                <p className="text-sm mt-1" style={{ color: theme.text.secondary }}>
+                  Place the new RFID card on the scanner or type the RFID manually. Format will be automatically converted to Hex format (decimal → hex, hex → unchanged).
+                </p>
+              </div>
+            </div>
+            
+            <div>
+              <label className="font-semibold mb-2 block" style={{ color: theme.text.primary }}>New RFID Tag</label>
+              <input
+                placeholder="Scan or enter new RFID..."
+                value={newRfid}
+                onChange={(e) => setNewRfid(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-yellow-400/50 font-mono text-lg tracking-wider"
+                style={{
+                  background: 'rgba(15, 18, 39, 0.5)',
+                  color: theme.text.primary,
+                  borderColor: 'rgba(255, 212, 28, 0.2)'
+                }}
+                autoFocus
+              />
+            </div>
+            
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={onClose}
+                className="flex-1 py-3 rounded-xl font-semibold transition-all hover:opacity-80"
+                style={{ background: 'rgba(71, 85, 105, 0.5)', color: theme.text.primary }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRfidSubmit}
+                disabled={!newRfid.trim()}
+                className="flex-1 py-3 rounded-xl font-bold transition-all hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+                style={{ background: accentColor, color: '#1E1D40' }}
+              >
+                Continue →
+              </button>
+            </div>
+          </div>
+        );
+
+      case 2:
+        return (
+          <div className="space-y-4">
+            <div className="p-3 rounded-xl border flex items-center justify-between" style={{ background: 'rgba(15, 18, 39, 0.5)', borderColor: 'rgba(255, 212, 28, 0.2)' }}>
+              <div className="flex items-center gap-3">
+                <CreditCard className="w-5 h-5" style={{ color: accentColor }} />
+                <div>
+                  <p className="text-xs" style={{ color: theme.text.secondary }}>New RFID Tag</p>
+                  <p className="font-mono font-semibold" style={{ color: theme.text.primary }}>
+                    {convertToHexLittleEndian(newRfid)}
+                  </p>
+                </div>
+              </div>
+              <CheckCircle className="w-5 h-5 text-green-500" />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="font-semibold mb-1.5 block text-sm" style={{ color: theme.text.primary }}>First Name</label>
+                <input
+                  value={selectedUser?.firstName || ''}
+                  readOnly
+                  className="w-full px-3 py-2.5 rounded-xl border"
+                  style={{
+                    background: 'rgba(15, 18, 39, 0.5)',
+                    color: theme.text.primary,
+                    borderColor: 'rgba(255, 212, 28, 0.2)'
+                  }}
+                />
+              </div>
+              <div>
+                <label className="font-semibold mb-1.5 block text-sm" style={{ color: theme.text.primary }}>Middle Name</label>
+                <input
+                  value={selectedUser?.middleName || ''}
+                  readOnly
+                  className="w-full px-3 py-2.5 rounded-xl border"
+                  style={{
+                    background: 'rgba(15, 18, 39, 0.5)',
+                    color: theme.text.primary,
+                    borderColor: 'rgba(255, 212, 28, 0.2)'
+                  }}
+                />
+              </div>
+              <div>
+                <label className="font-semibold mb-1.5 block text-sm" style={{ color: theme.text.primary }}>Last Name</label>
+                <input
+                  value={selectedUser?.lastName || ''}
+                  readOnly
+                  className="w-full px-3 py-2.5 rounded-xl border"
+                  style={{
+                    background: 'rgba(15, 18, 39, 0.5)',
+                    color: theme.text.primary,
+                    borderColor: 'rgba(255, 212, 28, 0.2)'
+                  }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="font-semibold mb-1.5 block text-sm" style={{ color: theme.text.primary }}>User Type</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  className="py-2.5 rounded-xl border font-semibold capitalize"
+                  style={{
+                    background: selectedUser?.role === 'student' ? accentColor : 'rgba(15, 18, 39, 0.5)',
+                    color: selectedUser?.role === 'student' ? '#1E1D40' : theme.text.primary,
+                    borderColor: accentColor
+                  }}
+                >
+                  🎓 {selectedUser?.role || 'student'}
+                </button>
+                <button
+                  type="button"
+                  className="py-2.5 rounded-xl border font-semibold capitalize"
+                  style={{
+                    background: selectedUser?.role === 'employee' ? accentColor : 'rgba(15, 18, 39, 0.5)',
+                    color: selectedUser?.role === 'employee' ? '#1E1D40' : theme.text.primary,
+                    borderColor: accentColor
+                  }}
+                >
+                  👔 {selectedUser?.role || 'employee'}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="font-semibold mb-1.5 block text-sm" style={{ color: theme.text.primary }}>School ID</label>
+              <div className="relative">
+                <input
+                  value={selectedUser?.idNumber || ''}
+                  readOnly
+                  className="w-full px-3 py-2.5 rounded-xl border font-mono pl-10"
+                  style={{
+                    background: 'rgba(15, 18, 39, 0.5)',
+                    color: theme.text.primary,
+                    borderColor: 'rgba(255, 212, 28, 0.2)'
+                  }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="font-semibold mb-1.5 block text-sm" style={{ color: theme.text.primary }}>Email Address</label>
+              <div className="relative">
+                <input
+                  value={selectedUser?.email || ''}
+                  readOnly
+                  className="w-full px-3 py-2.5 rounded-xl border font-mono pl-10"
+                  style={{
+                    background: 'rgba(15, 18, 39, 0.5)',
+                    color: theme.text.primary,
+                    borderColor: 'rgba(255, 212, 28, 0.2)'
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setCurrentStep(1)}
+                className="flex-1 py-3 rounded-xl font-semibold transition-all hover:opacity-80"
+                style={{ background: 'rgba(71, 85, 105, 0.5)', color: theme.text.primary }}
+              >
+                ← Back
+              </button>
+              <button
+                onClick={() => setCurrentStep(3)}
+                className="flex-1 py-3 rounded-xl font-bold transition-all hover:opacity-90 flex items-center justify-center gap-2"
+                style={{ background: accentColor, color: '#1E1D40' }}
+              >
+                Review →
+              </button>
+            </div>
+          </div>
+        );
+
+      case 3:
+        return (
+          <div className="space-y-4">
+            <div className="text-center py-8">
+              <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(255, 212, 28, 0.15)' }}>
+                <ArrowRight className="w-8 h-8" style={{ color: accentColor }} />
+              </div>
+              <h3 className="text-xl font-bold mb-2" style={{ color: theme.text.primary }}>Confirm RFID Transfer</h3>
+              <p className="text-sm" style={{ color: theme.text.secondary }}>
+                Are you sure you want to transfer {selectedUser?.firstName} {selectedUser?.lastName}'s account to the new RFID card?
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div className="p-3 rounded-xl border" style={{ background: 'rgba(15, 18, 39, 0.5)', borderColor: 'rgba(255, 212, 28, 0.2)' }}>
+                <p className="text-xs" style={{ color: theme.text.secondary }}>Current RFID</p>
+                <p className="font-mono font-semibold" style={{ color: theme.text.primary }}>{selectedUser?.rfidUId}</p>
+              </div>
+              <div className="flex justify-center">
+                <ArrowRight className="w-5 h-5" style={{ color: accentColor }} />
+              </div>
+              <div className="p-3 rounded-xl border" style={{ background: 'rgba(15, 18, 39, 0.5)', borderColor: 'rgba(255, 212, 28, 0.2)' }}>
+                <p className="text-xs" style={{ color: theme.text.secondary }}>New RFID</p>
+                <p className="font-mono font-semibold" style={{ color: theme.text.primary }}>{convertToHexLittleEndian(newRfid)}</p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <button
+                onClick={() => setCurrentStep(2)}
+                className="flex-1 py-3 rounded-xl font-semibold transition-all hover:opacity-80"
+                style={{ background: 'rgba(71, 85, 105, 0.5)', color: theme.text.primary }}
+              >
+                ← Back
+              </button>
+              <button
+                onClick={handleTransfer}
+                disabled={isProcessing}
+                className="flex-1 py-3 rounded-xl font-bold transition-all hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+                style={{ background: accentColor, color: '#1E1D40' }}
+              >
+                {isProcessing ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  'Confirm Transfer'
+                )}
+              </button>
+            </div>
+          </div>
+        );
+
+      case 4:
+        return (
+          <div className="text-center py-8">
+            <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(16, 185, 129, 0.15)' }}>
+              <CheckCircle className="w-8 h-8 text-green-500" />
+            </div>
+            <h3 className="text-xl font-bold mb-2" style={{ color: theme.text.primary }}>Transfer Successful!</h3>
+            <p className="text-sm mb-6" style={{ color: theme.text.secondary }}>
+              {selectedUser?.firstName} {selectedUser?.lastName}'s account has been successfully transferred to the new RFID card.
+            </p>
+            <button
+              onClick={onClose}
+              className="px-6 py-3 rounded-xl font-bold transition-all hover:opacity-90"
+              style={{ background: accentColor, color: '#1E1D40' }}
+            >
+              Done
+            </button>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div
         style={{ background: isDarkMode ? '#1E2347' : '#FFFFFF', borderColor: theme.border.primary }}
-        className="relative rounded-2xl shadow-2xl border w-full max-w-md overflow-hidden animate-modalSlide"
+        className="relative rounded-2xl shadow-2xl border w-full max-w-2xl overflow-hidden animate-fadeIn"
       >
-        <div className="p-6">
-          <div className="flex items-center justify-center mb-4">
-            <div style={{ background: 'rgba(255,212,28,0.15)' }} className="w-16 h-16 rounded-full flex items-center justify-center">
-              <CreditCard className="w-8 h-8 text-amber-500" />
-            </div>
-          </div>
-          <h3 style={{ color: theme.text.primary }} className="text-xl font-bold text-center mb-2">Enter New RFID Card</h3>
-          <p style={{ color: theme.text.secondary }} className="text-sm text-center mb-4">
-            Enter the RFID card ID for transferring {selectedUser?.firstName} {selectedUser?.lastName}
-          </p>
-
-          <div className="space-y-4">
+        {/* Header */}
+        <div className="px-6 py-4 flex items-center justify-between border-b" style={{ background: 'linear-gradient(135deg, rgba(255, 212, 28, 0.2) 0%, rgba(255, 212, 28, 0.1) 100%)', borderColor: 'rgba(255, 212, 28, 0.3)' }}>
+          <div className="flex items-center gap-3">
+            <CreditCard className="w-6 h-6" style={{ color: accentColor }} />
             <div>
-              <label style={{ color: theme.text.primary }} className="block text-sm font-medium mb-2">
-                RFID Card ID
-              </label>
-              <input
-                type="text"
-                value={cardId}
-                onChange={(e) => setCardId(e.target.value)}
-                placeholder="e.g., A1B2C3D4E5"
-                style={{
-                  background: theme.bg.input,
-                  borderColor: theme.border.primary,
-                  color: theme.text.primary
-                }}
-                className="w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-amber-500/20"
-                autoFocus
-              />
+              <h2 className="text-xl font-bold" style={{ color: accentColor }}>Transfer RFID Card</h2>
+              <p className="text-sm" style={{ color: theme.text.secondary }}>Transfer user account to new RFID card</p>
             </div>
           </div>
-
-          <div className="p-4 flex gap-3 border-t" style={{ borderColor: theme.border.primary }}>
-            <button
-              onClick={onClose}
-              style={{ background: isDarkMode ? 'rgba(71,85,105,0.5)' : '#E5E7EB', color: theme.text.primary }}
-              className="flex-1 py-3 rounded-xl font-semibold transition-all hover:opacity-80"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={() => onSubmit(cardId)}
-              disabled={!cardId.trim()}
-              style={{
-                background: cardId.trim() ? accentColor : 'rgba(107,114,128,0.15)',
-                color: cardId.trim() ? '#FFFFFF' : theme.text.muted
-              }}
-              className="flex-1 py-3 rounded-xl font-semibold transition-all hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Continue
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            className="hover:opacity-70 transition-colors disabled:opacity-50"
+            style={{ color: theme.text.secondary }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6 6 18"></path>
+              <path d="m6 6 12 12"></path>
+            </svg>
+          </button>
         </div>
-        <style>{`
-          @keyframes modalSlide { from { opacity: 0; transform: scale(0.9) translateY(-20px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-          .animate-modalSlide { animation: modalSlide 0.25s ease-out; }
-        `}</style>
+
+        {/* Progress Steps */}
+        {currentStep < 4 && (
+          <div className="flex items-center justify-center gap-3 py-4 px-6" style={{ background: 'rgba(15, 18, 39, 0.5)' }}>
+            {steps.map((step, index) => (
+              <React.Fragment key={step.id}>
+                <div className="flex items-center gap-2" style={{ opacity: currentStep >= step.id ? 1 : 0.4 }}>
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold border-2 text-sm" style={{
+                    background: currentStep >= step.id ? accentColor : 'transparent',
+                    borderColor: accentColor,
+                    color: currentStep >= step.id ? '#1E1D40' : theme.text.secondary
+                  }}>
+                    {currentStep > step.id ? (
+                      <CheckCircle className="w-4 h-4" />
+                    ) : (
+                      step.id
+                    )}
+                  </div>
+                  <span className="hidden sm:inline font-medium text-sm" style={{ color: currentStep >= step.id ? accentColor : theme.text.secondary }}>
+                    {step.name}
+                  </span>
+                </div>
+                {index < steps.length - 1 && (
+                  <div className="w-8 h-0.5 rounded" style={{ background: currentStep > step.id ? accentColor : 'rgba(255, 212, 28, 0.2)' }} />
+                )}
+              </React.Fragment>
+            ))}
+          </div>
+        )}
+
+        {/* Content */}
+        <div className="p-6 max-h-[60vh] overflow-y-auto">
+          {renderStepContent()}
+        </div>
       </div>
     </div>
   );
+}
+
+// Add CSS animation
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .animate-fadeIn {
+    animation: fadeIn 0.2s ease-out;
+  }
+`;
+if (!document.head.querySelector('style[data-transfer-modal]')) {
+  style.setAttribute('data-transfer-modal', 'true');
+  document.head.appendChild(style);
 }
 function TransferConfirmModal({ isOpen, onClose, onConfirm, selectedUser, newCardId }) {
   const { theme, isDarkMode } = useTheme();
@@ -252,12 +583,10 @@ export default function TransferCard() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [transferring, setTransferring] = useState(false);
   const [transferComplete, setTransferComplete] = useState(false);
-  const [showCardInput, setShowCardInput] = useState(false);
-  const [newCardId, setNewCardId] = useState('');
+  const [showTransferModal, setShowTransferModal] = useState(false);
 
   // Modal states
   const [notification, setNotification] = useState({ isOpen: false, type: 'success', title: '', message: '' });
-  const [showConfirm, setShowConfirm] = useState(false);
 
   // Use theme accent color
   const accentColor = theme.accent.primary;
@@ -293,51 +622,21 @@ export default function TransferCard() {
 
   const handleTransferClick = (user) => {
     setSelectedUser(user);
-    setShowCardInput(true);
+    setShowTransferModal(true);
   };
 
-  const handleCardInputSubmit = (cardId) => {
-    if (!cardId.trim()) {
-      showNotification('warning', 'Input Required', 'Please enter the new RFID card ID.');
-      return;
-    }
-    setNewCardId(cardId.trim());
-    setShowCardInput(false);
-    setShowConfirm(true);
-  };
-
-  const handleTransfer = async () => {
-    setShowConfirm(false);
-    setTransferring(true);
-
-    try {
-      // Call the transfer-card endpoint
-      const response = await api.post('/admin/sysad/transfer-card', {
-        oldCardUid: selectedUser.rfidUId,
-        newCardUid: newCardId.trim(),
-        adminId: 'sysad' // You might want to get this from auth context
-      });
-
-      // Show success and reset
-      setTransferComplete(true);
-      showNotification('success', 'Transfer Completed', `RFID card successfully transferred for ${selectedUser.firstName} ${selectedUser.lastName}.`);
-      
-      // Reload users to get updated data
-      await loadUsers();
-    } catch (error) {
-      console.error('Transfer error:', error);
-      const errorMessage = error.response?.data?.message || error.message || 'Failed to transfer RFID card. Please try again.';
-      showNotification('error', 'Transfer Failed', errorMessage);
-    } finally {
-      setTransferring(false);
-    }
+  const handleTransferModalClose = () => {
+    setShowTransferModal(false);
+    setCurrentStep(1);
+    setNewRfid('');
+    setSelectedUser(null);
+    // Refresh users list after successful transfer
+    loadUsers(true);
   };
 
   const handleReset = () => {
     setSelectedUser(null);
-    setNewCardId('');
     setTransferComplete(false);
-    setShowCardInput(false);
   };
 
   return (
@@ -577,21 +876,11 @@ export default function TransferCard() {
         </>
       )}
 
-      {/* Card Input Modal */}
-      <CardInputModal
-        isOpen={showCardInput}
-        onClose={() => setShowCardInput(false)}
-        onSubmit={handleCardInputSubmit}
+      {/* Transfer Modal */}
+      <TransferModal
+        isOpen={showTransferModal}
+        onClose={handleTransferModalClose}
         selectedUser={selectedUser}
-      />
-
-      {/* Transfer Confirmation Modal */}
-      <TransferConfirmModal
-        isOpen={showConfirm}
-        onClose={() => setShowConfirm(false)}
-        onConfirm={handleTransfer}
-        selectedUser={selectedUser}
-        newCardId={newCardId}
       />
 
       {/* Notification Modal */}
