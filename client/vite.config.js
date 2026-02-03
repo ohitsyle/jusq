@@ -24,6 +24,7 @@ export default defineConfig({
     }
   },
   define: {
-    __APP_VERSION__: '"2.0.1"'
+    __APP_VERSION__: '"2.0.1"',
+    'import.meta.env.VITE_API_URL': '"http://18.166.29.239:3000/api"'
   }
 });
