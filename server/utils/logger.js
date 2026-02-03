@@ -56,10 +56,15 @@ export async function logLogin(data) {
     severity: 'info',
     userId: data.userId,
     driverId: data.driverId,
+    adminId: data.adminId,
+    adminName: data.userName || data.adminName,
     ipAddress: data.ipAddress,
+    department: data.department || (data.userType?.includes('Admin') ? data.userType?.match(/\(([^)]+)\)/)?.[1] : null),
+    targetEntity: data.adminId ? 'admin' : (data.driverId ? 'driver' : 'user'),
     metadata: {
       userType: data.userType,
-      deviceInfo: data.deviceInfo
+      deviceInfo: data.deviceInfo,
+      adminRole: data.adminRole || (data.userType?.includes('Admin') ? data.userType?.match(/\(([^)]+)\)/)?.[1] : null)
     }
   });
 }
@@ -75,9 +80,14 @@ export async function logLogout(data) {
     severity: 'info',
     userId: data.userId,
     driverId: data.driverId,
+    adminId: data.adminId,
+    adminName: data.userName || data.adminName,
+    department: data.department || (data.userType?.includes('Admin') ? data.userType?.match(/\(([^)]+)\)/)?.[1] : null),
+    targetEntity: data.adminId ? 'admin' : (data.driverId ? 'driver' : 'user'),
     metadata: {
       userType: data.userType,
-      sessionDuration: data.sessionDuration
+      sessionDuration: data.sessionDuration,
+      adminRole: data.adminRole || (data.userType?.includes('Admin') ? data.userType?.match(/\(([^)]+)\)/)?.[1] : null)
     }
   });
 }
@@ -154,18 +164,24 @@ export async function logDriverAssignment(data) {
  */
 export async function logAdminAction(data) {
   return await logEvent({
-    eventType: 'admin_action',
+    eventType: data.crudOperation || 'admin_action',
     title: data.action,
     description: `Admin ${data.adminName || data.adminId} ${data.description}`,
     severity: data.severity || 'info',
+    adminId: data.adminId,
+    adminName: data.adminName,
+    department: data.department || data.adminRole,
+    targetEntity: data.targetEntity || 'admin',
     metadata: {
       adminId: data.adminId,
       adminName: data.adminName,
+      adminRole: data.adminRole,
       action: data.action,
       targetEntity: data.targetEntity,
       targetId: data.targetId,
       changes: data.changes,
-      ipAddress: data.ipAddress
+      ipAddress: data.ipAddress,
+      crudOperation: data.crudOperation
     }
   });
 }

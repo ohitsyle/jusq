@@ -84,6 +84,21 @@ router.put('/:tripId/end', async (req, res) => {
     trip.status = 'completed';
     await trip.save();
 
+    // Clear driver's shuttle assignment when trip ends
+    try {
+      await Driver.updateOne(
+        { driverId: trip.driverId },
+        { 
+          $unset: { shuttleId: "" },
+          $set: { updatedAt: new Date() }
+        }
+      );
+      console.log('✅ Cleared shuttle assignment for driver:', trip.driverId);
+    } catch (driverUpdateError) {
+      console.warn('⚠️ Failed to clear driver shuttle assignment:', driverUpdateError.message);
+      // Don't fail the trip end if driver update fails
+    }
+
     // Log trip end
     await logTripEnd({
       tripId: trip._id.toString(),

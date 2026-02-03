@@ -67,92 +67,152 @@ export default function LogsList() {
     // System admin sees everything
     if (role === 'sysad') return true;
 
-    // Motorpool sees: motorpool admin logins/logouts, driver/shuttle/route/trip operations
+    // Motorpool admin sees:
+    // - who/when/what (all motorpool admin activities)
+    // - login/logout of every motorpool admin
+    // - crud of every tab and by which motorpool admin
+    // - which motorpool admin updates/adds note, resolves a concern by which user
+    // - when driver logs in/out of mobileapp
+    // - when driver choose shuttle and route
+    // - when driver start trip, end trip, and goes back to routes page (changes routes and refunds)
+    // - which motorpool admin changed auto export configs for department
+    // - display if a certain motorpool admin did a manual export
     if (role === 'motorpool') {
       const isMotorpoolAdminAuth = (log.eventType === 'login' || log.eventType === 'logout') &&
         log.metadata?.adminRole === 'motorpool';
+
+      const isMotorpoolCRUD = (log.eventType === 'crud_create' || log.eventType === 'crud_update' || log.eventType === 'crud_delete') &&
+        log.metadata?.adminRole === 'motorpool';
+
+      const isMotorpoolNotes = (log.eventType === 'note_added' || log.eventType === 'note_updated' || log.eventType === 'concern_resolved') &&
+        log.metadata?.adminRole === 'motorpool';
+
+      const isMotorpoolDriverActivity = 
+        log.eventType === 'driver_login' ||
+        log.eventType === 'driver_logout' ||
+        log.eventType === 'trip_start' ||
+        log.eventType === 'trip_end' ||
+        log.eventType === 'route_change' ||
+        log.eventType === 'refund';
+
+      const isMotorpoolExport = 
+        (log.eventType === 'export_manual' || log.eventType === 'export_auto') &&
+        log.metadata?.adminRole === 'motorpool';
+
+      const isMotorpoolConfig =
+        (log.eventType === 'config_updated' && log.metadata?.adminRole === 'motorpool') ||
+        log.department === 'motorpool';
 
       const isMotorpoolRelated =
         log.driverId ||
         log.shuttleId ||
         log.routeId ||
         log.tripId ||
-        log.eventType === 'route_start' ||
-        log.eventType === 'route_end' ||
-        log.eventType === 'driver_assignment' ||
-        log.eventType === 'shuttle_assignment' ||
-        log.eventType === 'trip_start' ||
-        log.eventType === 'trip_end' ||
-        log.eventType === 'trip_created' ||
-        log.eventType === 'trip_completed' ||
-        log.eventType === 'trip_cancelled' ||
-        log.eventType === 'driver_created' ||
-        log.eventType === 'driver_updated' ||
-        log.eventType === 'driver_deleted' ||
-        log.eventType === 'shuttle_created' ||
-        log.eventType === 'shuttle_updated' ||
-        log.eventType === 'shuttle_deleted' ||
-        log.eventType === 'route_created' ||
-        log.eventType === 'route_updated' ||
-        log.eventType === 'route_deleted' ||
-        log.eventType === 'phone_assigned' ||
-        log.eventType === 'phone_unassigned' ||
-        log.eventType === 'payment' ||
-        log.eventType === 'passenger_boarding' ||
-        log.eventType === 'passenger_alighting' ||
-        log.metadata?.department === 'motorpool' ||
         log.targetEntity === 'driver' ||
         log.targetEntity === 'shuttle' ||
         log.targetEntity === 'route' ||
         log.targetEntity === 'trip' ||
         log.targetEntity === 'phone';
 
-      return isMotorpoolAdminAuth || isMotorpoolRelated;
+      return isMotorpoolAdminAuth || isMotorpoolCRUD || isMotorpoolNotes || 
+             isMotorpoolDriverActivity || isMotorpoolExport || isMotorpoolConfig || isMotorpoolRelated;
     }
 
-    // Merchant sees: merchant admin logins/logouts, merchant transactions/payments
+    // Merchant admin sees:
+    // - who/when/what (all merchant admin activities)
+    // - login/logout of every merchant admin
+    // - crud of every tab and by which merchant admin
+    // - which merchant admin updates/adds note, resolves a concern by which user
+    // - when a merchant logs on/off mobile app
+    // - which merchant admin changed auto export configs for department
+    // - display if a certain merchant admin did a manual export
     if (role === 'merchant') {
       const isMerchantAdminAuth = (log.eventType === 'login' || log.eventType === 'logout') &&
         log.metadata?.adminRole === 'merchant';
 
-      const isMerchantRelated =
-        log.eventType === 'merchant_payment' ||
-        log.eventType === 'merchant_transaction' ||
-        log.metadata?.department === 'merchant' ||
-        log.targetEntity === 'merchant';
+      const isMerchantCRUD = (log.eventType === 'crud_create' || log.eventType === 'crud_update' || log.eventType === 'crud_delete') &&
+        log.metadata?.adminRole === 'merchant';
 
-      return isMerchantAdminAuth || isMerchantRelated;
+      const isMerchantNotes = (log.eventType === 'note_added' || log.eventType === 'note_updated' || log.eventType === 'concern_resolved') &&
+        log.metadata?.adminRole === 'merchant';
+
+      const isMerchantActivity = 
+        log.eventType === 'merchant_login' ||
+        log.eventType === 'merchant_logout';
+
+      const isMerchantExport = 
+        (log.eventType === 'export_manual' || log.eventType === 'export_auto') &&
+        log.metadata?.adminRole === 'merchant';
+
+      const isMerchantConfig =
+        (log.eventType === 'config_updated' && log.metadata?.adminRole === 'merchant') ||
+        log.department === 'merchant';
+
+      const isMerchantRelated = log.targetEntity === 'merchant';
+
+      return isMerchantAdminAuth || isMerchantCRUD || isMerchantNotes || 
+             isMerchantActivity || isMerchantExport || isMerchantConfig || isMerchantRelated;
     }
 
-    // Treasury sees: treasury admin logins/logouts, cash-in, registrations
+    // Treasury admin sees:
+    // - who/when/what (all treasury admin activities)
+    // - login/logout of every treasury admin
+    // - crud of every tab and by which treasury admin
+    // - which treasury admin updates/adds note, resolves a concern by which user
+    // - cashed in which user by which treasury admin
+    // - which treasury admin changed auto export configs for department
+    // - display if a certain treasury admin did a manual export
     if (role === 'treasury') {
       const isTreasuryAdminAuth = (log.eventType === 'login' || log.eventType === 'logout') &&
         log.metadata?.adminRole === 'treasury';
 
-      const isTreasuryRelated =
-        log.eventType === 'cash_in' ||
-        log.eventType === 'registration' ||
-        log.eventType === 'user_created' ||
-        log.eventType === 'user_activated' ||
-        log.eventType === 'balance_update' ||
-        log.metadata?.department === 'treasury' ||
-        log.targetEntity === 'user' ||
-        log.targetEntity === 'transaction';
+      const isTreasuryCRUD = (log.eventType === 'crud_create' || log.eventType === 'crud_update' || log.eventType === 'crud_delete') &&
+        log.metadata?.adminRole === 'treasury';
 
-      return isTreasuryAdminAuth || isTreasuryRelated;
+      const isTreasuryNotes = (log.eventType === 'note_added' || log.eventType === 'note_updated' || log.eventType === 'concern_resolved') &&
+        log.metadata?.adminRole === 'treasury';
+
+      const isTreasuryCashIn = log.eventType === 'cash_in' && log.metadata?.adminRole === 'treasury';
+
+      const isTreasuryExport = 
+        (log.eventType === 'export_manual' || log.eventType === 'export_auto') &&
+        log.metadata?.adminRole === 'treasury';
+
+      const isTreasuryConfig =
+        (log.eventType === 'config_updated' && log.metadata?.adminRole === 'treasury') ||
+        log.department === 'treasury';
+
+      const isTreasuryRelated = 
+        log.targetEntity === 'user' ||
+        log.targetEntity === 'transaction' ||
+        log.eventType === 'registration';
+
+      return isTreasuryAdminAuth || isTreasuryCRUD || isTreasuryNotes || 
+             isTreasuryCashIn || isTreasuryExport || isTreasuryConfig || isTreasuryRelated;
     }
 
-    // Accounting sees: accounting admin logins/logouts, transaction views/exports
+    // Accounting admin sees:
+    // - who/when/what (all accounting admin activities)
+    // - login/logout of every accounting admin
+    // - crud of every tab and by which accounting admin
+    // - which accounting admin changed auto export configs for department
+    // - display if a certain accounting admin did a manual export
     if (role === 'accounting') {
       const isAccountingAdminAuth = (log.eventType === 'login' || log.eventType === 'logout') &&
         log.metadata?.adminRole === 'accounting';
 
-      const isAccountingRelated =
-        log.eventType === 'report_generated' ||
-        log.eventType === 'export_downloaded' ||
-        log.metadata?.department === 'accounting';
+      const isAccountingCRUD = (log.eventType === 'crud_create' || log.eventType === 'crud_update' || log.eventType === 'crud_delete') &&
+        log.metadata?.adminRole === 'accounting';
 
-      return isAccountingAdminAuth || isAccountingRelated;
+      const isAccountingExport = 
+        (log.eventType === 'export_manual' || log.eventType === 'export_auto') &&
+        log.metadata?.adminRole === 'accounting';
+
+      const isAccountingConfig =
+        (log.eventType === 'config_updated' && log.metadata?.adminRole === 'accounting') ||
+        log.department === 'accounting';
+
+      return isAccountingAdminAuth || isAccountingCRUD || isAccountingExport || isAccountingConfig;
     }
 
     return false;
@@ -217,45 +277,105 @@ export default function LogsList() {
 
     if (role === 'motorpool') {
       return [
-        { value: 'login', label: 'Login' },
-        { value: 'logout', label: 'Logout' },
-        { value: 'driver_created', label: 'Driver Created' },
-        { value: 'driver_updated', label: 'Driver Updated' },
-        { value: 'shuttle_created', label: 'Shuttle Created' },
-        { value: 'route_start', label: 'Route Start' },
-        { value: 'route_end', label: 'Route End' },
-        { value: 'trip_created', label: 'Trip Created' },
-        { value: 'payment', label: 'Payment' }
+        { value: 'login', label: 'Admin Login' },
+        { value: 'logout', label: 'Admin Logout' },
+        { value: 'crud_create', label: 'Create Record' },
+        { value: 'crud_update', label: 'Update Record' },
+        { value: 'crud_delete', label: 'Delete Record' },
+        { value: 'note_added', label: 'Note Added' },
+        { value: 'note_updated', label: 'Note Updated' },
+        { value: 'concern_resolved', label: 'Concern Resolved' },
+        { value: 'driver_login', label: 'Driver Login' },
+        { value: 'driver_logout', label: 'Driver Logout' },
+        { value: 'trip_start', label: 'Trip Start' },
+        { value: 'trip_end', label: 'Trip End' },
+        { value: 'route_change', label: 'Route Change' },
+        { value: 'refund', label: 'Refund' },
+        { value: 'export_manual', label: 'Manual Export' },
+        { value: 'export_auto', label: 'Auto Export' },
+        { value: 'config_updated', label: 'Config Updated' }
       ];
     }
 
     if (role === 'treasury') {
       return [
-        { value: 'login', label: 'Login' },
-        { value: 'logout', label: 'Logout' },
-        { value: 'cash_in', label: 'Cash-In' },
+        { value: 'login', label: 'Admin Login' },
+        { value: 'logout', label: 'Admin Logout' },
+        { value: 'crud_create', label: 'Create Record' },
+        { value: 'crud_update', label: 'Update Record' },
+        { value: 'crud_delete', label: 'Delete Record' },
+        { value: 'note_added', label: 'Note Added' },
+        { value: 'note_updated', label: 'Note Updated' },
+        { value: 'concern_resolved', label: 'Concern Resolved' },
+        { value: 'cash_in', label: 'Cash In' },
         { value: 'registration', label: 'Registration' },
-        { value: 'user_created', label: 'User Created' },
-        { value: 'user_activated', label: 'User Activated' }
+        { value: 'export_manual', label: 'Manual Export' },
+        { value: 'export_auto', label: 'Auto Export' },
+        { value: 'config_updated', label: 'Config Updated' }
       ];
     }
 
     if (role === 'merchant') {
       return [
-        { value: 'login', label: 'Login' },
-        { value: 'logout', label: 'Logout' },
-        { value: 'merchant_payment', label: 'Payment' },
-        { value: 'merchant_transaction', label: 'Transaction' }
+        { value: 'login', label: 'Admin Login' },
+        { value: 'logout', label: 'Admin Logout' },
+        { value: 'crud_create', label: 'Create Record' },
+        { value: 'crud_update', label: 'Update Record' },
+        { value: 'crud_delete', label: 'Delete Record' },
+        { value: 'note_added', label: 'Note Added' },
+        { value: 'note_updated', label: 'Note Updated' },
+        { value: 'concern_resolved', label: 'Concern Resolved' },
+        { value: 'merchant_login', label: 'Merchant Login' },
+        { value: 'merchant_logout', label: 'Merchant Logout' },
+        { value: 'export_manual', label: 'Manual Export' },
+        { value: 'export_auto', label: 'Auto Export' },
+        { value: 'config_updated', label: 'Config Updated' }
       ];
     }
 
-    // Default (sysad)
+    if (role === 'accounting') {
+      return [
+        { value: 'login', label: 'Admin Login' },
+        { value: 'logout', label: 'Admin Logout' },
+        { value: 'crud_create', label: 'Create Record' },
+        { value: 'crud_update', label: 'Update Record' },
+        { value: 'crud_delete', label: 'Delete Record' },
+        { value: 'export_manual', label: 'Manual Export' },
+        { value: 'export_auto', label: 'Auto Export' },
+        { value: 'config_updated', label: 'Config Updated' }
+      ];
+    }
+
+    // System admin (sysad) - sees everything
     return [
       { value: 'login', label: 'Login' },
       { value: 'logout', label: 'Logout' },
+      { value: 'crud_create', label: 'Create Record' },
+      { value: 'crud_update', label: 'Update Record' },
+      { value: 'crud_delete', label: 'Delete Record' },
+      { value: 'note_added', label: 'Note Added' },
+      { value: 'note_updated', label: 'Note Updated' },
+      { value: 'concern_resolved', label: 'Concern Resolved' },
+      { value: 'driver_login', label: 'Driver Login' },
+      { value: 'driver_logout', label: 'Driver Logout' },
+      { value: 'merchant_login', label: 'Merchant Login' },
+      { value: 'merchant_logout', label: 'Merchant Logout' },
+      { value: 'trip_start', label: 'Trip Start' },
+      { value: 'trip_end', label: 'Trip End' },
+      { value: 'route_change', label: 'Route Change' },
+      { value: 'refund', label: 'Refund' },
+      { value: 'cash_in', label: 'Cash In' },
+      { value: 'registration', label: 'Registration' },
+      { value: 'export_manual', label: 'Manual Export' },
+      { value: 'export_auto', label: 'Auto Export' },
+      { value: 'maintenance_mode', label: 'Maintenance Mode' },
+      { value: 'student_deactivation', label: 'Student Deactivation' },
+      { value: 'config_updated', label: 'Config Updated' },
       { value: 'admin_action', label: 'Admin Action' },
       { value: 'user_action', label: 'User Action' },
-      { value: 'system_event', label: 'System Event' }
+      { value: 'system', label: 'System Event' },
+      { value: 'security', label: 'Security Event' },
+      { value: 'error', label: 'Error' }
     ];
   };
 

@@ -28,7 +28,31 @@ const EventLogSchema = new mongoose.Schema({
       'system',
       'security',
       'admin_action',
-      'user_action'
+      'user_action',
+      'crud_create',
+      'crud_read',
+      'crud_update',
+      'crud_delete',
+      'export_manual',
+      'export_auto',
+      'maintenance_mode',
+      'student_deactivation',
+      'note_added',
+      'note_updated',
+      'concern_resolved',
+      'cash_in',
+      'registration',
+      'merchant_login',
+      'merchant_logout',
+      'driver_login',
+      'driver_logout',
+      'trip_start',
+      'trip_end',
+      'route_change',
+      'refund',
+      'phone_assigned',
+      'phone_unassigned',
+      'config_updated'
     ],
     index: true
   },
@@ -89,6 +113,20 @@ const EventLogSchema = new mongoose.Schema({
     default: null
   },
   
+  // Department and entity classification
+  department: {
+    type: String,
+    enum: ['motorpool', 'merchant', 'treasury', 'accounting', 'system'],
+    default: null,
+    index: true
+  },
+  targetEntity: {
+    type: String,
+    enum: ['driver', 'shuttle', 'route', 'trip', 'phone', 'user', 'transaction', 'merchant', 'admin', 'concern', 'config'],
+    default: null,
+    index: true
+  },
+  
   // IP and location
   ipAddress: {
     type: String,
@@ -130,6 +168,9 @@ EventLogSchema.index({ severity: 1, timestamp: -1 });
 EventLogSchema.index({ userId: 1, timestamp: -1 });
 EventLogSchema.index({ driverId: 1, timestamp: -1 });
 EventLogSchema.index({ shuttleId: 1, timestamp: -1 });
+EventLogSchema.index({ department: 1, timestamp: -1 });
+EventLogSchema.index({ targetEntity: 1, timestamp: -1 });
+EventLogSchema.index({ adminId: 1, timestamp: -1 });
 
 // Auto-archive old logs (older than 90 days)
 EventLogSchema.index({ createdAt: 1 }, { expireAfterSeconds: 7776000 }); // 90 days

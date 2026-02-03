@@ -9,6 +9,7 @@ import Merchant from '../models/Merchant.js';
 import UserConcern from '../models/UserConcern.js';
 import { logAdminAction } from '../utils/logger.js';
 import { sendTemporaryPIN, sendConcernInProgressEmail, sendConcernResolvedEmail } from '../services/emailService.js';
+import { convertRfidToHexLittleEndian, validateRfidFormat } from '../utils/rfidConverter.js';
 
 // ============================================================
 // DASHBOARD ENDPOINT
@@ -754,8 +755,19 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    // Check if RFID already exists
-    const existingRFID = await User.findOne({ rfidUId });
+    // Validate and convert RFID to hex little-endian
+    if (!validateRfidFormat(rfidUId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid RFID format. Please provide a valid RFID tag number.'
+      });
+    }
+
+    const convertedRfidUId = convertRfidToHexLittleEndian(rfidUId);
+    console.log(`🔄 RFID conversion: ${rfidUId} → ${convertedRfidUId}`);
+
+    // Check if RFID already exists (using converted format)
+    const existingRFID = await User.findOne({ rfidUId: convertedRfidUId });
     if (existingRFID) {
       return res.status(400).json({
         success: false,
@@ -789,7 +801,7 @@ router.post('/register', async (req, res) => {
     const user = new User({
       userId,
       schoolUId,
-      rfidUId,
+      rfidUId: convertedRfidUId, // Use converted RFID
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       middleName: middleName ? middleName.trim() : '',
@@ -811,7 +823,7 @@ router.post('/register', async (req, res) => {
       adminId: 'treasury',
       targetEntity: 'user',
       targetId: user._id.toString(),
-      changes: { schoolUId, rfidUId, firstName, lastName, email, role }
+      changes: { schoolUId, rfidUId: convertedRfidUId, firstName, lastName, email, role }
     });
 
     // Send email with temporary PIN
@@ -871,12 +883,24 @@ router.get('/users/check-rfid', async (req, res) => {
       });
     }
 
-    const existing = await User.findOne({ rfidUId });
+    // Validate and convert RFID format
+    if (!validateRfidFormat(rfidUId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid RFID format. Please provide a valid RFID tag number.'
+      });
+    }
+
+    const convertedRfidUId = convertRfidToHexLittleEndian(rfidUId);
+
+    const existing = await User.findOne({ rfidUId: convertedRfidUId });
 
     res.json({
       success: true,
       available: !existing,
-      message: existing ? 'RFID already in use' : 'RFID available'
+      message: existing ? 'RFID already in use' : 'RFID available',
+      originalRfid: rfidUId,
+      convertedRfid: convertedRfidUId
     });
   } catch (error) {
     console.error('❌ Check RFID error:', error);
@@ -945,8 +969,19 @@ router.post('/users/register', async (req, res) => {
       });
     }
 
-    // Check if RFID or School ID already exists
-    const existingRFID = await User.findOne({ rfidUId });
+    // Validate and convert RFID to hex little-endian
+    if (!validateRfidFormat(rfidUId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid RFID format. Please provide a valid RFID tag number.'
+      });
+    }
+
+    const convertedRfidUId = convertRfidToHexLittleEndian(rfidUId);
+    console.log(`🔄 RFID conversion: ${rfidUId} → ${convertedRfidUId}`);
+
+    // Check if RFID or School ID already exists (using converted format)
+    const existingRFID = await User.findOne({ rfidUId: convertedRfidUId });
     if (existingRFID) {
       return res.status(400).json({
         success: false,
@@ -979,7 +1014,7 @@ router.post('/users/register', async (req, res) => {
     const user = new User({
       userId,
       schoolUId,
-      rfidUId,
+      rfidUId: convertedRfidUId, // Use converted RFID
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       middleName: middleName ? middleName.trim() : '',
@@ -1000,7 +1035,7 @@ router.post('/users/register', async (req, res) => {
       adminId: adminId || 'treasury',
       targetEntity: 'user',
       targetId: user.userId.toString(),
-      changes: { schoolUId, rfidUId, firstName, lastName, email, role }
+      changes: { schoolUId, rfidUId: convertedRfidUId, firstName, lastName, email, role }
     });
 
     // Send email with temporary PIN

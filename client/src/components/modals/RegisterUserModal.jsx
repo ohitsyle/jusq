@@ -7,41 +7,48 @@ import { useTheme } from '../../context/ThemeContext';
 import api from '../../utils/api';
 import { toast } from 'react-toastify';
 
-// RFID Hex conversion utility (byte-reversed / little-endian)
-// Only converts if needed - doesn't double convert
+// RFID Hex conversion utility (matches backend server logic)
 const normalizeRfidHex = (input) => {
   if (!input) return '';
 
-  // Remove any spaces, colons, or dashes and uppercase
-  let cleaned = input.replace(/[\s:-]/g, '').toUpperCase();
-
-  // If it's already 8 character hex, assume it's already in correct format
-  if (/^[0-9A-F]{8}$/.test(cleaned)) {
+  // Remove any whitespace and convert to uppercase
+  let cleaned = input.replace(/\s+/g, '').toUpperCase();
+  
+  // If it's already in hex format (contains A-F but not only digits), just validate and return
+  if (/[A-F]/.test(cleaned) && /^[0-9A-F]+$/.test(cleaned)) {
     return cleaned;
   }
-
-  // If it's a different length hex, try to normalize
-  if (/^[0-9A-F]+$/.test(cleaned)) {
-    // Pad to even length if needed
-    if (cleaned.length % 2 !== 0) cleaned = '0' + cleaned;
-    // Reverse bytes for little-endian
-    const bytes = cleaned.match(/.{2}/g) || [];
-    return bytes.reverse().join('');
-  }
-
-  // If it's decimal, convert to hex then reverse
+  
+  // If it's all digits, convert from decimal to hex
   if (/^\d+$/.test(cleaned)) {
-    const decimal = BigInt(cleaned);
-    let hex = decimal.toString(16).toUpperCase();
-    // Pad to even length
-    if (hex.length % 2 !== 0) hex = '0' + hex;
-    // Pad to 8 characters if less
-    while (hex.length < 8) hex = '0' + hex;
-    // Reverse bytes
-    const bytes = hex.match(/.{2}/g) || [];
-    return bytes.reverse().join('');
+    const decimalValue = parseInt(cleaned, 10);
+    let hexValue = decimalValue.toString(16).toUpperCase();
+    
+    // Ensure it's an even number of characters (pad with leading zero if needed)
+    if (hexValue.length % 2 !== 0) {
+      hexValue = '0' + hexValue;
+    }
+    
+    return hexValue;
   }
-
+  
+  // If it contains mixed format, try to extract the largest numeric part
+  const numericParts = cleaned.match(/\d+/g);
+  if (numericParts && numericParts.length > 0) {
+    // Find the largest numeric part
+    const largestNumeric = numericParts.reduce((a, b) => a.length > b.length ? a : b);
+    const decimalValue = parseInt(largestNumeric, 10);
+    
+    let hexValue = decimalValue.toString(16).toUpperCase();
+    
+    if (hexValue.length % 2 !== 0) {
+      hexValue = '0' + hexValue;
+    }
+    
+    return hexValue;
+  }
+  
+  // If we can't parse it, return the original cleaned value
   return cleaned;
 };
 
@@ -380,7 +387,7 @@ export default function RegisterUserModal({ isOpen, onClose, onSuccess, prefillR
                   </p>
                   <p style={{ color: theme.text.secondary }} className="text-sm mt-1">
                     Place the ID card on the RFID scanner or type the RFID manually.
-                    Format will be automatically converted to Hex (little-endian).
+                    Format will be automatically converted to Hex format (decimal → hex, hex → unchanged).
                   </p>
                 </div>
               </div>

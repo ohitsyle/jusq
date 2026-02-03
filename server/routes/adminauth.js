@@ -119,9 +119,11 @@ router.post('/login', async (req, res) => {
 
     // Log the login event
     await logLogin({
-      userId: admin.adminId,
-      userName: `${admin.firstName} ${admin.lastName}`,
+      adminId: admin.adminId,
+      adminName: `${admin.firstName} ${admin.lastName}`,
       userType: `Admin (${admin.role})`,
+      adminRole: admin.role,
+      department: admin.role,
       ipAddress: req.ip || req.connection?.remoteAddress,
       deviceInfo: req.headers['user-agent']
     });
@@ -164,9 +166,11 @@ router.post('/logout', authenticateAdmin, async (req, res) => {
 
     // Log the logout event
     await logLogout({
-      userId: admin.adminId,
-      userName: admin.email,
+      adminId: admin.adminId,
+      adminName: `${admin.firstName} ${admin.lastName}`,
       userType: `Admin (${admin.role})`,
+      adminRole: admin.role,
+      department: admin.role,
       sessionDuration: req.body.sessionDuration || null
     });
 

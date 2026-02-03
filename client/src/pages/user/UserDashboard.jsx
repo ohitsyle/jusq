@@ -539,6 +539,8 @@ function ConcernModal({ onClose, theme, isDarkMode }) {
         setStep(3);
       }
     } else if (step === 2 && merchant) {
+      // Auto-set subject to merchant name when merchant is selected
+      setSubject(merchant);
       setStep(3);
     } else if (step === 3 && subject && details) {
       setStep(4);
@@ -549,9 +551,11 @@ function ConcernModal({ onClose, theme, isDarkMode }) {
     if (step === 2) {
       setStep(1);
       setMerchant('');
+      setSubject(''); // Clear subject when going back from merchant selection
     } else if (step === 3) {
       if (department === 'merchants') {
         setStep(2);
+        setSubject(''); // Clear subject when going back to merchant selection
       } else {
         setStep(1);
       }
@@ -751,10 +755,31 @@ function ConcernModal({ onClose, theme, isDarkMode }) {
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
                   placeholder="Brief description of your concern"
-                  style={inputStyle}
-                  onFocus={(e) => e.target.style.borderColor = '#F59E0B'}
-                  onBlur={(e) => e.target.style.borderColor = isDarkMode ? 'rgba(255,212,28,0.2)' : 'rgba(59,130,246,0.2)'}
+                  style={{
+                    ...inputStyle,
+                    backgroundColor: department === 'merchants' 
+                      ? (isDarkMode ? 'rgba(15,18,39,0.3)' : '#F3F4F6')
+                      : inputStyle.backgroundColor,
+                    cursor: department === 'merchants' ? 'not-allowed' : 'text'
+                  }}
+                  onFocus={(e) => {
+                    if (department !== 'merchants') {
+                      e.target.style.borderColor = '#F59E0B';
+                    }
+                  }}
+                  onBlur={(e) => {
+                    if (department !== 'merchants') {
+                      e.target.style.borderColor = isDarkMode ? 'rgba(255,212,28,0.2)' : 'rgba(59,130,246,0.2)';
+                    }
+                  }}
+                  readOnly={department === 'merchants'}
+                  disabled={department === 'merchants'}
                 />
+                {department === 'merchants' && (
+                  <p style={{ color: theme.text.secondary, fontSize: '12px', marginTop: '4px' }}>
+                    Subject is automatically set to the selected merchant name
+                  </p>
+                )}
               </div>
               <div>
                 <label style={{ color: theme.text.primary }} className="block font-semibold mb-2">

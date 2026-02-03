@@ -9,12 +9,27 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' }
 });
 
-// Add auth token
+// Add auth token and admin info
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('adminToken') ||
                 localStorage.getItem('merchantToken') ||
                 localStorage.getItem('userToken');
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  
+  // Add admin information to headers for logging
+  const adminData = localStorage.getItem('adminData');
+  if (adminData) {
+    try {
+      const admin = JSON.parse(adminData);
+      config.headers['X-Admin-Id'] = admin.adminId;
+      config.headers['X-Admin-Name'] = `${admin.firstName} ${admin.lastName}`;
+      config.headers['X-Admin-Role'] = admin.role;
+      config.headers['X-Admin-Department'] = admin.role;
+    } catch (e) {
+      console.warn('Failed to parse adminData:', e);
+    }
+  }
+  
   return config;
 });
 

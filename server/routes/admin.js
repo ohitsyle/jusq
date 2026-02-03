@@ -13,6 +13,10 @@ import EventLog from '../models/EventLog.js';
 import UserConcern from '../models/UserConcern.js';
 import Trip from '../models/Trip.js';
 import { logAdminAction, logError } from '../utils/logger.js';
+import { extractAdminInfo } from '../middlewares/extractAdminInfo.js';
+
+// Apply admin info extraction middleware to all admin routes
+router.use(extractAdminInfo);
 
 // Try to import ShuttlePosition (may not exist)
 let ShuttlePosition = null;
@@ -267,12 +271,17 @@ router.post('/drivers', async (req, res) => {
 
     // Log admin action
     await logAdminAction({
+      adminId: req.adminInfo?.adminId || 'system',
+      adminName: req.adminInfo?.adminName || 'Unknown Admin',
+      adminRole: req.adminInfo?.adminRole || 'unknown',
+      department: req.adminInfo?.department,
       action: 'Driver Created',
       description: `created driver ${driver.driverId} (${driver.firstName} ${driver.lastName})`,
-      adminId: req.adminId || 'system',
       targetEntity: 'driver',
       targetId: driver.driverId,
-      changes: req.body
+      crudOperation: 'crud_create',
+      changes: req.body,
+      ipAddress: req.ip
     });
 
     res.status(201).json(driver);
@@ -283,8 +292,25 @@ router.post('/drivers', async (req, res) => {
 
 router.put('/drivers/:id', async (req, res) => {
   try {
+    const oldDriver = await Driver.findById(req.params.id);
     const driver = await Driver.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!driver) return res.status(404).json({ error: 'Driver not found' });
+
+    // Log admin action
+    await logAdminAction({
+      adminId: req.adminInfo?.adminId || 'system',
+      adminName: req.adminInfo?.adminName || 'Unknown Admin',
+      adminRole: req.adminInfo?.adminRole || 'unknown',
+      department: req.adminInfo?.department,
+      action: 'Driver Updated',
+      description: `updated driver ${driver.driverId} (${driver.firstName} ${driver.lastName})`,
+      targetEntity: 'driver',
+      targetId: driver.driverId,
+      crudOperation: 'crud_update',
+      changes: { old: oldDriver, new: driver },
+      ipAddress: req.ip
+    });
+
     res.json(driver);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -298,12 +324,17 @@ router.delete('/drivers/:id', async (req, res) => {
 
     // Log admin action
     await logAdminAction({
+      adminId: req.adminInfo?.adminId || 'system',
+      adminName: req.adminInfo?.adminName || 'Unknown Admin',
+      adminRole: req.adminInfo?.adminRole || 'unknown',
+      department: req.adminInfo?.department,
       action: 'Driver Deleted',
       description: `deleted driver ${driver.driverId} (${driver.firstName} ${driver.lastName})`,
-      adminId: req.adminId || 'system',
       targetEntity: 'driver',
       targetId: driver.driverId,
-      severity: 'warning'
+      crudOperation: 'crud_delete',
+      severity: 'warning',
+      ipAddress: req.ip
     });
 
     res.json({ message: 'Driver deleted' });
@@ -341,6 +372,22 @@ router.post('/shuttles', async (req, res) => {
   try {
     const shuttle = new Shuttle(req.body);
     await shuttle.save();
+
+    // Log admin action
+    await logAdminAction({
+      adminId: req.adminInfo?.adminId || 'system',
+      adminName: req.adminInfo?.adminName || 'Unknown Admin',
+      adminRole: req.adminInfo?.adminRole || 'unknown',
+      department: req.adminInfo?.department,
+      action: 'Shuttle Created',
+      description: `created shuttle ${shuttle.plateNumber}`,
+      targetEntity: 'shuttle',
+      targetId: shuttle._id,
+      crudOperation: 'crud_create',
+      changes: req.body,
+      ipAddress: req.ip
+    });
+
     res.status(201).json(shuttle);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -349,8 +396,25 @@ router.post('/shuttles', async (req, res) => {
 
 router.put('/shuttles/:id', async (req, res) => {
   try {
+    const oldShuttle = await Shuttle.findById(req.params.id);
     const shuttle = await Shuttle.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!shuttle) return res.status(404).json({ error: 'Shuttle not found' });
+
+    // Log admin action
+    await logAdminAction({
+      adminId: req.adminInfo?.adminId || 'system',
+      adminName: req.adminInfo?.adminName || 'Unknown Admin',
+      adminRole: req.adminInfo?.adminRole || 'unknown',
+      department: req.adminInfo?.department,
+      action: 'Shuttle Updated',
+      description: `updated shuttle ${shuttle.plateNumber}`,
+      targetEntity: 'shuttle',
+      targetId: shuttle._id,
+      crudOperation: 'crud_update',
+      changes: { old: oldShuttle, new: shuttle },
+      ipAddress: req.ip
+    });
+
     res.json(shuttle);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -361,6 +425,22 @@ router.delete('/shuttles/:id', async (req, res) => {
   try {
     const shuttle = await Shuttle.findByIdAndDelete(req.params.id);
     if (!shuttle) return res.status(404).json({ error: 'Shuttle not found' });
+
+    // Log admin action
+    await logAdminAction({
+      adminId: req.adminInfo?.adminId || 'system',
+      adminName: req.adminInfo?.adminName || 'Unknown Admin',
+      adminRole: req.adminInfo?.adminRole || 'unknown',
+      department: req.adminInfo?.department,
+      action: 'Shuttle Deleted',
+      description: `deleted shuttle ${shuttle.plateNumber}`,
+      targetEntity: 'shuttle',
+      targetId: shuttle._id,
+      crudOperation: 'crud_delete',
+      severity: 'warning',
+      ipAddress: req.ip
+    });
+
     res.json({ message: 'Shuttle deleted' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -397,16 +477,6 @@ router.get('/phones/:id', async (req, res) => {
     const phone = await Phone.findById(req.params.id);
     if (!phone) return res.status(404).json({ error: 'Phone not found' });
     res.json(phone);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.post('/phones', async (req, res) => {
-  try {
-    const phone = new Phone(req.body);
-    await phone.save();
-    res.status(201).json(phone);
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -501,9 +571,98 @@ router.delete('/routes/:id', async (req, res) => {
 
 router.get('/event-logs', async (req, res) => {
   try {
-    const logs = await EventLog.find().sort({ timestamp: -1 }).limit(100);
+    const { department } = req.query;
+    
+    // Build query based on department/role - works with both old and new formats
+    let query = {};
+    
+    if (!department || department === 'sysad') {
+      // System admin sees everything
+      query = {};
+    } else if (department === 'motorpool') {
+      // Motorpool admin sees motorpool-related logs (works with old and new formats)
+      query = {
+        $or: [
+          // New format: motorpool admin authentication
+          { eventType: { $in: ['login', 'logout'] }, 'metadata.adminRole': 'motorpool' },
+          // New format: department field
+          { department: 'motorpool' },
+          // New format: targetEntity
+          { targetEntity: { $in: ['driver', 'shuttle', 'route', 'trip', 'phone'] } },
+          // Driver-related event types
+          { eventType: { $in: [
+            'driver_login', 'driver_logout', 'trip_start', 'trip_end', 
+            'route_change', 'refund', 'phone_assigned', 'phone_unassigned'
+          ]},
+          // Old format: admin actions by motorpool
+          { eventType: 'admin_action', 'metadata.adminId': 'motorpool' },
+          // Any logs with driverId (motorpool related)
+          { driverId: { $exists: true, $ne: null } },
+          // New format: CRUD operations by motorpool admins
+          { eventType: { $in: ['crud_create', 'crud_update', 'crud_delete'] }, 'metadata.adminRole': 'motorpool' }
+        ]
+      };
+    } else if (department === 'treasury') {
+      // Treasury admin sees treasury-related logs (works with old and new formats)
+      query = {
+        $or: [
+          // New format: treasury admin authentication
+          { eventType: { $in: ['login', 'logout'] }, 'metadata.adminRole': 'treasury' },
+          // New format: department field
+          { department: 'treasury' },
+          // New format: targetEntity
+          { targetEntity: { $in: ['user', 'transaction'] } },
+          // Treasury-specific event types
+          { eventType: { $in: ['cash_in', 'registration'] } },
+          // Old format: admin actions by treasury
+          { eventType: 'admin_action', 'metadata.adminId': 'treasury' },
+          // Old format: cash-in processed by treasury
+          { eventType: 'admin_action', title: /Cash-In/i },
+          // New format: CRUD operations by treasury admins
+          { eventType: { $in: ['crud_create', 'crud_update', 'crud_delete'] }, 'metadata.adminRole': 'treasury' }
+        ]
+      };
+    } else if (department === 'merchant') {
+      // Merchant admin sees merchant-related logs
+      query = {
+        $or: [
+          // New format: merchant admin authentication
+          { eventType: { $in: ['login', 'logout'] }, 'metadata.adminRole': 'merchant' },
+          // New format: department field
+          { department: 'merchant' },
+          // New format: targetEntity
+          { targetEntity: 'merchant' },
+          // Merchant-specific event types
+          { eventType: { $in: ['merchant_login', 'merchant_logout'] } },
+          // Old format: admin actions by merchant
+          { eventType: 'admin_action', 'metadata.adminId': 'merchant' },
+          // New format: CRUD operations by merchant admins
+          { eventType: { $in: ['crud_create', 'crud_update', 'crud_delete'] }, 'metadata.adminRole': 'merchant' }
+        ]
+      };
+    } else if (department === 'accounting') {
+      // Accounting admin sees accounting-related logs
+      query = {
+        $or: [
+          // New format: accounting admin authentication
+          { eventType: { $in: ['login', 'logout'] }, 'metadata.adminRole': 'accounting' },
+          // New format: department field
+          { department: 'accounting' },
+          // Old format: admin actions by accounting
+          { eventType: 'admin_action', 'metadata.adminId': 'accounting' },
+          // New format: CRUD operations by accounting admins
+          { eventType: { $in: ['crud_create', 'crud_update', 'crud_delete'] }, 'metadata.adminRole': 'accounting' }
+        ]
+      };
+    }
+    
+    const logs = await EventLog.find(query)
+      .sort({ timestamp: -1 })
+      .limit(200);
+    
     res.json(logs);
   } catch (error) {
+    console.error('❌ Error getting event logs:', error);
     res.status(500).json({ error: error.message });
   }
 });

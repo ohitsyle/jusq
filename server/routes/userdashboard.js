@@ -445,8 +445,8 @@ router.post('/concerns', verifyUserToken, async (req, res) => {
 
     // Build the reportTo field based on department
     let reportTo = department;
-    if (department === 'merchants' && merchant) {
-      reportTo = merchant;
+    if (department === 'merchants') {
+      reportTo = 'Merchant Office';
     }
 
     const concern = await UserConcern.create({
