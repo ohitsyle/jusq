@@ -771,48 +771,76 @@ router.get('/card-lookup/:cardUid', async (req, res) => {
 /**
  * POST /api/admin/sysad/transfer-card
  * Transfer RFID from one card to another (uses rfidUId field)
+ * Sets account to inactive and sends new OTP for reactivation
  */
 router.post('/transfer-card', async (req, res) => {
   try {
     const { oldCardUid, newCardUid, adminId } = req.body;
 
-    // Find user with old RFID - User model uses rfidUId field
-    const user = await User.findOne({ rfidUId: oldCardUid });
+    // Find user with old RFID - check both User and Admin models
+    let user = await User.findOne({ rfidUId: oldCardUid });
+    let isAdmin = false;
+    
+    if (!user) {
+      user = await Admin.findOne({ rfidUId: oldCardUid });
+      isAdmin = true;
+    }
+    
     if (!user) {
       return res.status(404).json({ success: false, message: 'No user found with old RFID' });
     }
 
-    // Check if new RFID is already in use
+    // Check if new RFID is already in use (check both models)
     const existingUser = await User.findOne({ rfidUId: newCardUid });
-    if (existingUser) {
+    const existingAdmin = await Admin.findOne({ rfidUId: newCardUid });
+    
+    if (existingUser || existingAdmin) {
       return res.status(400).json({ success: false, message: 'New RFID is already assigned to another user' });
     }
 
     // Store old RFID for logging
     const oldRfid = user.rfidUId;
 
-    // Update RFID
+    // Generate OTP for reactivation
+    const crypto = await import('crypto');
+    const otp = crypto.randomInt(100000, 999999).toString();
+    const otpExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    // Update RFID, set inactive, and add OTP
     user.rfidUId = newCardUid;
+    user.isActive = false;
+    user.resetOtp = otp;
+    user.resetOtpExpireAt = new Date(otpExpiry);
     await user.save();
+
+    // Send activation OTP email
+    const { sendActivationOTP } = await import('../services/emailService.js');
+    await sendActivationOTP(
+      user.email, 
+      otp, 
+      user.fullName || `${user.firstName} ${user.lastName}`
+    );
 
     // Log action
     await SystemLog.create({
       eventType: 'card_transferred',
-      description: `RFID transferred for ${user.firstName} ${user.lastName}: ${oldRfid} -> ${newCardUid}`,
+      description: `RFID transferred for ${user.firstName} ${user.lastName}: ${oldRfid} -> ${newCardUid}. Account set to inactive, new OTP sent.`,
       severity: 'info',
       metadata: {
         userId: user._id,
+        userType: isAdmin ? 'admin' : 'user',
         oldRfidUId: oldRfid,
         newRfidUId: newCardUid,
         adminId,
-        adminAction: true
+        adminAction: true,
+        otpSent: true
       }
     });
 
     res.json({
       success: true,
-      message: 'Card transferred successfully',
-      user: { ...user.toObject(), password: undefined }
+      message: 'Card transferred successfully. Account has been set to inactive and a new activation OTP has been sent to the user\'s email.',
+      user: { ...user.toObject(), password: undefined, resetOtp: undefined }
     });
   } catch (error) {
     console.error('❌ Transfer card error:', error);

@@ -223,32 +223,48 @@ function TransferModal({ isOpen, onClose, selectedUser }) {
                   type="button"
                   className="py-2.5 rounded-xl border font-semibold capitalize"
                   style={{
-                    background: selectedUser?.role === 'student' ? accentColor : 'rgba(15, 18, 39, 0.5)',
-                    color: selectedUser?.role === 'student' ? '#1E1D40' : theme.text.primary,
+                    background: selectedUser?.role === 'student' || selectedUser?.userType === 'student' ? accentColor : 'rgba(15, 18, 39, 0.5)',
+                    color: selectedUser?.role === 'student' || selectedUser?.userType === 'student' ? '#1E1D40' : theme.text.primary,
                     borderColor: accentColor
                   }}
                 >
-                  🎓 {selectedUser?.role || 'student'}
+                  🎓 Student
                 </button>
                 <button
                   type="button"
                   className="py-2.5 rounded-xl border font-semibold capitalize"
                   style={{
-                    background: selectedUser?.role === 'employee' ? accentColor : 'rgba(15, 18, 39, 0.5)',
-                    color: selectedUser?.role === 'employee' ? '#1E1D40' : theme.text.primary,
+                    background: selectedUser?.role === 'employee' || selectedUser?.userType === 'employee' ? accentColor : 'rgba(15, 18, 39, 0.5)',
+                    color: selectedUser?.role === 'employee' || selectedUser?.userType === 'employee' ? '#1E1D40' : theme.text.primary,
                     borderColor: accentColor
                   }}
                 >
-                  👔 {selectedUser?.role || 'employee'}
+                  👔 Employee
                 </button>
               </div>
+              {/* Display admin roles if applicable */}
+              {(selectedUser?.role === 'treasury' || selectedUser?.role === 'accounting' || selectedUser?.role === 'motorpool' || selectedUser?.role === 'sysad') && (
+                <div className="mt-2">
+                  <button
+                    type="button"
+                    className="py-2.5 rounded-xl border font-semibold capitalize w-full"
+                    style={{
+                      background: accentColor,
+                      color: '#1E1D40',
+                      borderColor: accentColor
+                    }}
+                  >
+                    👑 {selectedUser?.role || 'Admin'}
+                  </button>
+                </div>
+              )}
             </div>
 
             <div>
               <label className="font-semibold mb-1.5 block text-sm" style={{ color: theme.text.primary }}>School ID</label>
               <div className="relative">
                 <input
-                  value={selectedUser?.idNumber || ''}
+                  value={selectedUser?.idNumber || selectedUser?.schoolId || ''}
                   readOnly
                   className="w-full px-3 py-2.5 rounded-xl border font-mono pl-10"
                   style={{
@@ -356,9 +372,16 @@ function TransferModal({ isOpen, onClose, selectedUser }) {
               <CheckCircle className="w-8 h-8 text-green-500" />
             </div>
             <h3 className="text-xl font-bold mb-2" style={{ color: theme.text.primary }}>Transfer Successful!</h3>
-            <p className="text-sm mb-6" style={{ color: theme.text.secondary }}>
-              {selectedUser?.firstName} {selectedUser?.lastName}'s account has been successfully transferred to the new RFID card.
+            <p className="text-sm mb-4" style={{ color: theme.text.secondary }}>
+              {selectedUser?.firstName} {selectedUser?.lastName}'s account has been transferred to the new RFID card.
             </p>
+            <div className="p-3 rounded-xl border mb-6" style={{ background: 'rgba(255, 212, 28, 0.1)', borderColor: 'rgba(255, 212, 28, 0.3)' }}>
+              <p className="text-sm font-semibold mb-2" style={{ color: theme.text.primary }}>📧 Important Information</p>
+              <p className="text-xs" style={{ color: theme.text.secondary }}>
+                The account has been set to <strong>inactive</strong> and a new activation OTP has been sent to {selectedUser?.email}. 
+                The user will need to go through the activation process again to reactivate their account.
+              </p>
+            </div>
             <button
               onClick={onClose}
               className="px-6 py-3 rounded-xl font-bold transition-all hover:opacity-90"
