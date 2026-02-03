@@ -13,7 +13,7 @@ const DEFAULT_PORT = 3000;
 
 // Development/Production API URLs
 const API_URLS = {
-  development: null, // Will be set dynamically
+  development: 'http://18.166.29.239:3000/api', // AWS server
   staging: 'https://staging-api.nucash.com/api',
   production: 'https://api.nucash.com/api'
 };
@@ -305,9 +305,9 @@ export const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY ||
 // App Configuration
 export const APP_CONFIG = {
   // Refresh intervals (in milliseconds)
-  SHUTTLE_REFRESH_INTERVAL: 5000,  // 5 seconds
-  ROUTE_REFRESH_INTERVAL: 5000,    // 5 seconds
-  GPS_UPDATE_INTERVAL: 10000,      // 10 seconds
+  SHUTTLE_REFRESH_INTERVAL: 2000,  // 2 seconds (reduced from 5 seconds)
+  ROUTE_REFRESH_INTERVAL: 2000,    // 2 seconds (reduced from 5 seconds)
+  GPS_UPDATE_INTERVAL: 5000,        // 5 seconds (reduced from 10 seconds)
 
   // GPS Configuration
   GPS_TIMEOUT: 60000,              // 60 seconds

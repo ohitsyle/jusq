@@ -14,6 +14,7 @@ import UserConcern from '../models/UserConcern.js';
 import Trip from '../models/Trip.js';
 import { logAdminAction, logError } from '../utils/logger.js';
 import { extractAdminInfo } from '../middlewares/extractAdminInfo.js';
+import { broadcastChanges, forceMobileRefresh } from '../middlewares/realtimeMiddleware.js';
 
 // Apply admin info extraction middleware to all admin routes
 router.use(extractAdminInfo);
@@ -368,7 +369,7 @@ router.get('/shuttles/:id', async (req, res) => {
   }
 });
 
-router.post('/shuttles', async (req, res) => {
+router.post('/shuttles', broadcastChanges('shuttle'), async (req, res) => {
   try {
     const shuttle = new Shuttle(req.body);
     await shuttle.save();
@@ -394,7 +395,7 @@ router.post('/shuttles', async (req, res) => {
   }
 });
 
-router.put('/shuttles/:id', async (req, res) => {
+router.put('/shuttles/:id', broadcastChanges('shuttle'), async (req, res) => {
   try {
     const oldShuttle = await Shuttle.findById(req.params.id);
     const shuttle = await Shuttle.findByIdAndUpdate(req.params.id, req.body, { new: true });
@@ -535,7 +536,7 @@ router.get('/routes/:id', async (req, res) => {
   }
 });
 
-router.post('/routes', async (req, res) => {
+router.post('/routes', broadcastChanges('route'), async (req, res) => {
   try {
     const route = new Route(req.body);
     await route.save();
@@ -545,7 +546,7 @@ router.post('/routes', async (req, res) => {
   }
 });
 
-router.put('/routes/:id', async (req, res) => {
+router.put('/routes/:id', broadcastChanges('route'), async (req, res) => {
   try {
     const route = await Route.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!route) return res.status(404).json({ error: 'Route not found' });

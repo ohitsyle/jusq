@@ -4,6 +4,7 @@ import NetworkService from './NetworkService';
 import OfflineStorageService from './OfflineStorageService';
 import PaymentService from './PaymentService';
 import api from './api';
+import WebSocketService from './WebSocketService.js';
 
 class SyncManager {
   constructor() {
@@ -11,7 +12,7 @@ class SyncManager {
     this.isSyncing = false;
     this.syncListeners = [];
     this.autoSyncEnabled = true;
-    this.syncIntervalMs = 10000; // 10 seconds when online
+    this.syncIntervalMs = 2000; // 2 seconds when online (reduced from 10 seconds)
     this.lastSyncResult = null;
   }
 
@@ -20,6 +21,36 @@ class SyncManager {
   // ============================================================
   async initialize() {
     console.log('🔄 Initializing Sync Manager...');
+
+    // Initialize WebSocket service for real-time updates
+    try {
+      const wsConnected = await WebSocketService.initialize();
+      if (wsConnected) {
+        console.log('✅ WebSocket service initialized for real-time updates');
+        
+        // Listen for real-time updates
+        WebSocketService.addListener('shuttle_updated', (data) => {
+          console.log('🚌 Real-time shuttle update received');
+          this.notifySyncListeners({ type: 'realtime', data });
+        });
+        
+        WebSocketService.addListener('route_updated', (data) => {
+          console.log('🛣️ Real-time route update received');
+          this.notifySyncListeners({ type: 'realtime', data });
+        });
+        
+        WebSocketService.addListener('force_refresh', (data) => {
+          console.log('🔄 Force refresh command received');
+          if (data.dataType === 'all' || !data.dataType) {
+            this.syncAll();
+          }
+        });
+      } else {
+        console.log('⚠️ WebSocket service unavailable, using polling only');
+      }
+    } catch (error) {
+      console.error('❌ WebSocket initialization failed:', error);
+    }
 
     // Initialize network monitoring
     NetworkService.initialize();

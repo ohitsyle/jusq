@@ -9,6 +9,7 @@ import bodyParser from 'body-parser';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import os from 'os';
+import http from 'http';
 
 // ES6 module path resolution
 const __filename = fileURLToPath(import.meta.url);
@@ -55,8 +56,10 @@ import activationRoutes from './routes/activation.js';
 import treasuryRoutes from './routes/treasury.js';
 import accountingRoutes from './routes/accounting.js';
 import sysadRoutes from './routes/sysad.js';
+import websocketRoutes from './routes/websocket.js';
 import { initializeAutoExportCron } from './jobs/autoExportCron.js';
 import { checkMaintenanceMode } from './middlewares/maintenanceMode.js';
+import websocketService from './services/websocketService.js';
 
 // Apply maintenance mode middleware to all routes (but we'll handle auth checking inside)
 app.use(checkMaintenanceMode);
@@ -75,6 +78,7 @@ app.use('/api/merchant', merchantAdminRoutes);
 app.use('/api/treasury', treasuryRoutes); // Also mount at /api/treasury for client compatibility
 app.use('/api/user', userDashboardRoutes);
 app.use('/api/activation', activationRoutes);
+app.use('/api/websocket', websocketRoutes);
 app.use('/api', apiRoutes); // General API routes last
 
 // Serve admin dashboard (production build)
@@ -200,7 +204,13 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0'; // Listen on all network interfaces
 
-app.listen(PORT, HOST, () => {
+// Create HTTP server for WebSocket support
+const server = http.createServer(app);
+
+// Initialize WebSocket service
+websocketService.initialize(server);
+
+server.listen(PORT, HOST, () => {
   // Get local network IP
   const networkInterfaces = os.networkInterfaces();
   let localIP = 'localhost';
@@ -223,6 +233,7 @@ app.listen(PORT, HOST, () => {
   console.log(`│ 🖥️  Admin Dashboard:   http://localhost:${PORT}/admin`);
   console.log(`│ 🚌 Motorpool Admin:   http://localhost:${PORT}/motorpool`);
   console.log(`│ 💚 Health Check:      http://localhost:${PORT}/health`);
+  console.log(`│ 🔌 WebSocket Ready:    ws://${localIP}:${PORT}`);
   console.log(`│ 🧪 Test Endpoint:     http://localhost:${PORT}/api/test`);
   console.log('└────────────────────────────────────────┘');
   console.log('\n✅ Available Endpoints:');
