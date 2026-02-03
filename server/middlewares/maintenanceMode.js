@@ -35,8 +35,13 @@ export async function checkMaintenanceMode(req, res, next) {
       return next();
     }
 
-    // Only apply maintenance mode to API requests
+    // Only apply maintenance mode to API requests (except maintenance status endpoints)
     if (!req.path.startsWith('/api/')) {
+      return next();
+    }
+
+    // Skip maintenance check for maintenance status endpoints
+    if (req.path.includes('/maintenance-status') || req.path.includes('/maintenance-mode')) {
       return next();
     }
 
