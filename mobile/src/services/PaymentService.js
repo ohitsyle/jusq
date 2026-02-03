@@ -145,22 +145,38 @@ const PaymentService = {
       });
 
       // Cache user data if returned
-      if (res.data && res.data.user) {
-        const userData = {
-          rfidUId,
-          fullName: res.data.user?.fullName || 
-                   (res.data.user?.firstName && res.data.user?.lastName ? 
-                    `${res.data.user.firstName} ${res.data.user.lastName}` : 'Unknown Student'),
-          firstName: res.data.user?.firstName,
-          lastName: res.data.user?.lastName,
-          balance: res.data.newBalance || res.data.balance || 0,
-          schoolUId: res.data.user?.schoolUId,
-          email: res.data.user?.email,
-          studentId: res.data.user?.studentId,
-          isActive: res.data.user?.isActive,
-          isDeactivated: res.data.user?.isDeactivated,
-          cachedAt: new Date().toISOString()
-        };
+      if (res.data) {
+        // Handle different response structures
+        let userData;
+        
+        if (res.data.user) {
+          // Refund API response structure
+          userData = {
+            rfidUId,
+            fullName: res.data.user?.fullName || 
+                     (res.data.user?.firstName && res.data.user?.lastName ? 
+                      `${res.data.user.firstName} ${res.data.user.lastName}` : 'Unknown Student'),
+            firstName: res.data.user?.firstName,
+            lastName: res.data.user?.lastName,
+            balance: res.data.newBalance || res.data.balance || 0,
+            schoolUId: res.data.user?.schoolUId,
+            email: res.data.user?.email,
+            studentId: res.data.user?.studentId,
+            isActive: res.data.user?.isActive,
+            isDeactivated: res.data.user?.isDeactivated,
+            cachedAt: new Date().toISOString()
+          };
+        } else {
+          // Balance API response structure
+          userData = {
+            rfidUId,
+            fullName: res.data.name || 'Unknown Student',
+            balance: res.data.balance || 0,
+            isActive: res.data.isActive,
+            isDeactivated: !res.data.isActive,
+            cachedAt: new Date().toISOString()
+          };
+        }
 
         await OfflineStorageService.cacheCardData(userData);
         console.log('✅ Cached user data after refund:', userData.fullName);
@@ -201,8 +217,15 @@ const PaymentService = {
       // Try to get user data from server first (online)
       const res = await api.get(`/user/balance/${rfidUId}`);
       
-      if (res.data && res.data.user) {
-        const user = res.data.user;
+      if (res.data) {
+        // Handle the actual API response structure
+        const user = {
+          fullName: res.data.name || 'Unknown Student',
+          balance: res.data.balance || 0,
+          isActive: res.data.isActive,
+          isDeactivated: !res.data.isActive, // If not active, consider deactivated
+          rfidUId: rfidUId
+        };
         
         // Check if student is active and not deactivated
         if (!user.isActive) {
@@ -250,7 +273,7 @@ const PaymentService = {
       const cachedCard = await OfflineStorageService.lookupCard(rfidUId);
       
       if (cachedCard) {
-        // For offline mode, we need to be more lenient but still check if we have status info
+        // For offline mode, we need to be more strict - if we have cached status info, use it
         if (cachedCard.isActive === false) {
           return {
             valid: false,
@@ -267,19 +290,29 @@ const PaymentService = {
           };
         }
         
-        // If cached data doesn't have status info, allow transaction (will be validated online when synced)
-        return {
-          valid: true,
-          offlineMode: true,
-          user: cachedCard
-        };
+        // If cached data doesn't have status info, be more conservative for offline
+        // Only allow if we have some cached user info
+        if (cachedCard.fullName && cachedCard.fullName !== 'Unknown Student') {
+          return {
+            valid: true,
+            offlineMode: true,
+            user: cachedCard
+          };
+        } else {
+          // No reliable cached data - don't allow offline transactions for unknown cards
+          return {
+            valid: false,
+            reason: 'Card not recognized (no cached data)',
+            code: 'CARD_NOT_RECOGNIZED'
+          };
+        }
       }
       
-      // No cached data available - allow for offline but will be validated online when synced
+      // No cached data available - don't allow offline transactions for completely unknown cards
       return {
-        valid: true,
-        offlineMode: true,
-        needsOnlineValidation: true
+        valid: false,
+        reason: 'Card not recognized (offline mode)',
+        code: 'CARD_NOT_RECOGNIZED'
       };
     }
   },
@@ -292,20 +325,14 @@ const PaymentService = {
       // Try to get user data from server
       const res = await api.get(`/user/balance/${rfidUId}`);
       
-      if (res.data && res.data.user) {
+      if (res.data) {
+        // Handle the actual API response structure
         const userData = {
           rfidUId,
-          fullName: res.data.user?.fullName || 
-                   (res.data.user?.firstName && res.data.user?.lastName ? 
-                    `${res.data.user.firstName} ${res.data.user.lastName}` : 'Unknown Student'),
-          firstName: res.data.user?.firstName,
-          lastName: res.data.user?.lastName,
+          fullName: res.data.name || 'Unknown Student',
           balance: res.data.balance || 0,
-          schoolUId: res.data.user?.schoolUId,
-          email: res.data.user?.email,
-          studentId: res.data.user?.studentId,
-          isActive: res.data.user?.isActive,
-          isDeactivated: res.data.user?.isDeactivated,
+          isActive: res.data.isActive,
+          isDeactivated: !res.data.isActive, // If not active, consider deactivated
           cachedAt: new Date().toISOString()
         };
 
@@ -446,21 +473,37 @@ const PaymentService = {
 
       // Cache user card data for offline use (more comprehensive)
       if (res.data) {
-        const userData = {
-          rfidUId,
-          fullName: res.data.user?.fullName || 
-                   (res.data.user?.firstName && res.data.user?.lastName ? 
-                    `${res.data.user.firstName} ${res.data.user.lastName}` : 'Unknown Student'),
-          firstName: res.data.user?.firstName,
-          lastName: res.data.user?.lastName,
-          balance: res.data.newBalance || res.data.balance || 0,
-          schoolUId: res.data.user?.schoolUId,
-          email: res.data.user?.email,
-          studentId: res.data.user?.studentId,
-          isActive: res.data.user?.isActive,
-          isDeactivated: res.data.user?.isDeactivated,
-          cachedAt: new Date().toISOString()
-        };
+        // Handle different response structures
+        let userData;
+        
+        if (res.data.user) {
+          // Payment API response structure
+          userData = {
+            rfidUId,
+            fullName: res.data.user?.fullName || 
+                     (res.data.user?.firstName && res.data.user?.lastName ? 
+                      `${res.data.user.firstName} ${res.data.user.lastName}` : 'Unknown Student'),
+            firstName: res.data.user?.firstName,
+            lastName: res.data.user?.lastName,
+            balance: res.data.newBalance || res.data.balance || 0,
+            schoolUId: res.data.user?.schoolUId,
+            email: res.data.user?.email,
+            studentId: res.data.user?.studentId,
+            isActive: res.data.user?.isActive,
+            isDeactivated: res.data.user?.isDeactivated,
+            cachedAt: new Date().toISOString()
+          };
+        } else {
+          // Balance API response structure
+          userData = {
+            rfidUId,
+            fullName: res.data.name || 'Unknown Student',
+            balance: res.data.balance || 0,
+            isActive: res.data.isActive,
+            isDeactivated: !res.data.isActive,
+            cachedAt: new Date().toISOString()
+          };
+        }
 
         await OfflineStorageService.cacheCardData(userData);
         console.log('✅ Cached user data for offline use:', userData.fullName);
