@@ -7,6 +7,7 @@
 import api from './api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import OfflineStorageService from './OfflineStorageService';
+import NetworkService from './NetworkService';
 
 const DEVICE_ID = 'SHUTTLE_01';
 const DEFAULT_FARE = 15; // Fallback if no fare specified
@@ -369,10 +370,11 @@ const PaymentService = {
   // FIXED: Now accepts fareAmount parameter
   // ============================================================
   async processFare(rfidUId, driverId, shuttleId, routeId, tripId, fareAmount = DEFAULT_FARE) {
-    const isOnline = await this.isOnline();
+    // Use NetworkService for faster offline detection
+    const isOnline = NetworkService.isConnected;
     const fare = fareAmount || DEFAULT_FARE;
 
-    console.log('💳 Processing fare:', fare, 'for route:', routeId);
+    console.log('💳 Processing fare:', fare, 'for route:', routeId, 'network:', isOnline ? 'online' : 'offline');
 
     // Validate student status first
     const statusValidation = await this.validateStudentStatus(rfidUId);

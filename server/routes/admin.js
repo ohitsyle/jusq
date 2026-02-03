@@ -162,13 +162,13 @@ router.get('/analytics/dashboard', async (req, res) => {
 
 /**
  * GET /admin/shuttle-positions
- * Get current positions of all shuttles in transit
+ * Get current positions of all shuttles actually in transit (not just reserved)
  */
 router.get('/shuttle-positions', async (req, res) => {
   try {
-    // Get shuttles that are currently reserved or taken (assigned to drivers)
-    const shuttlesInTransit = await Shuttle.find({ status: { $in: ['reserved', 'taken'] } });
-    console.log(`📍 Found ${shuttlesInTransit.length} shuttles with status 'reserved' or 'taken'`);
+    // Get shuttles that are currently taken (actually in transit, not just reserved)
+    const shuttlesInTransit = await Shuttle.find({ status: 'taken' });
+    console.log(`📍 Found ${shuttlesInTransit.length} shuttles with status 'taken' (actually in transit)`);
 
     const positions = [];
 
@@ -190,54 +190,43 @@ router.get('/shuttle-positions', async (req, res) => {
 
       console.log(`   ✅ Including ${shuttle.shuttleId} in positions`);
 
-
       // Get active trip for this shuttle
-      const Trip = (await import('../models/Trip.js')).default;
-      const activeTrip = await Trip.findOne({
-        shuttleId: shuttle.shuttleId,
-        status: 'in_progress'
-      }).sort({ departureTime: -1 });
-
-      // Get route info if trip exists
-      let routeInfo = null;
-      if (activeTrip && activeTrip.routeId) {
-        const Route = (await import('../models/Route.js')).default;
-        routeInfo = await Route.findOne({ routeId: activeTrip.routeId });
+      let activeTrip = null;
+      try {
+        activeTrip = await Trip.findOne({ 
+          shuttleId: shuttle.shuttleId, 
+          status: 'active',
+          endTime: null 
+        }).sort({ startTime: -1 });
+      } catch (error) {
+        console.log(`   ℹ️ No active trip found for ${shuttle.shuttleId}`);
       }
 
       positions.push({
         shuttleId: shuttle.shuttleId,
+        vehicleType: shuttle.vehicleType,
+        vehicleModel: shuttle.vehicleModel,
+        plateNumber: shuttle.plateNumber,
         driverName: shuttle.currentDriver,
         driverId: shuttle.currentDriverId,
         latitude: position.latitude,
         longitude: position.longitude,
+        timestamp: position.timestamp,
         updatedAt: position.updatedAt,
-        vehicleInfo: `${shuttle.vehicleType} ${shuttle.vehicleModel}`,
-        // Trip and route information
-        currentTrip: activeTrip ? {
-          tripId: activeTrip.tripId || activeTrip._id,
-          routeId: activeTrip.routeId,
-          startLocationName: activeTrip.startLocationName,
-          endLocationName: activeTrip.endLocationName,
-          startLatitude: activeTrip.startLatitude,
-          startLongitude: activeTrip.startLongitude,
-          endLatitude: activeTrip.endLatitude,
-          endLongitude: activeTrip.endLongitude
-        } : null,
-        route: routeInfo ? {
-          routeId: routeInfo.routeId,
-          routeName: routeInfo.routeName,
-          fromName: routeInfo.fromName,
-          toName: routeInfo.toName,
-          toLatitude: routeInfo.toLatitude,
-          toLongitude: routeInfo.toLongitude
-        } : null
+        status: shuttle.status,
+        // Include trip info if available
+        tripId: activeTrip?._id,
+        routeId: activeTrip?.routeId,
+        startTime: activeTrip?.startTime,
+        currentPassengers: activeTrip?.passengers?.length || 0,
+        estimatedReturn: activeTrip?.estimatedReturn
       });
     }
 
+    console.log(`📍 Returning ${positions.length} shuttle positions with GPS data`);
     res.json(positions);
   } catch (error) {
-    console.error('❌ Shuttle positions error:', error);
+    console.error('❌ Error fetching shuttle positions:', error);
     res.status(500).json({ error: error.message });
   }
 });
