@@ -17,9 +17,10 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       output: {
-        entryFileNames: `app-fixed-${Date.now()}.js`,
-        chunkFileNames: `chunk-fixed-${Date.now()}.js`,
-        assetFileNames: `asset-fixed-${Date.now()}.[ext]`
+        // Add hash to filenames for cache busting
+        entryFileNames: 'app-[name].js',
+        chunkFileNames: 'chunk-[name]-[hash].js',
+        assetFileNames: 'asset-[name]-[hash][ext]'
       }
     }
   },
