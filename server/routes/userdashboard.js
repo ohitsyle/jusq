@@ -328,6 +328,32 @@ router.get('/profile', verifyUserToken, async (req, res) => {
 });
 
 /**
+ * GET /api/user/merchants
+ * Get list of active merchants for concern dropdown
+ */
+router.get('/merchants', verifyUserToken, async (req, res) => {
+  try {
+    const Merchant = (await import('../models/Merchant.js')).default;
+
+    const merchants = await Merchant.find({ isActive: true })
+      .select('merchantId businessName')
+      .sort({ businessName: 1 })
+      .lean();
+
+    return res.json({
+      success: true,
+      merchants: merchants.map(m => ({
+        value: m.businessName,
+        label: m.businessName
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching merchants:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+/**
  * GET /api/user/:userId
  * Get user info and balance (by userId param - for admin use)
  */
@@ -494,32 +520,6 @@ router.post('/feedback', verifyUserToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating feedback:', error);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-/**
- * GET /api/user/merchants
- * Get list of active merchants for concern dropdown
- */
-router.get('/merchants', verifyUserToken, async (req, res) => {
-  try {
-    const Merchant = (await import('../models/Merchant.js')).default;
-
-    const merchants = await Merchant.find({ isActive: true })
-      .select('merchantId businessName')
-      .sort({ businessName: 1 })
-      .lean();
-
-    return res.json({
-      success: true,
-      merchants: merchants.map(m => ({
-        value: m.businessName,
-        label: m.businessName
-      }))
-    });
-  } catch (error) {
-    console.error('Error fetching merchants:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
