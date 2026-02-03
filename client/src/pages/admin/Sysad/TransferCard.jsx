@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
-import { CreditCard, ArrowRight, Search, AlertTriangle, CheckCircle, Loader2, User, RefreshCw, Users } from 'lucide-react';
+import { CreditCard, ArrowRight, Search, AlertTriangle, CheckCircle, Loader2, User, RefreshCw, Users, Download } from 'lucide-react';
 
 // Custom Notification Modal for TransferCard
 function TransferNotificationModal({ isOpen, onClose, type, title, message }) {
@@ -242,6 +242,9 @@ export default function TransferCard() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('createdAt');
   const [selectedUser, setSelectedUser] = useState(null);
   const [transferring, setTransferring] = useState(false);
   const [transferComplete, setTransferComplete] = useState(false);
@@ -260,38 +263,29 @@ export default function TransferCard() {
   };
 
   // Load users
-  const loadUsers = async () => {
-    setLoading(true);
+  const loadUsers = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
-      const data = await api.get('/admin/sysad/users?page=1&limit=100');
+      const params = new URLSearchParams();
+      params.append('page', 1);
+      params.append('limit', 100);
+      if (searchTerm) params.append('search', searchTerm);
+      if (roleFilter !== 'all') params.append('role', roleFilter);
+      if (statusFilter !== 'all') params.append('status', statusFilter);
+      params.append('sortBy', sortBy);
+      
+      const data = await api.get(`/admin/sysad/users?${params}`);
       setUsers(data.users || []);
     } catch (error) {
       showNotification('error', 'Load Failed', 'Failed to load users. Please try again.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
     loadUsers();
-  }, []);
-
-  // Filter users based on search
-  const filteredUsers = users.filter(user => {
-    const firstName = user.firstName || '';
-    const lastName = user.lastName || '';
-    const email = user.email || '';
-    const schoolUId = user.schoolUId || '';
-    const adminId = user.adminId ? user.adminId.toString() : '';
-    
-    return (
-      firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      schoolUId.includes(searchTerm) ||
-      adminId.includes(searchTerm)
-    );
-  });
+  }, [searchTerm, roleFilter, statusFilter, sortBy]);
 
   const handleTransferClick = (user) => {
     setSelectedUser(user);
@@ -313,33 +307,23 @@ export default function TransferCard() {
     setTransferring(true);
 
     try {
-      // Step 1: Create new user with transferred info but deactivated
-      const newUserResponse = await api.post('/admin/sysad/transfer-user', {
-        firstName: selectedUser.firstName,
-        lastName: selectedUser.lastName,
-        email: selectedUser.email,
-        role: selectedUser.role,
-        schoolUId: selectedUser.schoolUId,
-        cardUid: newCardId.trim(),
-        isDeactivated: false,
-        isActive: false,
-        originalUserId: selectedUser._id // Keep reference to original user
+      // Call the transfer-card endpoint
+      const response = await api.post('/admin/sysad/transfer-card', {
+        oldCardUid: selectedUser.rfidUId,
+        newCardUid: newCardId.trim(),
+        adminId: 'sysad' // You might want to get this from auth context
       });
 
-      // Step 2: Send OTP to user
-      await api.post('/admin/auth/send-otp', {
-        email: selectedUser.email,
-        userId: newUserResponse.user._id
-      });
-
-      // Step 3: Show success and reset
+      // Show success and reset
       setTransferComplete(true);
-      showNotification('success', 'Transfer Initiated', `User information transferred to new RFID card. OTP sent to ${selectedUser.email}`);
+      showNotification('success', 'Transfer Completed', `RFID card successfully transferred for ${selectedUser.firstName} ${selectedUser.lastName}.`);
       
       // Reload users to get updated data
       await loadUsers();
     } catch (error) {
-      showNotification('error', 'Transfer Failed', error.message || 'Failed to transfer user information. Please try again.');
+      console.error('Transfer error:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to transfer RFID card. Please try again.';
+      showNotification('error', 'Transfer Failed', errorMessage);
     } finally {
       setTransferring(false);
     }
@@ -366,26 +350,20 @@ export default function TransferCard() {
 
       {/* Transfer Complete Success */}
       {transferComplete && (
-        <div
-          style={{
-            background: isDarkMode ? 'rgba(16,185,129,0.08)' : 'rgba(16,185,129,0.05)',
-            borderColor: 'rgba(16,185,129,0.25)'
-          }}
-          className="p-8 rounded-2xl border mb-6 text-center"
-        >
+        <div style={{ background: isDarkMode ? 'rgba(16,185,129,0.08)' : 'rgba(16,185,129,0.05)', borderColor: 'rgba(16,185,129,0.25)' }} className="p-8 rounded-2xl border mb-6 text-center">
           <div style={{ background: 'rgba(16,185,129,0.15)' }} className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5">
             <CheckCircle className="w-10 h-10 text-emerald-500" />
           </div>
-          <h3 style={{ color: '#10B981' }} className="text-2xl font-bold mb-2">Transfer Initiated</h3>
+          <h3 style={{ color: '#10B981' }} className="text-2xl font-bold mb-2">Transfer Completed</h3>
           <p style={{ color: theme.text.secondary }} className="mb-6 text-sm max-w-md mx-auto">
-            User information has been transferred to the new RFID card. An activation OTP has been sent to the user's email address.
+            RFID card has been successfully transferred. The user can now use the new RFID card for all system operations.
           </p>
           <div style={{ background: 'rgba(59,130,246,0.1)', borderColor: 'rgba(59,130,246,0.3)' }} className="rounded-xl border p-4 mb-6">
             <p className="text-blue-500 text-sm">
-              <strong>Next Steps:</strong><br />
-              1. User will receive OTP via email<br />
-              2. User activates account with OTP<br />
-              3. New RFID card becomes active
+              <strong>Transfer Details:</strong><br />
+              Old RFID: {selectedUser?.rfidUId}<br />
+              New RFID: {newCardId}<br />
+              User: {selectedUser?.firstName} {selectedUser?.lastName}
             </p>
           </div>
           <button
@@ -415,13 +393,17 @@ export default function TransferCard() {
               <div className="flex flex-wrap gap-3 items-center flex-1">
                 {/* Search */}
                 <div className="relative flex-1 min-w-[200px] max-w-[300px]">
-                  <Search style={{ color: theme.text.tertiary }} className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" />
+                  <Search style={{ color: 'rgba(251, 251, 251, 0.5)' }} className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" />
                   <input
                     type="text"
                     placeholder="Search by name, ID, email..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }}
+                    style={{ 
+                      background: isDarkMode ? 'rgba(30, 35, 71, 0.8)' : '#F9FAFB', 
+                      color: isDarkMode ? 'rgba(251, 251, 251, 0.95)' : theme.text.primary, 
+                      borderColor: 'rgba(255, 212, 28, 0.2)' 
+                    }}
                     className="w-full pl-10 pr-4 py-2 rounded-xl border text-sm focus:outline-none transition-all focus:ring-2 focus:ring-opacity-50"
                   />
                 </div>
@@ -436,10 +418,10 @@ export default function TransferCard() {
                   ].map((option) => (
                     <button
                       key={option.value}
-                      onClick={() => setSearchTerm('')} // Reset search when filter changes
+                      onClick={() => setRoleFilter(option.value)}
                       style={{
-                        background: 'transparent',
-                        color: theme.text.secondary
+                        background: roleFilter === option.value ? theme.accent.primary : 'transparent',
+                        color: roleFilter === option.value ? (isDarkMode ? '#181D40' : '#FFFFFF') : (isDarkMode ? 'rgba(251, 251, 251, 0.6)' : theme.text.secondary)
                       }}
                       className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
                     >
@@ -457,10 +439,35 @@ export default function TransferCard() {
                   ].map((option) => (
                     <button
                       key={option.value}
-                      onClick={() => setSearchTerm('')} // Reset search when filter changes
+                      onClick={() => setStatusFilter(option.value)}
                       style={{
-                        background: 'transparent',
-                        color: theme.text.secondary
+                        background: statusFilter === option.value
+                          ? (option.color || theme.accent.primary)
+                          : 'transparent',
+                        color: statusFilter === option.value
+                          ? '#FFFFFF'
+                          : (isDarkMode ? 'rgba(251, 251, 251, 0.6)' : theme.text.secondary)
+                      }}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Sort Options */}
+                <div className="flex gap-1 p-1 rounded-xl" style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F3F4F6' }}>
+                  {[
+                    { value: 'createdAt', label: 'Date' },
+                    { value: 'name', label: 'Name' },
+                    { value: 'role', label: 'Role' }
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => setSortBy(option.value)}
+                      style={{
+                        background: sortBy === option.value ? theme.accent.primary : 'transparent',
+                        color: sortBy === option.value ? (isDarkMode ? '#181D40' : '#FFFFFF') : (isDarkMode ? 'rgba(251, 251, 251, 0.6)' : theme.text.secondary)
                       }}
                       className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
                     >
