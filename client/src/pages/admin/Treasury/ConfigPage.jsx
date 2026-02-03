@@ -767,6 +767,56 @@ function ConfigModal({ configurations, setConfigurations, exportTypes, loading, 
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Enable Toggle */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '16px',
+              borderRadius: '12px',
+              background: configurations.autoExport?.enabled ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+              border: `2px solid ${configurations.autoExport?.enabled ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`
+            }}
+          >
+            <div>
+              <div style={{ color: theme.text.primary, fontWeight: 700, fontSize: '14px' }}>Enable Automatic Export</div>
+              <div style={{ color: theme.text.secondary, fontSize: '12px', marginTop: '4px' }}>
+                {configurations.autoExport?.enabled ? '✅ Auto-export is active' : '⚠️ Auto-export is disabled'}
+              </div>
+            </div>
+            <button
+              onClick={() => setConfigurations({
+                ...configurations,
+                autoExport: { ...configurations.autoExport, enabled: !configurations.autoExport?.enabled }
+              })}
+              style={{
+                background: configurations.autoExport?.enabled ? '#10B981' : '#6B7280',
+                width: '52px',
+                height: '28px',
+                borderRadius: '14px',
+                position: 'relative',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '2px',
+                  left: configurations.autoExport?.enabled ? '26px' : '2px',
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '12px',
+                  background: '#FFFFFF',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                }}
+              />
+            </button>
+          </div>
+
           {/* Frequency */}
           <div>
             <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 700, color: theme.accent.primary, textTransform: 'uppercase', letterSpacing: '0.5px' }}>

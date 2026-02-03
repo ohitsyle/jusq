@@ -56,6 +56,10 @@ import treasuryRoutes from './routes/treasury.js';
 import accountingRoutes from './routes/accounting.js';
 import sysadRoutes from './routes/sysad.js';
 import { initializeAutoExportCron } from './jobs/autoExportCron.js';
+import { checkMaintenanceMode } from './middlewares/maintenanceMode.js';
+
+// Apply maintenance mode middleware to all routes
+app.use(checkMaintenanceMode);
 
 // Mount all API routes at /api
 // NOTE: More specific routes MUST come before more general routes
@@ -96,6 +100,11 @@ app.get('/merchant', (req, res) => {
 // Serve activation page
 app.get('/activate', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'activate.html'));
+});
+
+// Serve force logout page
+app.get('/force-logout', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'force-logout.html'));
 });
 
 // DEBUG: Check all users in database

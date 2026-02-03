@@ -16,9 +16,10 @@ const merchants = [
   {
     merchantId: 'MER-001',
     businessName: 'NU Cafeteria',
-    contactPerson: 'Cafeteria Manager',
+    firstName: 'Cafeteria',
+    lastName: 'Manager',
     email: 'merchant@nu.edu.ph',
-    password: '123456',
+    pin: '123456',
     phone: '09171234567',
     address: 'Main Building Ground Floor',
     isActive: true
@@ -26,9 +27,10 @@ const merchants = [
   {
     merchantId: 'MER-002',
     businessName: 'NU Bookstore',
-    contactPerson: 'Bookstore Manager',
+    firstName: 'Bookstore',
+    lastName: 'Manager',
     email: 'bookstore@nu.edu.ph',
-    password: '123456',
+    pin: '123456',
     phone: '09171234568',
     address: 'Academic Building 1st Floor',
     isActive: true
@@ -36,9 +38,10 @@ const merchants = [
   {
     merchantId: 'MER-003',
     businessName: 'NU Print Shop',
-    contactPerson: 'Print Manager',
+    firstName: 'Print',
+    lastName: 'Manager',
     email: 'printshop@nu.edu.ph',
-    password: '123456',
+    pin: '123456',
     phone: '09171234569',
     address: 'Library Building',
     isActive: true

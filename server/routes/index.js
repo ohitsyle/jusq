@@ -14,7 +14,7 @@ import geofences from './geofences.js';
 import user from './user.js';
 import shuttle from './shuttle.js';
 import admin from './admin.js';
-import adminAuth from './adminAuth.js'; // NEW: Admin authentication
+import adminAuth from './adminauth.js'; // NEW: Admin authentication
 import trips from './trips.js';
 import routes from './routes.js';
 import shuttles from './shuttles.js';

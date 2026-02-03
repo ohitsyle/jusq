@@ -50,13 +50,17 @@ async function processAutoExport(role) {
     // Export each selected type and add to ZIP
     for (const type of exportTypes) {
       try {
-        const { csv, count } = await exportByType(type);
-        const fileName = `${type.toLowerCase()}_export_${new Date().toISOString().split('T')[0]}.csv`;
+        // Normalize the export type - handle display names from UI
+        const normalizedType = type.toLowerCase().replace(/\s+/g, '-');
+        console.log(`[Auto-Export] Processing type: ${type} (normalized: ${normalizedType})`);
+        
+        const { csv, count } = await exportByType(normalizedType);
+        const fileName = `${normalizedType.replace(/-/g, '_')}_export_${new Date().toISOString().split('T')[0]}.csv`;
         zip.addFile(fileName, Buffer.from(csv, 'utf8'));
         totalRecords += count;
         console.log(`[Auto-Export] Exported ${count} ${type} records`);
       } catch (error) {
-        console.error(`[Auto-Export] Error exporting ${type}:`, error);
+        console.error(`[Auto-Export] Error exporting ${type}:`, error.message);
       }
     }
 
@@ -139,26 +143,24 @@ async function checkAndProcessAutoExports() {
     }
 
     const configs = await Configuration.find({ configType: 'autoExport' });
+    
+    // Log found configs for debugging
+    const enabledConfigs = configs.filter(c => c.autoExport?.enabled);
+    console.log(`[Auto-Export] Found ${configs.length} configs, ${enabledConfigs.length} enabled`);
 
-    // Diagnostic: log User count after Configuration.find (if count dropped, something in this path removed a user)
-    try {
-      const User = (await import('../models/User.js')).default;
-      const countAfter = await User.countDocuments();
-      console.log(`[Auto-Export] User count after check: ${countAfter}`);
-    } catch (e) {
-      console.log('[Auto-Export] (Could not log user count:', e.message, ')');
-    }
+    const currentTime = new Date();
+    const currentHour = currentTime.getHours().toString().padStart(2, '0');
+    const currentMinute = currentTime.getMinutes().toString().padStart(2, '0');
+    const currentDay = currentTime.getDay();
+    const currentDate = currentTime.getDate();
 
     for (const config of configs) {
       if (config.autoExport && config.autoExport.enabled) {
-        const { frequency, time, dayOfWeek, dayOfMonth } = config.autoExport;
-        const currentTime = new Date();
-        const currentHour = currentTime.getHours().toString().padStart(2, '0');
-        const currentMinute = currentTime.getMinutes().toString().padStart(2, '0');
-        const currentDay = currentTime.getDay();
-        const currentDate = currentTime.getDate();
+        const { frequency, time, dayOfWeek, dayOfMonth, exportTypes } = config.autoExport;
         const configuredTime = time || '00:00';
         const [configHour, configMinute] = configuredTime.split(':');
+
+        console.log(`[Auto-Export] Config for ${config.adminRole}: time=${configuredTime}, current=${currentHour}:${currentMinute}, frequency=${frequency}, types=${exportTypes?.length || 0}`);
 
         // Check if current time matches configured time (within 1-minute window)
         const timeMatches = currentHour === configHour && currentMinute === configMinute;
@@ -166,6 +168,8 @@ async function checkAndProcessAutoExports() {
         if (!timeMatches) {
           continue;
         }
+
+        console.log(`[Auto-Export] Time matches for ${config.adminRole}! Checking frequency...`);
 
         // Check frequency
         let shouldExport = false;
@@ -179,7 +183,10 @@ async function checkAndProcessAutoExports() {
         }
 
         if (shouldExport) {
+          console.log(`[Auto-Export] ✅ Triggering export for ${config.adminRole}...`);
           await processAutoExport(config.adminRole || 'motorpool');
+        } else {
+          console.log(`[Auto-Export] Frequency check failed for ${config.adminRole}: frequency=${frequency}, dayOfWeek=${currentDay}/${dayOfWeek}, dayOfMonth=${currentDate}/${dayOfMonth}`);
         }
       }
     }

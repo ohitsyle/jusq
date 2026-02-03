@@ -4,6 +4,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { AppProvider } from './context/AppContext';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { useMaintenanceMode } from './hooks/useMaintenanceMode.js';
 
 import UnifiedLogin from './pages/account/UnifiedLogin';
 import AccountActivation from './pages/account/AccountActivation';
@@ -150,431 +151,445 @@ const SysadProtectedRoute = ({ children }) => {
   return <SysadLayout>{children}</SysadLayout>;
 };
 
+// Main App component with maintenance mode
+function AppContent() {
+  const { isMaintenanceMode, maintenanceMessage, isSysadmin } = useMaintenanceMode();
+
+  // Show maintenance mode for non-sysadmin users
+  if (isMaintenanceMode && !isSysadmin) {
+    return <MaintenanceMode message={maintenanceMessage} />;
+  }
+
+  return (
+    <Routes>
+      {/* Login Routes */}
+      <Route path="/login" element={<UnifiedLogin />} />
+      <Route path="/activate" element={<AccountActivation />} />
+      <Route path="/maintenance" element={<MaintenanceMode />} />
+      
+      {/* Legal Pages */}
+      <Route path="/terms" element={<TermsAndConditions />} />
+      <Route path="/privacy" element={<PrivacyPolicy />} />
+
+      {/* ================= USER ROUTES ================= */}
+      <Route
+        path="/user/dashboard"
+        element={
+          <UserProtectedRoute>
+            <UserDashboard />
+          </UserProtectedRoute>
+        }
+      />
+      <Route
+        path="/user/history"
+        element={
+          <UserProtectedRoute>
+            <TransactionHistory />
+          </UserProtectedRoute>
+        }
+      />
+      <Route
+        path="/user/concerns"
+        element={
+          <UserProtectedRoute>
+            <UserConcerns />
+          </UserProtectedRoute>
+        }
+      />
+      <Route
+        path="/user/profile"
+        element={
+          <UserProtectedRoute>
+            <UserProfile />
+          </UserProtectedRoute>
+        }
+      />
+      <Route
+        path="/faq"
+        element={
+          <UserProtectedRoute>
+            <FAQ />
+          </UserProtectedRoute>
+        }
+      />
+      {/* Legacy route redirect */}
+      <Route path="/users-dashboard" element={<Navigate to="/user/dashboard" replace />} />
+
+      {/* ================= TREASURY ROUTES ================= */}
+      <Route
+        path="/admin/treasury/dashboard"
+        element={
+          <TreasuryProtectedRoute>
+            <TreasuryDashboard />
+          </TreasuryProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/treasury/cashin"
+        element={
+          <TreasuryProtectedRoute>
+            <CashInForm />
+          </TreasuryProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/treasury/register"
+        element={
+          <TreasuryProtectedRoute>
+            <RegistrationForm />
+          </TreasuryProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/treasury/transactions"
+        element={
+          <TreasuryProtectedRoute>
+            <TreasuryTransactionsPage />
+          </TreasuryProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/treasury/merchants"
+        element={
+          <TreasuryProtectedRoute>
+            <TreasuryMerchantsPage />
+          </TreasuryProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/treasury/logs"
+        element={
+          <TreasuryProtectedRoute>
+            <LogsPage />
+          </TreasuryProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/treasury/concerns"
+        element={
+          <TreasuryProtectedRoute>
+            <TreasuryConcernsPage />
+          </TreasuryProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/treasury/config"
+        element={
+          <TreasuryProtectedRoute>
+            <TreasuryConfigPage />
+          </TreasuryProtectedRoute>
+        }
+      />
+      {/* Treasury Profile */}
+      <Route
+        path="/admin/treasury/profile"
+        element={
+          <TreasuryProtectedRoute>
+            <ProfilePage />
+          </TreasuryProtectedRoute>
+        }
+      />
+      {/* Treasury default redirect */}
+      <Route path="/admin/treasury" element={<Navigate to="/admin/treasury/dashboard" replace />} />
+
+      {/* ================= ACCOUNTING ROUTES ================= */}
+      <Route
+        path="/admin/accounting/home"
+        element={
+          <AccountingProtectedRoute>
+            <AccountingHome />
+          </AccountingProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/accounting/transactions"
+        element={
+          <AccountingProtectedRoute>
+            <AccountingTransactionsPage />
+          </AccountingProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/accounting/merchants"
+        element={
+          <AccountingProtectedRoute>
+            <AccountingMerchantsPage />
+          </AccountingProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/accounting/logs"
+        element={
+          <AccountingProtectedRoute>
+            <TreasuryLogs />
+          </AccountingProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/accounting/concerns"
+        element={
+          <AccountingProtectedRoute>
+            <ConcernsManagement />
+          </AccountingProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/accounting/config"
+        element={
+          <AccountingProtectedRoute>
+            <Config />
+          </AccountingProtectedRoute>
+        }
+      />
+      {/* Accounting Profile */}
+      <Route
+        path="/admin/accounting/profile"
+        element={
+          <AccountingProtectedRoute>
+            <ProfilePage />
+          </AccountingProtectedRoute>
+        }
+      />
+      {/* Accounting default redirect */}
+      <Route path="/admin/accounting" element={<Navigate to="/admin/accounting/home" replace />} />
+
+      {/* ================= SYSTEM ADMIN ROUTES ================= */}
+      <Route
+        path="/admin/sysad/dashboard"
+        element={
+          <SysadProtectedRoute>
+            <SysadDashboard />
+          </SysadProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/sysad/users"
+        element={
+          <SysadProtectedRoute>
+            <ManageUsers />
+          </SysadProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/sysad/transfer-card"
+        element={
+          <SysadProtectedRoute>
+            <TransferCard />
+          </SysadProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/sysad/logs"
+        element={
+          <SysadProtectedRoute>
+            <LogsPage />
+          </SysadProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/sysad/concerns"
+        element={
+          <SysadProtectedRoute>
+            <SysadConcernsPage />
+          </SysadProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/sysad/config"
+        element={
+          <SysadProtectedRoute>
+            <SysadConfigPage />
+          </SysadProtectedRoute>
+        }
+      />
+      {/* Sysad Profile */}
+      <Route
+        path="/admin/sysad/profile"
+        element={
+          <SysadProtectedRoute>
+            <ProfilePage />
+          </SysadProtectedRoute>
+        }
+      />
+      {/* Sysad default redirect */}
+      <Route path="/admin/sysad" element={<Navigate to="/admin/sysad/dashboard" replace />} />
+
+      {/* ================= MOTORPOOL ADMIN ROUTES ================= */}
+      <Route
+        path="/admin/motorpool"
+        element={
+          <MotorpoolProtectedRoute>
+            <MotorpoolDashboard />
+          </MotorpoolProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/motorpool/routes"
+        element={
+          <MotorpoolProtectedRoute>
+            <RoutesPage />
+          </MotorpoolProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/motorpool/drivers"
+        element={
+          <MotorpoolProtectedRoute>
+            <DriversPage />
+          </MotorpoolProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/motorpool/shuttles"
+        element={
+          <MotorpoolProtectedRoute>
+            <ShuttlesPage />
+          </MotorpoolProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/motorpool/trips"
+        element={
+          <MotorpoolProtectedRoute>
+            <TripsPage />
+          </MotorpoolProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/motorpool/phones"
+        element={
+          <MotorpoolProtectedRoute>
+            <PhonesPage />
+          </MotorpoolProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/motorpool/concerns"
+        element={
+          <MotorpoolProtectedRoute>
+            <MotorpoolConcernsPage />
+          </MotorpoolProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/motorpool/configurations"
+        element={
+          <MotorpoolProtectedRoute>
+            <MotorpoolConfigurationsPage />
+          </MotorpoolProtectedRoute>
+        }
+      />
+      {/* Motorpool Profile */}
+      <Route
+        path="/admin/motorpool/profile"
+        element={
+          <MotorpoolProtectedRoute>
+            <ProfilePage />
+          </MotorpoolProtectedRoute>
+        }
+      />
+
+      {/* ================= MERCHANT ADMIN ROUTES ================= */}
+      <Route
+        path="/admin/merchant"
+        element={
+          <MerchantProtectedRoute>
+            <MerchantDashboard />
+          </MerchantProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/merchant/merchants"
+        element={
+          <MerchantProtectedRoute>
+            <MerchantsPage />
+          </MerchantProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/merchant/phones"
+        element={
+          <MerchantProtectedRoute>
+            <MerchantPhonesPage />
+          </MerchantProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/merchant/concerns"
+        element={
+          <MerchantProtectedRoute>
+            <MerchantConcernsPage />
+          </MerchantProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/merchant/configurations"
+        element={
+          <MerchantProtectedRoute>
+            <MerchantConfigurationsPage />
+          </MerchantProtectedRoute>
+        }
+      />
+      {/* Merchant Profile */}
+      <Route
+        path="/admin/merchant/profile"
+        element={
+          <MerchantProtectedRoute>
+            <ProfilePage />
+          </MerchantProtectedRoute>
+        }
+      />
+      {/* Merchant Logs */}
+      <Route
+        path="/admin/merchant/logs"
+        element={
+          <MerchantProtectedRoute>
+            <LogsPage />
+          </MerchantProtectedRoute>
+        }
+      />
+
+      {/* ================= SHARED ADMIN ROUTES ================= */}
+      <Route
+        path="/admin/logs"
+        element={
+          <MotorpoolProtectedRoute>
+            <LogsPage />
+          </MotorpoolProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/profile"
+        element={
+          <MotorpoolProtectedRoute>
+            <ProfilePage />
+          </MotorpoolProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/concerns"
+        element={
+          <MotorpoolProtectedRoute>
+            <ConcernsPage />
+          </MotorpoolProtectedRoute>
+        }
+      />
+
+      {/* Default redirects */}
+      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="/admin" element={<Navigate to="/admin/motorpool" replace />} />
+      <Route path="*" element={<Navigate to="/login" replace />} />
+    </Routes>
+  );
+};
+
 function App() {
   return (
     <ThemeProvider>
       <AppProvider>
         <BrowserRouter>
           <ToastContainer />
-          <Routes>
-            {/* Login Routes */}
-            <Route path="/login" element={<UnifiedLogin />} />
-            <Route path="/activate" element={<AccountActivation />} />
-            <Route path="/maintenance" element={<MaintenanceMode />} />
-            
-            {/* Legal Pages */}
-            <Route path="/terms" element={<TermsAndConditions />} />
-            <Route path="/privacy" element={<PrivacyPolicy />} />
-
-            {/* ================= USER ROUTES ================= */}
-            <Route
-              path="/user/dashboard"
-              element={
-                <UserProtectedRoute>
-                  <UserDashboard />
-                </UserProtectedRoute>
-              }
-            />
-            <Route
-              path="/user/history"
-              element={
-                <UserProtectedRoute>
-                  <TransactionHistory />
-                </UserProtectedRoute>
-              }
-            />
-            <Route
-              path="/user/concerns"
-              element={
-                <UserProtectedRoute>
-                  <UserConcerns />
-                </UserProtectedRoute>
-              }
-            />
-            <Route
-              path="/user/profile"
-              element={
-                <UserProtectedRoute>
-                  <UserProfile />
-                </UserProtectedRoute>
-              }
-            />
-            <Route
-              path="/faq"
-              element={
-                <UserProtectedRoute>
-                  <FAQ />
-                </UserProtectedRoute>
-              }
-            />
-            {/* Legacy route redirect */}
-            <Route path="/users-dashboard" element={<Navigate to="/user/dashboard" replace />} />
-
-            {/* ================= TREASURY ROUTES ================= */}
-            <Route
-              path="/admin/treasury/dashboard"
-              element={
-                <TreasuryProtectedRoute>
-                  <TreasuryDashboard />
-                </TreasuryProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/treasury/cashin"
-              element={
-                <TreasuryProtectedRoute>
-                  <CashInForm />
-                </TreasuryProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/treasury/register"
-              element={
-                <TreasuryProtectedRoute>
-                  <RegistrationForm />
-                </TreasuryProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/treasury/transactions"
-              element={
-                <TreasuryProtectedRoute>
-                  <TreasuryTransactionsPage />
-                </TreasuryProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/treasury/merchants"
-              element={
-                <TreasuryProtectedRoute>
-                  <TreasuryMerchantsPage />
-                </TreasuryProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/treasury/logs"
-              element={
-                <TreasuryProtectedRoute>
-                  <LogsPage />
-                </TreasuryProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/treasury/concerns"
-              element={
-                <TreasuryProtectedRoute>
-                  <TreasuryConcernsPage />
-                </TreasuryProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/treasury/config"
-              element={
-                <TreasuryProtectedRoute>
-                  <TreasuryConfigPage />
-                </TreasuryProtectedRoute>
-              }
-            />
-            {/* Treasury Profile */}
-            <Route
-              path="/admin/treasury/profile"
-              element={
-                <TreasuryProtectedRoute>
-                  <ProfilePage />
-                </TreasuryProtectedRoute>
-              }
-            />
-            {/* Treasury default redirect */}
-            <Route path="/admin/treasury" element={<Navigate to="/admin/treasury/dashboard" replace />} />
-
-            {/* ================= ACCOUNTING ROUTES ================= */}
-            <Route
-              path="/admin/accounting/home"
-              element={
-                <AccountingProtectedRoute>
-                  <AccountingHome />
-                </AccountingProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/accounting/transactions"
-              element={
-                <AccountingProtectedRoute>
-                  <AccountingTransactionsPage />
-                </AccountingProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/accounting/merchants"
-              element={
-                <AccountingProtectedRoute>
-                  <AccountingMerchantsPage />
-                </AccountingProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/accounting/logs"
-              element={
-                <AccountingProtectedRoute>
-                  <TreasuryLogs />
-                </AccountingProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/accounting/concerns"
-              element={
-                <AccountingProtectedRoute>
-                  <ConcernsManagement />
-                </AccountingProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/accounting/config"
-              element={
-                <AccountingProtectedRoute>
-                  <Config />
-                </AccountingProtectedRoute>
-              }
-            />
-            {/* Accounting Profile */}
-            <Route
-              path="/admin/accounting/profile"
-              element={
-                <AccountingProtectedRoute>
-                  <ProfilePage />
-                </AccountingProtectedRoute>
-              }
-            />
-            {/* Accounting default redirect */}
-            <Route path="/admin/accounting" element={<Navigate to="/admin/accounting/home" replace />} />
-
-            {/* ================= SYSTEM ADMIN ROUTES ================= */}
-            <Route
-              path="/admin/sysad/dashboard"
-              element={
-                <SysadProtectedRoute>
-                  <SysadDashboard />
-                </SysadProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/sysad/users"
-              element={
-                <SysadProtectedRoute>
-                  <ManageUsers />
-                </SysadProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/sysad/transfer-card"
-              element={
-                <SysadProtectedRoute>
-                  <TransferCard />
-                </SysadProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/sysad/logs"
-              element={
-                <SysadProtectedRoute>
-                  <LogsPage />
-                </SysadProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/sysad/concerns"
-              element={
-                <SysadProtectedRoute>
-                  <SysadConcernsPage />
-                </SysadProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/sysad/config"
-              element={
-                <SysadProtectedRoute>
-                  <SysadConfigPage />
-                </SysadProtectedRoute>
-              }
-            />
-            {/* Sysad Profile */}
-            <Route
-              path="/admin/sysad/profile"
-              element={
-                <SysadProtectedRoute>
-                  <ProfilePage />
-                </SysadProtectedRoute>
-              }
-            />
-            {/* Sysad default redirect */}
-            <Route path="/admin/sysad" element={<Navigate to="/admin/sysad/dashboard" replace />} />
-
-            {/* ================= MOTORPOOL ADMIN ROUTES ================= */}
-            <Route
-              path="/admin/motorpool"
-              element={
-                <MotorpoolProtectedRoute>
-                  <MotorpoolDashboard />
-                </MotorpoolProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/motorpool/routes"
-              element={
-                <MotorpoolProtectedRoute>
-                  <RoutesPage />
-                </MotorpoolProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/motorpool/drivers"
-              element={
-                <MotorpoolProtectedRoute>
-                  <DriversPage />
-                </MotorpoolProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/motorpool/shuttles"
-              element={
-                <MotorpoolProtectedRoute>
-                  <ShuttlesPage />
-                </MotorpoolProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/motorpool/trips"
-              element={
-                <MotorpoolProtectedRoute>
-                  <TripsPage />
-                </MotorpoolProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/motorpool/phones"
-              element={
-                <MotorpoolProtectedRoute>
-                  <PhonesPage />
-                </MotorpoolProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/motorpool/concerns"
-              element={
-                <MotorpoolProtectedRoute>
-                  <MotorpoolConcernsPage />
-                </MotorpoolProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/motorpool/configurations"
-              element={
-                <MotorpoolProtectedRoute>
-                  <MotorpoolConfigurationsPage />
-                </MotorpoolProtectedRoute>
-              }
-            />
-            {/* Motorpool Profile */}
-            <Route
-              path="/admin/motorpool/profile"
-              element={
-                <MotorpoolProtectedRoute>
-                  <ProfilePage />
-                </MotorpoolProtectedRoute>
-              }
-            />
-
-            {/* ================= MERCHANT ADMIN ROUTES ================= */}
-            <Route
-              path="/admin/merchant"
-              element={
-                <MerchantProtectedRoute>
-                  <MerchantDashboard />
-                </MerchantProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/merchant/merchants"
-              element={
-                <MerchantProtectedRoute>
-                  <MerchantsPage />
-                </MerchantProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/merchant/phones"
-              element={
-                <MerchantProtectedRoute>
-                  <MerchantPhonesPage />
-                </MerchantProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/merchant/concerns"
-              element={
-                <MerchantProtectedRoute>
-                  <MerchantConcernsPage />
-                </MerchantProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/merchant/configurations"
-              element={
-                <MerchantProtectedRoute>
-                  <MerchantConfigurationsPage />
-                </MerchantProtectedRoute>
-              }
-            />
-            {/* Merchant Profile */}
-            <Route
-              path="/admin/merchant/profile"
-              element={
-                <MerchantProtectedRoute>
-                  <ProfilePage />
-                </MerchantProtectedRoute>
-              }
-            />
-            {/* Merchant Logs */}
-            <Route
-              path="/admin/merchant/logs"
-              element={
-                <MerchantProtectedRoute>
-                  <LogsPage />
-                </MerchantProtectedRoute>
-              }
-            />
-
-            {/* ================= SHARED ADMIN ROUTES ================= */}
-            <Route
-              path="/admin/logs"
-              element={
-                <MotorpoolProtectedRoute>
-                  <LogsPage />
-                </MotorpoolProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/profile"
-              element={
-                <MotorpoolProtectedRoute>
-                  <ProfilePage />
-                </MotorpoolProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/concerns"
-              element={
-                <MotorpoolProtectedRoute>
-                  <ConcernsPage />
-                </MotorpoolProtectedRoute>
-              }
-            />
-
-            {/* Default redirects */}
-            <Route path="/" element={<Navigate to="/login" replace />} />
-            <Route path="/admin" element={<Navigate to="/admin/motorpool" replace />} />
-            <Route path="*" element={<Navigate to="/login" replace />} />
-          </Routes>
+          <AppContent />
         </BrowserRouter>
       </AppProvider>
     </ThemeProvider>

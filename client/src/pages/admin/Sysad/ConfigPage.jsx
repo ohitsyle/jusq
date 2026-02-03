@@ -27,6 +27,7 @@ export default function SysadConfigPage() {
   // Sysad-specific configs (maintenance mode, deactivation scheduler)
   const [sysadConfig, setSysadConfig] = useState({
     maintenanceMode: false,
+    maintenanceMessage: 'System is under maintenance. Please try again later.',
     deactivationScheduler: {
       enabled: false,
       date: '',
@@ -113,19 +114,50 @@ export default function SysadConfigPage() {
 
   const handleToggleMaintenance = async () => {
     const newValue = !sysadConfig.maintenanceMode;
-    if (newValue && !window.confirm('Are you sure you want to enable maintenance mode? All users except system admins will be locked out.')) {
-      return;
-    }
+    
+    if (newValue) {
+      // Get custom maintenance message
+      const customMessage = window.prompt(
+        'Enter custom maintenance message (optional):',
+        sysadConfig.maintenanceMessage
+      );
+      
+      if (!window.confirm(`Are you sure you want to enable maintenance mode?\n\nAll non-sysadmin users will be immediately logged out and will see the maintenance message.`)) {
+        return;
+      }
 
-    setSaving(true);
-    try {
-      await api.post('/admin/sysad/maintenance-mode', { enabled: newValue });
-      setSysadConfig(prev => ({ ...prev, maintenanceMode: newValue }));
-      toast.success(`Maintenance mode ${newValue ? 'enabled' : 'disabled'}`);
-    } catch (error) {
-      toast.error('Failed to update maintenance mode');
-    } finally {
-      setSaving(false);
+      setSaving(true);
+      try {
+        await api.post('/admin/sysad/maintenance-mode', { 
+          enabled: newValue, 
+          message: customMessage || sysadConfig.maintenanceMessage 
+        });
+        setSysadConfig(prev => ({ 
+          ...prev, 
+          maintenanceMode: newValue,
+          maintenanceMessage: customMessage || prev.maintenanceMessage
+        }));
+        toast.success('Maintenance mode enabled. All non-sysadmin users will be logged out.');
+      } catch (error) {
+        toast.error('Failed to enable maintenance mode');
+      } finally {
+        setSaving(false);
+      }
+    } else {
+      if (!window.confirm('Are you sure you want to disable maintenance mode?')) {
+        return;
+      }
+
+      setSaving(true);
+      try {
+        await api.post('/admin/sysad/maintenance-mode', { enabled: newValue });
+        setSysadConfig(prev => ({ ...prev, maintenanceMode: newValue }));
+        toast.success('Maintenance mode disabled');
+      } catch (error) {
+        toast.error('Failed to disable maintenance mode');
+      } finally {
+        setSaving(false);
+      }
     }
   };
 
@@ -275,27 +307,73 @@ export default function SysadConfigPage() {
           className="p-6 rounded-2xl border-2"
         >
           <div className="flex items-start justify-between">
-            <div className="flex items-start gap-4">
+            <div className="flex items-start gap-4 flex-1">
               <div
                 style={{ background: sysadConfig.maintenanceMode ? 'rgba(239,68,68,0.2)' : `${accentColor}20` }}
                 className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0"
               >
                 <Shield className="w-6 h-6" style={{ color: sysadConfig.maintenanceMode ? '#EF4444' : accentColor }} />
               </div>
-              <div>
+              <div className="flex-1">
                 <h3 style={{ color: theme.text.primary }} className="font-bold text-lg mb-1">Maintenance Mode</h3>
                 <p style={{ color: theme.text.secondary }} className="text-sm mb-3">
-                  When enabled, only system administrators can access the system. All other users will see a maintenance message.
+                  When enabled, only system administrators can access the system. All other users will be logged out and will see a maintenance message.
                 </p>
+                
+                {/* Current Message Display */}
+                <div className="mb-3">
+                  <div style={{ color: theme.text.secondary }} className="text-xs font-semibold mb-1">CURRENT MESSAGE:</div>
+                  <div 
+                    style={{ 
+                      background: theme.bg.secondary, 
+                      borderColor: theme.border.primary,
+                      color: theme.text.primary 
+                    }} 
+                    className="p-3 rounded-lg border text-sm"
+                  >
+                    {sysadConfig.maintenanceMessage}
+                  </div>
+                </div>
+
                 {sysadConfig.maintenanceMode && (
                   <div
                     style={{ background: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.3)' }}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border"
+                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border mb-3"
                   >
                     <AlertTriangle className="w-4 h-4 text-red-500" />
-                    <span className="text-red-500 text-sm font-semibold">System is in maintenance mode</span>
+                    <span className="text-red-500 text-sm font-semibold">System is in maintenance mode - All non-sysadmin users logged out</span>
                   </div>
                 )}
+
+                {/* Edit Message Button */}
+                <button
+                  onClick={() => {
+                    const newMessage = window.prompt(
+                      'Edit maintenance message:',
+                      sysadConfig.maintenanceMessage
+                    );
+                    if (newMessage && newMessage.trim()) {
+                      setSysadConfig(prev => ({ ...prev, maintenanceMessage: newMessage.trim() }));
+                      // Also update the message on server if maintenance mode is active
+                      if (sysadConfig.maintenanceMode) {
+                        api.post('/admin/sysad/maintenance-mode', { 
+                          enabled: true, 
+                          message: newMessage.trim() 
+                        }).catch(() => {
+                          toast.error('Failed to update maintenance message');
+                        });
+                      }
+                    }
+                  }}
+                  style={{ 
+                    background: `${accentColor}20`, 
+                    color: accentColor,
+                    borderColor: accentColor 
+                  }}
+                  className="px-4 py-2 rounded-lg text-sm font-medium border hover:opacity-80 transition mr-3"
+                >
+                  Edit Message
+                </button>
               </div>
             </div>
             <button
@@ -305,7 +383,7 @@ export default function SysadConfigPage() {
                 background: sysadConfig.maintenanceMode ? '#EF4444' : '#10B981',
                 color: '#FFFFFF'
               }}
-              className="px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:opacity-90 transition disabled:opacity-50"
+              className="px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:opacity-90 transition disabled:opacity-50 flex-shrink-0 ml-4"
             >
               {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Power className="w-5 h-5" />}
               {sysadConfig.maintenanceMode ? 'Disable' : 'Enable'}
@@ -757,6 +835,50 @@ function ConfigModal({ theme, isDarkMode, configurations, setConfigurations, exp
         </div>
 
         <div className="p-6 space-y-5 overflow-y-auto max-h-[calc(90vh-180px)]">
+          {/* Enable Toggle */}
+          <div
+            style={{
+              background: configurations.autoExport?.enabled ? `${accentColor}15` : isDarkMode ? 'rgba(239,68,68,0.1)' : 'rgba(239,68,68,0.05)',
+              borderColor: configurations.autoExport?.enabled ? `${accentColor}40` : 'rgba(239,68,68,0.3)'
+            }}
+            className="flex items-center justify-between p-4 rounded-xl border"
+          >
+            <div>
+              <div style={{ color: theme.text.primary }} className="font-bold text-sm">Enable Automatic Export</div>
+              <div style={{ color: theme.text.secondary }} className="text-xs mt-1">
+                {configurations.autoExport?.enabled ? '✅ Auto-export is active' : '⚠️ Auto-export is disabled'}
+              </div>
+            </div>
+            <button
+              onClick={() => setConfigurations({
+                ...configurations,
+                autoExport: { ...configurations.autoExport, enabled: !configurations.autoExport?.enabled }
+              })}
+              style={{
+                background: configurations.autoExport?.enabled ? '#10B981' : '#6B7280',
+                width: '52px',
+                height: '28px',
+                borderRadius: '14px',
+                position: 'relative',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '2px',
+                  left: configurations.autoExport?.enabled ? '26px' : '2px',
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '12px',
+                  background: '#FFFFFF',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                }}
+              />
+            </button>
+          </div>
+
           {/* Frequency */}
           <div>
             <label style={{ color: accentColor }} className="block text-xs font-bold uppercase mb-2">Frequency</label>

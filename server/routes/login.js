@@ -218,10 +218,10 @@ router.post('/', async (req, res) => {
       // FIXED: Use bcrypt.compare() for hashed passwords
       let isValidPin = false;
       
-      if (merchant.password.startsWith('$2b$') || merchant.password.startsWith('$2a$')) {
-        isValidPin = await bcrypt.compare(password, merchant.password);
+      if (merchant.pin.startsWith('$2b$') || merchant.pin.startsWith('$2a$')) {
+        isValidPin = await bcrypt.compare(password, merchant.pin);
       } else {
-        isValidPin = merchant.password === password;
+        isValidPin = merchant.pin === password;
       }
       
       if (isValidPin) {

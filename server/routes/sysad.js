@@ -13,6 +13,7 @@ import Feedback from '../models/Feedback.js';
 import UserConcern from '../models/UserConcern.js';
 import bcrypt from 'bcrypt';
 import { sendTemporaryPIN } from '../services/emailService.js';
+import { checkMaintenanceMode, getMaintenanceStatus, setMaintenanceMode } from '../middlewares/maintenanceMode.js';
 
 // ============================================================
 // DASHBOARD ENDPOINTS
@@ -829,30 +830,55 @@ router.put('/config', async (req, res) => {
 
 /**
  * POST /api/admin/sysad/maintenance-mode
- * Toggle maintenance mode
+ * Toggle maintenance mode and force logout non-sysadmin users
  */
 router.post('/maintenance-mode', async (req, res) => {
   try {
     const { enabled, message } = req.body;
 
+    // Update both system config and middleware maintenance mode
     systemConfig.maintenanceMode = enabled;
     if (message) systemConfig.maintenanceMessage = message;
+
+    // Update middleware maintenance mode state
+    setMaintenanceMode(enabled, message || 'System is under maintenance. Please try again later.');
 
     // Log action
     await SystemLog.create({
       eventType: 'maintenance_mode_changed',
-      description: `Maintenance mode ${enabled ? 'enabled' : 'disabled'}`,
+      description: `Maintenance mode ${enabled ? 'enabled' : 'disabled'} by SysAd`,
       severity: enabled ? 'warning' : 'info',
-      metadata: { enabled, adminAction: true }
+      metadata: { enabled, message, adminAction: true }
     });
+
+    console.log(`🔧 Maintenance mode ${enabled ? 'ENABLED' : 'DISABLED'} by SysAd`);
 
     res.json({
       success: true,
-      message: `Maintenance mode ${enabled ? 'enabled' : 'disabled'}`,
-      maintenanceMode: systemConfig.maintenanceMode
+      message: `Maintenance mode ${enabled ? 'enabled' : 'disabled'}. ${enabled ? 'All non-sysadmin users will be logged out.' : ''}`,
+      maintenanceMode: systemConfig.maintenanceMode,
+      forceLogoutTriggered: enabled
     });
   } catch (error) {
     console.error('❌ Maintenance mode error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * GET /api/admin/sysad/maintenance-status
+ * Get current maintenance mode status
+ */
+router.get('/maintenance-status', async (req, res) => {
+  try {
+    const status = getMaintenanceStatus();
+    res.json({
+      success: true,
+      maintenanceMode: status.enabled,
+      message: status.message
+    });
+  } catch (error) {
+    console.error('❌ Maintenance status error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });

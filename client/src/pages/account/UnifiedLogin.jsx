@@ -20,21 +20,24 @@ export default function UnifiedLogin() {
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
 
-  // Check maintenance mode on load
+  // Maintenance mode state - we check but don't block login page
+  // Sysad admins need to be able to log in during maintenance
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  
   useEffect(() => {
     const checkMaintenanceMode = async () => {
       try {
         const response = await fetch('http://localhost:3000/api/admin/sysad/config');
         const data = await response.json();
         if (data?.config?.maintenanceMode) {
-          navigate('/maintenance', { replace: true });
+          setMaintenanceMode(true);
         }
       } catch (error) {
         console.log('Could not check maintenance status:', error.message);
       }
     };
     checkMaintenanceMode();
-  }, [navigate]);
+  }, []);
 
   // Guard Gate: Redirect if already logged in
   useEffect(() => {
@@ -199,6 +202,11 @@ export default function UnifiedLogin() {
       // This overrides the email-based detection
       const isAdminResponse = data.role && ['motorpool', 'merchant', 'treasury', 'accounting', 'sysad', 'cafeteria', 'bookstore', 'printshop'].includes(data.role);
       const actualRole = isAdminResponse ? 'admin' : detectedRole;
+
+      // MAINTENANCE MODE CHECK: Only allow sysad to login during maintenance
+      if (maintenanceMode && data.role !== 'sysad') {
+        throw new Error('System is under maintenance. Only system administrators can access the system at this time.');
+      }
 
       // Get the correct config based on actual role
       const actualConfig = actualRole === 'admin' ? getRoleConfig('admin') : config;
@@ -428,6 +436,19 @@ export default function UnifiedLogin() {
             Sign in to access your account
           </p>
         </div>
+
+        {/* Maintenance Mode Banner */}
+        {maintenanceMode && (
+          <div className="mb-6 p-4 bg-[rgba(255,212,28,0.15)] border-2 border-[rgba(255,212,28,0.4)] rounded-xl text-center">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <span className="text-2xl">🔧</span>
+              <span className="text-[#FFD41C] font-bold">Maintenance Mode</span>
+            </div>
+            <p className="text-[rgba(251,251,251,0.7)] text-xs">
+              System is under maintenance. Only system administrators can log in.
+            </p>
+          </div>
+        )}
 
         {/* Error Message */}
         {error && (

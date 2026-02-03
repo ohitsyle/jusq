@@ -11,6 +11,7 @@ import EventLog from '../models/EventLog.js';
 import User from '../models/User.js';
 import UserConcern from '../models/UserConcern.js';
 import Merchant from '../models/Merchant.js';
+import Admin from '../models/Admin.js';
 
 /**
  * Convert array of objects to CSV string
@@ -343,6 +344,92 @@ export async function exportMerchants(dateFilter = {}) {
 }
 
 /**
+ * Export cash-ins (credit transactions) data to CSV
+ */
+export async function exportCashIns(dateFilter = {}) {
+  const query = { transactionType: 'credit' };
+  if (dateFilter.startDate && dateFilter.endDate) {
+    query.createdAt = { $gte: new Date(dateFilter.startDate), $lte: new Date(dateFilter.endDate) };
+  }
+
+  const cashIns = await Transaction.find(query).lean();
+  const headers = ['transactionId', 'userId', 'userSchoolId', 'userName', 'amount', 'status', 'description', 'createdAt'];
+
+  const data = cashIns.map(tx => ({
+    transactionId: tx.transactionId,
+    userId: tx.userId || '',
+    userSchoolId: tx.userSchoolId || '',
+    userName: tx.userName || '',
+    amount: tx.amount,
+    status: tx.status,
+    description: tx.description || '',
+    createdAt: tx.createdAt ? new Date(tx.createdAt).toISOString() : ''
+  }));
+
+  return {
+    csv: arrayToCSV(data, headers),
+    count: data.length
+  };
+}
+
+/**
+ * Export user balances summary to CSV
+ */
+export async function exportBalances(dateFilter = {}) {
+  const query = {};
+  if (dateFilter.startDate && dateFilter.endDate) {
+    query.createdAt = { $gte: new Date(dateFilter.startDate), $lte: new Date(dateFilter.endDate) };
+  }
+
+  const users = await User.find(query).lean();
+  const headers = ['schoolUId', 'fullName', 'email', 'userType', 'balance', 'isActive', 'createdAt'];
+
+  const data = users.map(user => ({
+    schoolUId: user.schoolUId,
+    fullName: user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+    email: user.email,
+    userType: user.userType || user.role || '',
+    balance: user.balance || 0,
+    isActive: user.isActive !== false,
+    createdAt: user.createdAt ? new Date(user.createdAt).toISOString() : ''
+  }));
+
+  return {
+    csv: arrayToCSV(data, headers),
+    count: data.length
+  };
+}
+
+/**
+ * Export admins data to CSV
+ */
+export async function exportAdmins(dateFilter = {}) {
+  const query = {};
+  if (dateFilter.startDate && dateFilter.endDate) {
+    query.createdAt = { $gte: new Date(dateFilter.startDate), $lte: new Date(dateFilter.endDate) };
+  }
+
+  const admins = await Admin.find(query).select('-password -pin').lean();
+  const headers = ['adminId', 'schoolUId', 'firstName', 'lastName', 'email', 'role', 'isActive', 'createdAt'];
+
+  const data = admins.map(admin => ({
+    adminId: admin.adminId,
+    schoolUId: admin.schoolUId || '',
+    firstName: admin.firstName,
+    lastName: admin.lastName,
+    email: admin.email,
+    role: admin.role,
+    isActive: admin.isActive !== false,
+    createdAt: admin.createdAt ? new Date(admin.createdAt).toISOString() : ''
+  }));
+
+  return {
+    csv: arrayToCSV(data, headers),
+    count: data.length
+  };
+}
+
+/**
  * Export data by type with optional date filtering
  */
 export async function exportByType(exportType, dateFilter = {}) {
@@ -370,6 +457,13 @@ export async function exportByType(exportType, dateFilter = {}) {
       return await exportConcerns(dateFilter);
     case 'merchants':
       return await exportMerchants(dateFilter);
+    case 'cash-ins':
+    case 'cashins':
+      return await exportCashIns(dateFilter);
+    case 'balances':
+      return await exportBalances(dateFilter);
+    case 'admins':
+      return await exportAdmins(dateFilter);
     default:
       throw new Error(`Unknown export type: ${exportType}`);
   }
