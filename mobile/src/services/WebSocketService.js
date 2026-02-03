@@ -66,12 +66,25 @@ class WebSocketService {
     }
 
     let lastUpdate = Date.now();
+    let consecutiveErrors = 0;
     
     this.pollingInterval = setInterval(async () => {
       try {
         // Check for updates via HTTP
-        const response = await fetch(`${serverURL.replace('/api', '')}/api/websocket/stats`);
+        const response = await fetch(`${serverURL.replace('/api', '')}/api/websocket/stats`, {
+          method: 'GET',
+          timeout: 5000,
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        
         const data = await response.json();
+        consecutiveErrors = 0; // Reset error counter
         
         if (data.success && data.timestamp) {
           const updateTime = new Date(data.timestamp).getTime();
@@ -89,7 +102,18 @@ class WebSocketService {
           }
         }
       } catch (error) {
-        console.error('❌ Polling error:', error);
+        consecutiveErrors++;
+        console.error(`❌ Polling error (${consecutiveErrors}/5):`, error.message);
+        
+        // If too many consecutive errors, slow down polling
+        if (consecutiveErrors >= 5) {
+          console.log('🔄 Too many polling errors, reducing frequency');
+          clearInterval(this.pollingInterval);
+          // Restart with slower polling
+          setTimeout(() => {
+            this.startPolling(serverURL);
+          }, 10000); // Wait 10 seconds before retry
+        }
       }
     }, this.pollingIntervalMs);
   }
