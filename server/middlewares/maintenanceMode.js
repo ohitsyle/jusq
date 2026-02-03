@@ -23,7 +23,7 @@ export async function checkMaintenanceMode(req, res, next) {
       '/privacy-policy'
     ];
     
-    const isPublicRoute = publicRoutes.some(route => req.path.includes(route));
+    const isPublicRoute = req.path === '/force-logout' || publicRoutes.some(route => req.path === route || req.path.startsWith(route));
     
     if (isPublicRoute) {
       return next();
