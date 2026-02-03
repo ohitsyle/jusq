@@ -27,7 +27,7 @@ export default function UnifiedLogin() {
   useEffect(() => {
     const checkMaintenanceMode = async () => {
       try {
-        const response = await fetch('http://localhost:3000/api/admin/sysad/config');
+        const response = await fetch('http://18.166.29.239:3000/api/admin/sysad/config');
         const data = await response.json();
         if (data?.config?.maintenanceMode) {
           setMaintenanceMode(true);
@@ -97,8 +97,8 @@ export default function UnifiedLogin() {
   const getRoleConfig = (role) => {
     const configs = {
       admin: {
-        endpoint: 'http://localhost:3000/api/login',
-        checkEndpoint: 'http://localhost:3000/api/login/check-email',
+        endpoint: 'http://18.166.29.239:3000/api/login',
+        checkEndpoint: 'http://18.166.29.239:3000/api/login/check-email',
         tokenKey: 'adminToken',
         dataKey: 'adminData',
         title: 'Admin Portal',
@@ -107,8 +107,8 @@ export default function UnifiedLogin() {
         icon: '👨‍💼'
       },
       merchant: {
-        endpoint: 'http://localhost:3000/api/merchant/auth/login',
-        checkEndpoint: 'http://localhost:3000/api/merchant/auth/check-email',
+        endpoint: 'http://18.166.29.239:3000/api/merchant/auth/login',
+        checkEndpoint: 'http://18.166.29.239:3000/api/merchant/auth/check-email',
         tokenKey: 'merchantToken',
         dataKey: 'merchantData',
         title: 'Merchant Portal',
@@ -117,8 +117,8 @@ export default function UnifiedLogin() {
         icon: '🏪'
       },
       user: {
-        endpoint: 'http://localhost:3000/api/login',
-        checkEndpoint: 'http://localhost:3000/api/login/check-email',
+        endpoint: 'http://18.166.29.239:3000/api/login',
+        checkEndpoint: 'http://18.166.29.239:3000/api/login/check-email',
         tokenKey: 'userToken',
         dataKey: 'userData',
         title: 'Student Portal',
@@ -287,7 +287,7 @@ export default function UnifiedLogin() {
 
     try {
       // Use the forgot-pin endpoint for users
-      const response = await fetch('http://localhost:3000/api/login/forgot-pin', {
+      const response = await fetch('http://18.166.29.239:3000/api/login/forgot-pin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: forgotEmail })
@@ -316,7 +316,7 @@ export default function UnifiedLogin() {
 
     try {
       // Use the verify-otp endpoint for users
-      const response = await fetch('http://localhost:3000/api/login/verify-otp', {
+      const response = await fetch('http://18.166.29.239:3000/api/login/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: forgotEmail, otp })
@@ -356,7 +356,7 @@ export default function UnifiedLogin() {
 
     try {
       // Use the reset-pin endpoint for users
-      const response = await fetch('http://localhost:3000/api/login/reset-pin', {
+      const response = await fetch('http://18.166.29.239:3000/api/login/reset-pin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: forgotEmail, newPin })

@@ -1,7 +1,7 @@
 // client/src/services/merchantApi.js
 // API service for merchant operations (used by Treasury for viewing merchant transactions)
 
-const API_BASE = 'http://localhost:3000/api/admin';
+const API_BASE = 'http://18.166.29.239:3000/api/admin';
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('adminToken');

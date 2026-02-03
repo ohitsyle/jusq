@@ -1,7 +1,7 @@
 // client/src/services/userApi.js
 // API service for User dashboard operations
 
-const API_BASE = 'http://localhost:3000/api/user';
+const API_BASE = 'http://18.166.29.239:3000/api/user';
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('userToken');

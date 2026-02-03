@@ -12,7 +12,7 @@ export default function ReportsPage() {
 
   const loadReports = async () => {
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const API_URL = import.meta.env.VITE_API_URL || 'http://18.166.29.239:3000';
       const token = localStorage.getItem('merchantToken');
 
       const response = await fetch(`${API_URL}/api/merchant/reports?range=${dateRange}`, {
@@ -30,7 +30,7 @@ export default function ReportsPage() {
   };
 
   const downloadReport = (format) => {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const API_URL = import.meta.env.VITE_API_URL || 'http://18.166.29.239:3000';
     const token = localStorage.getItem('merchantToken');
     window.open(`${API_URL}/api/merchant/reports/download?format=${format}&range=${dateRange}&token=${token}`, '_blank');
   };

@@ -35,7 +35,7 @@ export default function MerchantsList() {
     try {
       const token = localStorage.getItem('adminToken');
 
-      const response = await fetch('http://localhost:3000/api/merchant/merchants', {
+      const response = await fetch('http://18.166.29.239:3000/api/merchant/merchants', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -115,7 +115,7 @@ export default function MerchantsList() {
         const updateData = { ...formData };
         if (!updateData.password) delete updateData.password;
 
-        const response = await fetch(`http://localhost:3000/api/merchant/merchants/${editingMerchant._id}`, {
+        const response = await fetch(`http://18.166.29.239:3000/api/merchant/merchants/${editingMerchant._id}`, {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -139,7 +139,7 @@ export default function MerchantsList() {
 
         console.log('📤 Sending merchant data:', formData);
 
-        const response = await fetch('http://localhost:3000/api/merchant/merchants', {
+        const response = await fetch('http://18.166.29.239:3000/api/merchant/merchants', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -180,7 +180,7 @@ export default function MerchantsList() {
     try {
       const token = localStorage.getItem('adminToken');
 
-      const response = await fetch(`http://localhost:3000/api/merchant/merchants/${merchant._id}`, {
+      const response = await fetch(`http://18.166.29.239:3000/api/merchant/merchants/${merchant._id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -211,7 +211,7 @@ export default function MerchantsList() {
     try {
       const token = localStorage.getItem('adminToken');
 
-      const response = await fetch(`http://localhost:3000/api/merchant/merchants/${merchantId}`, {
+      const response = await fetch(`http://18.166.29.239:3000/api/merchant/merchants/${merchantId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

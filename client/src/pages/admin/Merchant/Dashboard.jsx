@@ -21,7 +21,7 @@ export default function Dashboard() {
     try {
       const token = localStorage.getItem('adminToken');
 
-      const response = await fetch('http://localhost:3000/api/merchant/stats', {
+      const response = await fetch('http://18.166.29.239:3000/api/merchant/stats', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 

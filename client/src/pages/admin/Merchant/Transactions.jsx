@@ -18,7 +18,7 @@ export default function TransactionsList() {
 
   const loadTransactions = async () => {
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const API_URL = import.meta.env.VITE_API_URL || 'http://18.166.29.239:3000';
       const token = localStorage.getItem('merchantToken');
 
       const response = await fetch(`${API_URL}/api/merchant/transactions?filter=${filter}`, {
@@ -37,7 +37,7 @@ export default function TransactionsList() {
 
   const loadMerchants = async () => {
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const API_URL = import.meta.env.VITE_API_URL || 'http://18.166.29.239:3000';
       const token = localStorage.getItem('merchantToken');
 
       const response = await fetch(`${API_URL}/api/merchant/merchants`, {

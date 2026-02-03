@@ -69,7 +69,7 @@ export default function Login({ onLogin, apiEndpoint, title = "Admin Portal" }) 
       if (data.requiresActivation) {
         console.log('⚠️  Account requires activation, redirecting...');
         // Redirect to activation page with account details (on backend server port 3000)
-        const activationUrl = `http://localhost:3000/activate?accountId=${data.accountId}&accountType=${data.accountType || 'admin'}&email=${encodeURIComponent(data.email)}`;
+        const activationUrl = `http://18.166.29.239:3000/activate?accountId=${data.accountId}&accountType=${data.accountType || 'admin'}&email=${encodeURIComponent(data.email)}`;
         window.location.href = activationUrl;
         return;
       }

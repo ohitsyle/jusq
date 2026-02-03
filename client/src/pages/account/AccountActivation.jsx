@@ -6,7 +6,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
-const API_BASE = "http://localhost:3000/api";
+const API_BASE = "http://18.166.29.239:3000/api";
 
 // Terms and Conditions content
 const TERMS_CONTENT = {

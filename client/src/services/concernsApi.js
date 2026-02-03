@@ -1,7 +1,7 @@
 // client/src/services/concernsApi.js
 // API service for user concerns matching treasury concerns logic
 
-const API_BASE = 'http://localhost:3000/api/admin';
+const API_BASE = 'http://18.166.29.239:3000/api/admin';
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('adminToken');
@@ -167,7 +167,7 @@ export const submitFeedback = async (feedbackData) => {
 export const getUserConcerns = async () => {
   try {
     const token = localStorage.getItem('userToken');
-    const response = await fetch('http://localhost:3000/api/user/concerns/my-concerns', {
+    const response = await fetch('http://18.166.29.239:3000/api/user/concerns/my-concerns', {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'

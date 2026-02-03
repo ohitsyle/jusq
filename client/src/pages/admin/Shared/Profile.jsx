@@ -31,7 +31,7 @@ export default function ProfilePage() {
           return;
         }
 
-        const response = await fetch('http://localhost:3000/api/admin/auth/me', {
+        const response = await fetch('http://18.166.29.239:3000/api/admin/auth/me', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -90,7 +90,7 @@ export default function ProfilePage() {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:3000/api/admin/auth/send-otp', {
+      const response = await fetch('http://18.166.29.239:3000/api/admin/auth/send-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -129,7 +129,7 @@ export default function ProfilePage() {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:3000/api/admin/auth/change-password', {
+      const response = await fetch('http://18.166.29.239:3000/api/admin/auth/change-password', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
