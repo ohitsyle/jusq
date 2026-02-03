@@ -17,10 +17,13 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       output: {
-        entryFileNames: 'asset-[name]-[hash].js',
-        chunkFileNames: 'asset-[name]-[hash].js',
-        assetFileNames: 'asset-[name]-[hash].[ext]'
+        entryFileNames: `asset-[name]-${Date.now()}.js`,
+        chunkFileNames: `asset-[name]-${Date.now()}.js`,
+        assetFileNames: `asset-[name]-${Date.now()}.[ext]`
       }
     }
+  },
+  define: {
+    __APP_VERSION__: '"2.0.1"'
   }
 });
