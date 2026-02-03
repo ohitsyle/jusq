@@ -107,6 +107,15 @@ app.get('/force-logout', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'force-logout.html'));
 });
 
+// Catch-all handler for React Router - serve index.html for all non-API routes
+app.get('*', (req, res) => {
+  // Don't intercept API routes
+  if (req.path.startsWith('/api') || req.path.startsWith('/assets')) {
+    return res.status(404).json({ error: 'API endpoint not found' });
+  }
+  res.sendFile(path.join(__dirname, 'public', 'dist', 'index.html'));
+});
+
 // DEBUG: Check all users in database
 app.get('/debug/users', async (req, res) => {
   try {
