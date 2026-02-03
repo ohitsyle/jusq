@@ -143,12 +143,19 @@ router.get('/users', async (req, res) => {
         { schoolUId: { $regex: search, $options: 'i' } }
       ];
       userFilter.$or = searchFilter;
-      adminFilter.$or = [
-        { firstName: { $regex: search, $options: 'i' } },
-        { lastName: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { adminId: { $regex: search, $options: 'i' } }
-      ];
+      
+      // For adminId, try to convert to number first, if it's a valid number
+      const adminIdSearch = parseInt(search);
+      if (!isNaN(adminIdSearch)) {
+        adminFilter.adminId = adminIdSearch;
+      } else {
+        // If not a number, search string fields
+        adminFilter.$or = [
+          { firstName: { $regex: search, $options: 'i' } },
+          { lastName: { $regex: search, $options: 'i' } },
+          { email: { $regex: search, $options: 'i' } }
+        ];
+      }
     }
 
     // Build sort
