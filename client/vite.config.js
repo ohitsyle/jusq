@@ -20,7 +20,7 @@ export default defineConfig({
         // Add hash to filenames for cache busting
         entryFileNames: 'app-[name].js',
         chunkFileNames: 'chunk-[name]-[hash].js',
-        assetFileNames: 'asset-[name]-[hash][ext]'
+        assetFileNames: 'asset-[name]-[hash].[ext]'
       }
     }
   },
