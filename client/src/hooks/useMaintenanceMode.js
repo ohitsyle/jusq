@@ -28,10 +28,9 @@ export function useMaintenanceMode() {
 
   // Check maintenance mode status
   const checkMaintenanceStatus = useCallback(async () => {
-    // Don't check maintenance status if on force-logout or login page
-    if (window.location.pathname === '/force-logout' || window.location.pathname === '/login') {
-      return;
-    }
+    // TEMPORARILY DISABLED TO STOP INFINITE LOOP
+    console.log('� Maintenance check temporarily disabled');
+    return;
 
     try {
       const response = await fetch(`${backendUrl}/api/admin/sysad/maintenance-status`, {
