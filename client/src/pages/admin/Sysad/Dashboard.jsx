@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { toast } from 'react-toastify';
-import { Users, UserCheck, UserX, Shield, GraduationCap, Briefcase, TrendingUp, DollarSign, Activity, Store, Truck, Clock } from 'lucide-react';
+import { Users, UserCheck, UserX, Shield, GraduationCap, Briefcase, DollarSign, Activity, Store, Truck, Clock } from 'lucide-react';
 
 export default function SysadDashboard() {
   const { theme, isDarkMode } = useTheme();
@@ -17,11 +17,6 @@ export default function SysadDashboard() {
     admins: 0,
     students: 0,
     employees: 0,
-    totalBalance: 0,
-    todayTransactions: 0,
-    todayCashIn: 0,
-    totalMerchants: 0,
-    activeMerchants: 0,
     recentLogins: []
   });
   const intervalRef = useRef(null);
@@ -39,11 +34,6 @@ export default function SysadDashboard() {
           admins: data.userMetrics?.admins || data.admins || 0,
           students: data.userMetrics?.students || data.students || 0,
           employees: data.userMetrics?.employees || data.employees || 0,
-          totalBalance: data.financialMetrics?.totalBalance || data.totalBalance || 0,
-          todayTransactions: data.financialMetrics?.totalTransactions || data.todayTransactions || 0,
-          todayCashIn: data.financialMetrics?.todayCashIn || data.todayCashIn || 0,
-          totalMerchants: data.financialMetrics?.activeMerchants || data.totalMerchants || 0,
-          activeMerchants: data.financialMetrics?.activeMerchants || data.activeMerchants || 0,
           recentLogins: data.recentActivity || data.recentLogins || []
         };
         setMetrics(metricsData);
@@ -137,49 +127,6 @@ export default function SysadDashboard() {
             label="Employees"
             value={metrics.employees?.toLocaleString() || '0'}
             color="#06B6D4"
-            theme={theme}
-            isDarkMode={isDarkMode}
-          />
-        </div>
-      </div>
-
-      {/* Financial & Transaction Metrics */}
-      <div className="mb-6">
-        <h3 style={{ color: theme.text.primary }} className="text-lg font-bold mb-4 flex items-center gap-2">
-          <TrendingUp className="w-5 h-5" style={{ color: theme.accent.primary }} />
-          Financial Overview
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            icon={<DollarSign className="w-6 h-6" />}
-            label="Total Balance in System"
-            value={`₱${(metrics.totalBalance || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`}
-            color="#10B981"
-            theme={theme}
-            isDarkMode={isDarkMode}
-            large
-          />
-          <StatCard
-            icon={<Activity className="w-6 h-6" />}
-            label="Today's Transactions"
-            value={metrics.todayTransactions?.toLocaleString() || '0'}
-            color="#3B82F6"
-            theme={theme}
-            isDarkMode={isDarkMode}
-          />
-          <StatCard
-            icon={<TrendingUp className="w-6 h-6" />}
-            label="Today's Cash-In"
-            value={`₱${(metrics.todayCashIn || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`}
-            color="#F59E0B"
-            theme={theme}
-            isDarkMode={isDarkMode}
-          />
-          <StatCard
-            icon={<Store className="w-6 h-6" />}
-            label="Active Merchants"
-            value={`${metrics.activeMerchants || 0}/${metrics.totalMerchants || 0}`}
-            color="#8B5CF6"
             theme={theme}
             isDarkMode={isDarkMode}
           />
