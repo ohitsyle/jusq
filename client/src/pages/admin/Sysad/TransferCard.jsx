@@ -264,7 +264,7 @@ function TransferModal({ isOpen, onClose, selectedUser }) {
               <label className="font-semibold mb-1.5 block text-sm" style={{ color: theme.text.primary }}>School ID</label>
               <div className="relative">
                 <input
-                  value={selectedUser?.idNumber || selectedUser?.schoolId || ''}
+                  value={selectedUser?.schoolUId || ''}
                   readOnly
                   className="w-full px-3 py-2.5 rounded-xl border font-mono pl-10"
                   style={{
@@ -378,8 +378,9 @@ function TransferModal({ isOpen, onClose, selectedUser }) {
             <div className="p-3 rounded-xl border mb-6" style={{ background: 'rgba(255, 212, 28, 0.1)', borderColor: 'rgba(255, 212, 28, 0.3)' }}>
               <p className="text-sm font-semibold mb-2" style={{ color: theme.text.primary }}>📧 Important Information</p>
               <p className="text-xs" style={{ color: theme.text.secondary }}>
-                The account has been set to <strong>inactive</strong> and a new activation OTP has been sent to {selectedUser?.email}. 
-                The user will need to go through the activation process again to reactivate their account.
+                The account has been set to <strong>inactive</strong> and the old PIN has been cleared. 
+                A new activation OTP has been sent to {selectedUser?.email} and set as the temporary PIN.
+                The user will need to use this OTP to activate their account and set a new PIN.
               </p>
             </div>
             <button

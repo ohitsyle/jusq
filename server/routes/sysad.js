@@ -806,11 +806,12 @@ router.post('/transfer-card', async (req, res) => {
     const otp = crypto.randomInt(100000, 999999).toString();
     const otpExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
 
-    // Update RFID, set inactive, and add OTP
+    // Update RFID, set inactive, clear PIN, and set OTP in PIN field
     user.rfidUId = newCardUid;
     user.isActive = false;
-    user.resetOtp = otp;
-    user.resetOtpExpireAt = new Date(otpExpiry);
+    user.pin = otp; // Put OTP in PIN field like new user activation
+    user.resetOtp = ''; // Clear reset OTP field
+    user.resetOtpExpireAt = null; // Clear reset OTP expiry
     await user.save();
 
     // Send activation OTP email
