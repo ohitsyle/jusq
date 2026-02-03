@@ -50,19 +50,25 @@ class NetworkService {
   async checkConnection() {
     try {
       const state = await NetInfo.fetch();
-      this.isConnected = state.isConnected && state.isInternetReachable;
+      const deviceConnected = state.isConnected && state.isInternetReachable;
       this.lastCheckTime = Date.now();
 
       // Additional API ping to verify server reachability
-      if (this.isConnected) {
+      if (deviceConnected) {
         const canReachServer = await this.pingServer();
+        this.isConnected = canReachServer;
+        
         if (!canReachServer) {
-          console.warn('⚠️ Device has internet but cannot reach server');
+          console.warn('⚠️ Device has internet but cannot reach server - marking as offline');
+        } else {
+          console.log('✅ Device online and server reachable');
         }
         return canReachServer;
+      } else {
+        this.isConnected = false;
+        console.log('⚠️ Device offline - no internet connection');
+        return false;
       }
-
-      return this.isConnected;
     } catch (error) {
       console.error('❌ Connection check failed:', error);
       this.isConnected = false;
@@ -75,8 +81,28 @@ class NetworkService {
   // ============================================================
   async pingServer(timeout = 5000) {
     try {
-      const response = await api.get('/system/config', { timeout });
-      return response.status === 200;
+      // Try multiple endpoints for better reliability
+      const endpoints = ['/system/config', '/health', '/api/health'];
+      
+      for (const endpoint of endpoints) {
+        try {
+          const response = await api.get(endpoint, { 
+            timeout: timeout,
+            validateStatus: (status) => status < 500 // Accept any response less than 500
+          });
+          
+          if (response.status < 500) {
+            console.log(`✅ Server reachable via ${endpoint}`);
+            return true;
+          }
+        } catch (err) {
+          console.log(`❌ Failed to reach ${endpoint}:`, err.message);
+          continue; // Try next endpoint
+        }
+      }
+      
+      console.error('❌ All server endpoints unreachable');
+      return false;
     } catch (error) {
       console.error('❌ Server ping failed:', error.message);
       return false;

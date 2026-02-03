@@ -9,6 +9,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Animated, Alert } from 'react
 import NFCService from '../services/NFCService';
 import PaymentService from '../services/PaymentService';
 import api from '../services/api';
+import useOfflineMode from '../hooks/useOfflineMode';
 
 // ✅ NEW IMPORT
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,12 +19,18 @@ export default function PaymentScreen({ navigation, route }) {
   const [currentDate, setCurrentDate] = useState('');
   const [isReady, setIsReady] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
-  const [isOnline, setIsOnline] = useState(true);
-  const [queueCount, setQueueCount] = useState(0);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncStatus, setSyncStatus] = useState('');
   const [passengersBoarded, setPassengersBoarded] = useState([]);
   const [pulseAnim] = useState(new Animated.Value(1));
+
+  // Use the new offline mode hook
+  const { 
+    isOnline, 
+    queueCount, 
+    isSyncing, 
+    syncNow: handleSync,
+    statusMessage,
+    syncStatusMessage 
+  } = useOfflineMode();
 
   // Track mounted state to prevent state updates after unmount
   const isMountedRef = useRef(true);
@@ -109,49 +116,8 @@ export default function PaymentScreen({ navigation, route }) {
   };
 
   const updateQueueCount = async () => {
-    const count = await PaymentService.getOfflineQueueCount();
-    if (!isMountedRef.current) return; // Prevent state update after unmount
-    setQueueCount(count);
-  };
-
-  const handleSync = async () => {
-    if (isSyncing) return;
-    if (!isMountedRef.current) return; // Prevent execution after unmount
-
-    setIsSyncing(true);
-    setSyncStatus('Syncing...');
-
-    const result = await PaymentService.syncOfflineQueue();
-    if (!isMountedRef.current) return; // Check again after async operation
-
-    if (result.success) {
-      const processedCount = result.processed || 0;
-      const rejectedCount = result.rejected?.length || 0;
-
-      if (rejectedCount > 0) {
-        setSyncStatus(`✅ Synced ${processedCount} • ⚠️ ${rejectedCount} rejected`);
-      } else {
-        setSyncStatus(`✅ Synced ${processedCount} transaction(s)`);
-      }
-
-      await updateQueueCount();
-
-      setTimeout(() => {
-        if (isMountedRef.current) { // Safe state update
-          setSyncStatus('');
-        }
-      }, 5000);
-    } else {
-      setSyncStatus('❌ Sync failed');
-
-      setTimeout(() => {
-        if (isMountedRef.current) { // Safe state update
-          setSyncStatus('');
-        }
-      }, 5000);
-    }
-
-    setIsSyncing(false);
+    // This is now handled by the useOfflineMode hook
+    // No need for this function anymore
   };
 
   const handleScan = async () => {
@@ -403,10 +369,7 @@ export default function PaymentScreen({ navigation, route }) {
           <View style={styles.statusContent}>
             <View style={[styles.statusDot, !isOnline && styles.statusDotOffline]} />
             <Text style={styles.statusText}>
-              {isOnline ? 
-                (syncStatus || 'Online • Payments syncing in real-time') : 
-                `Offline Mode • ${queueCount} payment(s) queued`
-              }
+              {statusMessage}
             </Text>
           </View>
           {!isOnline && queueCount > 0 && (

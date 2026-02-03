@@ -12,11 +12,28 @@ const DEVICE_ID = 'SHUTTLE_01';
 const DEFAULT_FARE = 15; // Fallback if no fare specified
 
 const PaymentService = {
-  // Check network connectivity
+  // Check network connectivity - improved version
   async isOnline() {
     try {
-      const response = await api.get('/system/config', { timeout: 3000 });
-      return response.status === 200;
+      // Try multiple endpoints for better reliability
+      const endpoints = ['/system/config', '/health', '/api/health'];
+      
+      for (const endpoint of endpoints) {
+        try {
+          const response = await api.get(endpoint, { 
+            timeout: 3000,
+            validateStatus: (status) => status < 500
+          });
+          
+          if (response.status < 500) {
+            return true;
+          }
+        } catch (err) {
+          continue; // Try next endpoint
+        }
+      }
+      
+      return false;
     } catch (error) {
       return false;
     }
@@ -628,91 +645,109 @@ const PaymentService = {
     
     if (!queue.length) {
       console.log('✅ No offline transactions to sync');
-      return { success: true, processed: 0 };
+      return { success: true, processed: 0, failed: 0 };
     }
 
     console.log(`🔄 Syncing ${queue.length} offline transactions...`);
 
     let processed = 0;
     let failed = 0;
+    const failedTransactions = []; // Keep track of failed transactions
 
-    for (const transaction of queue) {
-      try {
-        console.log(`📤 Syncing transaction for ${transaction.studentName || transaction.rfidUId}`);
-        
-        let res;
-        
-        // Handle different transaction types
-        if (transaction.type === 'refund') {
-          // Process refund
-          res = await api.post('/shuttle/refund', {
-            rfidUId: transaction.rfidUId,
-            driverId: transaction.driverId,
-            shuttleId: transaction.shuttleId,
-            routeId: transaction.routeId,
-            tripId: transaction.tripId,
-            fareAmount: transaction.fareAmount,
-            deviceId: DEVICE_ID,
-            timestamp: transaction.timestamp,
-            reason: transaction.reason || 'Offline refund',
-            isOfflineSync: true
-          });
-        } else {
-          // Process payment
-          res = await api.post('/shuttle/pay', {
-            rfidUId: transaction.rfidUId,
-            driverId: transaction.driverId,
-            shuttleId: transaction.shuttleId,
-            routeId: transaction.routeId,
-            tripId: transaction.tripId,
-            fareAmount: transaction.fareAmount,
-            deviceId: DEVICE_ID,
-            timestamp: transaction.timestamp,
-            isOfflineSync: true // Flag to indicate this is an offline sync
-          });
-        }
+    // Process transactions in batches to avoid overwhelming the server
+    const batchSize = 5;
+    for (let i = 0; i < queue.length; i += batchSize) {
+      const batch = queue.slice(i, i + batchSize);
+      
+      for (const transaction of batch) {
+        try {
+          console.log(`📤 Syncing transaction for ${transaction.studentName || transaction.rfidUId}`);
+          
+          let res;
+          
+          // Handle different transaction types
+          if (transaction.type === 'refund') {
+            // Process refund
+            res = await api.post('/shuttle/refund', {
+              rfidUId: transaction.rfidUId,
+              driverId: transaction.driverId,
+              shuttleId: transaction.shuttleId,
+              routeId: transaction.routeId,
+              tripId: transaction.tripId,
+              fareAmount: transaction.fareAmount,
+              reason: transaction.reason || 'Refund requested',
+              deviceTimestamp: transaction.timestamp,
+              offlineMode: true
+            });
+          } else {
+            // Process payment
+            res = await api.post('/shuttle/payment', {
+              rfidUId: transaction.rfidUId,
+              driverId: transaction.driverId,
+              shuttleId: transaction.shuttleId,
+              routeId: transaction.routeId,
+              tripId: transaction.tripId,
+              fareAmount: transaction.fareAmount,
+              deviceTimestamp: transaction.timestamp,
+              offlineMode: true
+            });
+          }
 
-        // Cache user data if returned
-        if (res.data && res.data.user) {
-          await OfflineStorageService.cacheCardData({
-            rfidUId: transaction.rfidUId,
-            fullName: res.data.user?.fullName || 
-                     (res.data.user?.firstName && res.data.user?.lastName ? 
-                      `${res.data.user.firstName} ${res.data.user.lastName}` : 'Unknown Student'),
-            balance: res.data.newBalance || res.data.balance,
-            schoolUId: res.data.user?.schoolUId,
-            email: res.data.user?.email
-          });
+          if (res.success) {
+            processed++;
+            console.log(`✅ Synced transaction for ${transaction.studentName || transaction.rfidUId}`);
+            
+            // Track offline transaction for duplicate detection
+            await OfflineStorageService.addOfflineTransaction({
+              rfidUId: transaction.rfidUId,
+              studentName: transaction.studentName,
+              timestamp: transaction.timestamp,
+              syncedAt: Date.now()
+            });
+          } else {
+            failed++;
+            failedTransactions.push(transaction);
+            console.error(`❌ Failed to sync transaction for ${transaction.studentName || transaction.rfidUId}:`, res.message);
+          }
+        } catch (error) {
+          failed++;
+          failedTransactions.push(transaction);
+          console.error(`❌ Error syncing transaction for ${transaction.studentName || transaction.rfidUId}:`, error.message);
+          
+          // If it's a network error, stop trying and wait for next sync
+          if (error.message.includes('Network') || error.message.includes('timeout')) {
+            console.log('⚠️ Network error during sync, will retry later');
+            break;
+          }
         }
-
-        processed++;
-        console.log(`✅ Synced ${transaction.type || 'payment'} for ${transaction.studentName || transaction.rfidUId}`);
-        
-      } catch (error) {
-        failed++;
-        console.error(`❌ Failed to sync transaction for ${transaction.studentName || transaction.rfidUId}:`, error.message);
-        
-        // If it's a server error (4xx), don't retry this transaction
-        if (error.response && error.response.status >= 400 && error.response.status < 500) {
-          console.log(`⚠️ Skipping failed transaction (server error): ${transaction.rfidUId}`);
-        }
+      }
+      
+      // Small delay between batches to avoid overwhelming the server
+      if (i + batchSize < queue.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
     }
 
-    // Clear the queue after processing
+    // Update queue: remove successful transactions, keep failed ones for retry
     if (processed > 0) {
-      await this.clearOfflineQueue();
-      console.log(`🗑️ Cleared offline queue after syncing ${processed} transactions`);
+      if (failedTransactions.length > 0) {
+        // Keep only failed transactions for next retry
+        await AsyncStorage.setItem('offlineQueue', JSON.stringify(failedTransactions));
+        console.log(`🔄 Kept ${failedTransactions.length} failed transactions for retry`);
+      } else {
+        // All transactions succeeded, clear the queue
+        await this.clearOfflineQueue();
+        console.log(`🗑️ Cleared offline queue after syncing all ${processed} transactions`);
+      }
     }
 
-    // Clear offline transaction records (for duplicate detection)
-    await OfflineStorageService.clearOfflineTransactions();
-
+    console.log(`✅ Sync completed: ${processed} processed, ${failed} failed`);
+    
     return {
-      success: true,
+      success: processed > 0,
       processed,
       failed,
-      total: queue.length
+      remaining: failedTransactions.length
     };
   },
 
