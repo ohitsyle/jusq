@@ -277,13 +277,21 @@ export default function TransferCard() {
   }, []);
 
   // Filter users based on search
-  const filteredUsers = users.filter(user => 
-    (user.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-     user.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-     user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-     user.schoolUId?.includes(searchTerm) ||
-     user.adminId?.toString().includes(searchTerm))
-  );
+  const filteredUsers = users.filter(user => {
+    const firstName = user.firstName || '';
+    const lastName = user.lastName || '';
+    const email = user.email || '';
+    const schoolUId = user.schoolUId || '';
+    const adminId = user.adminId ? user.adminId.toString() : '';
+    
+    return (
+      firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      schoolUId.includes(searchTerm) ||
+      adminId.includes(searchTerm)
+    );
+  });
 
   const handleTransferClick = (user) => {
     setSelectedUser(user);
