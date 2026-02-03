@@ -200,9 +200,13 @@ function TransferConfirmModal({ isOpen, onClose, onConfirm, selectedUser, newCar
 function RoleBadge({ role, isDarkMode }) {
   const configs = {
     sysad: { color: '#FFD41C', bg: isDarkMode ? 'rgba(255,212,28,0.15)' : 'rgba(255,212,28,0.1)', label: 'SysAd' },
-    admin: { color: '#3B82F6', bg: isDarkMode ? 'rgba(59,130,246,0.15)' : 'rgba(59,130,246,0.1)', label: 'Admin' },
-    merchant: { color: '#10B981', bg: isDarkMode ? 'rgba(16,185,129,0.15)' : 'rgba(16,185,129,0.1)', label: 'Merchant' },
-    user: { color: '#8B5CF6', bg: isDarkMode ? 'rgba(139,92,246,0.15)' : 'rgba(139,92,246,0.1)', label: 'User' }
+    treasury: { color: '#10B981', bg: isDarkMode ? 'rgba(16,185,129,0.15)' : 'rgba(16,185,129,0.1)', label: 'Treasury' },
+    accounting: { color: '#F59E0B', bg: isDarkMode ? 'rgba(245,158,11,0.15)' : 'rgba(245,158,11,0.1)', label: 'Accounting' },
+    motorpool: { color: '#EF4444', bg: isDarkMode ? 'rgba(239,68,68,0.15)' : 'rgba(239,68,68,0.1)', label: 'Motorpool' },
+    merchant: { color: '#8B5CF6', bg: isDarkMode ? 'rgba(139,92,246,0.15)' : 'rgba(139,92,246,0.1)', label: 'Merchant' },
+    student: { color: '#3B82F6', bg: isDarkMode ? 'rgba(59,130,246,0.15)' : 'rgba(59,130,246,0.1)', label: 'Student' },
+    employee: { color: '#06B6D4', bg: isDarkMode ? 'rgba(6,182,212,0.15)' : 'rgba(6,182,212,0.1)', label: 'Employee' },
+    user: { color: '#6B7280', bg: isDarkMode ? 'rgba(107,114,128,0.15)' : 'rgba(107,114,128,0.1)', label: 'User' }
   };
 
   const config = configs[role] || configs.user;
@@ -493,17 +497,6 @@ export default function TransferCard() {
             style={{ background: theme.bg.card, borderColor: theme.border.primary }}
             className="rounded-2xl border overflow-hidden"
           >
-            {/* Table Header */}
-            <div
-              style={{
-                background: isDarkMode ? 'rgba(255,212,28,0.1)' : 'rgba(59,130,246,0.1)',
-                borderColor: theme.border.primary
-              }}
-              className="px-6 py-4 border-b"
-            >
-              <h3 style={{ color: accentColor }} className="font-bold text-sm uppercase tracking-wide">Users with RFID Cards</h3>
-            </div>
-
             {/* Table Content */}
             <div className="overflow-x-auto">
               {loading ? (
