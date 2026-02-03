@@ -38,13 +38,17 @@ export async function checkMaintenanceMode(req, res, next) {
     const isAdmin = req.admin || req.user;
     let isSysadmin = false;
 
+    console.log('🔍 Maintenance check - isAdmin:', !!isAdmin, 'req.admin:', req.admin, 'req.user:', req.user);
+
     if (isAdmin) {
       // For admin users, check if they have sysad role
       if (req.admin) {
         isSysadmin = req.admin.role === 'sysad';
+        console.log('🔍 Admin role check - req.admin.role:', req.admin.role, 'isSysadmin:', isSysadmin);
       } else if (req.user) {
         // For regular users, they're never sysadmins
         isSysadmin = false;
+        console.log('🔍 Regular user - not sysadmin');
       }
     }
 
