@@ -1,10 +1,10 @@
 // src/pages/admin/Sysad/TransferCard.jsx
-// Transfer RFID card data from one card to another - Professional redesign
+// Transfer RFID card data from one card to another - Table-based design like ManageUsers
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
-import { CreditCard, ArrowRight, Search, AlertTriangle, CheckCircle, Loader2, User, DollarSign, History, X, RefreshCw } from 'lucide-react';
+import { CreditCard, ArrowRight, Search, AlertTriangle, CheckCircle, Loader2, User, RefreshCw, Users } from 'lucide-react';
 
 // Custom Notification Modal for TransferCard
 function TransferNotificationModal({ isOpen, onClose, type, title, message }) {
@@ -13,7 +13,7 @@ function TransferNotificationModal({ isOpen, onClose, type, title, message }) {
 
   const configs = {
     success: { icon: CheckCircle, color: '#10B981', bg: 'rgba(16,185,129,0.15)' },
-    error: { icon: X, color: '#EF4444', bg: 'rgba(239,68,68,0.15)' },
+    error: { icon: AlertTriangle, color: '#EF4444', bg: 'rgba(239,68,68,0.15)' },
     warning: { icon: AlertTriangle, color: '#F59E0B', bg: 'rgba(245,158,11,0.15)' }
   };
 
@@ -117,12 +117,54 @@ function TransferConfirmModal({ isOpen, onClose, onConfirm, oldCard, newCard, us
   );
 }
 
+// Role Badge Component
+function RoleBadge({ role, isDarkMode }) {
+  const configs = {
+    sysad: { color: '#FFD41C', bg: isDarkMode ? 'rgba(255,212,28,0.15)' : 'rgba(255,212,28,0.1)', label: 'SysAd' },
+    admin: { color: '#3B82F6', bg: isDarkMode ? 'rgba(59,130,246,0.15)' : 'rgba(59,130,246,0.1)', label: 'Admin' },
+    merchant: { color: '#10B981', bg: isDarkMode ? 'rgba(16,185,129,0.15)' : 'rgba(16,185,129,0.1)', label: 'Merchant' },
+    user: { color: '#8B5CF6', bg: isDarkMode ? 'rgba(139,92,246,0.15)' : 'rgba(139,92,246,0.1)', label: 'User' }
+  };
+
+  const config = configs[role] || configs.user;
+
+  return (
+    <span
+      style={{
+        background: config.bg,
+        color: config.color,
+        borderColor: `${config.color}30`
+      }}
+      className="px-3 py-1 rounded-full text-xs font-bold border"
+    >
+      {config.label}
+    </span>
+  );
+}
+
+// Status Badge Component
+function StatusBadge({ isActive }) {
+  return (
+    <span
+      style={{
+        background: isActive ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
+        color: isActive ? '#10B981' : '#EF4444',
+        borderColor: isActive ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'
+      }}
+      className="px-3 py-1 rounded-full text-xs font-bold border"
+    >
+      {isActive ? 'Active' : 'Inactive'}
+    </span>
+  );
+}
+
 export default function TransferCard() {
   const { theme, isDarkMode } = useTheme();
-  const [oldCardId, setOldCardId] = useState('');
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedUser, setSelectedUser] = useState(null);
   const [newCardId, setNewCardId] = useState('');
-  const [userInfo, setUserInfo] = useState(null);
-  const [searching, setSearching] = useState(false);
   const [transferring, setTransferring] = useState(false);
   const [transferComplete, setTransferComplete] = useState(false);
 
@@ -130,55 +172,45 @@ export default function TransferCard() {
   const [notification, setNotification] = useState({ isOpen: false, type: 'success', title: '', message: '' });
   const [showConfirm, setShowConfirm] = useState(false);
 
-  // Use theme accent color (gold in dark mode, blue in light mode) - matching Treasury style
+  // Use theme accent color
   const accentColor = theme.accent.primary;
 
   const showNotification = (type, title, message) => {
     setNotification({ isOpen: true, type, title, message });
   };
 
-  const handleSearchOldCard = async () => {
-    if (!oldCardId.trim()) {
-      showNotification('warning', 'Input Required', 'Please enter the old card ID to search.');
-      return;
-    }
-
-    setSearching(true);
-    setUserInfo(null);
-    setTransferComplete(false);
-
+  // Load users
+  const loadUsers = async () => {
+    setLoading(true);
     try {
-      // Backend uses path param not query param: /card-lookup/:cardUid
-      const data = await api.get(`/admin/sysad/card-lookup/${oldCardId.trim()}`);
-      if (data?.user) {
-        setUserInfo(data.user);
-        showNotification('success', 'User Found', `Found user: ${data.user.firstName} ${data.user.lastName}`);
-      } else {
-        showNotification('error', 'Not Found', 'No user found with this card ID.');
-      }
+      const data = await api.get('/admin/sysad/users?page=1&limit=100');
+      setUsers(data.users || []);
     } catch (error) {
-      showNotification('error', 'Search Failed', error.message || 'Failed to find card. Please try again.');
+      showNotification('error', 'Load Failed', 'Failed to load users. Please try again.');
     } finally {
-      setSearching(false);
+      setLoading(false);
     }
   };
 
-  const handleTransferClick = () => {
-    if (!oldCardId.trim() || !newCardId.trim()) {
-      showNotification('warning', 'Input Required', 'Please enter both old and new card IDs.');
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  // Filter users based on search
+  const filteredUsers = users.filter(user => 
+    (user.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+     user.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+     user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+     user.schoolUId?.includes(searchTerm) ||
+     user.adminId?.toString().includes(searchTerm))
+  );
+
+  const handleTransferClick = (user) => {
+    if (!newCardId.trim()) {
+      showNotification('warning', 'Input Required', 'Please enter the new card ID.');
       return;
     }
-
-    if (oldCardId.trim() === newCardId.trim()) {
-      showNotification('warning', 'Invalid Input', 'Old and new card IDs must be different.');
-      return;
-    }
-
-    if (!userInfo) {
-      showNotification('warning', 'User Required', 'Please search for a valid user first.');
-      return;
-    }
-
+    setSelectedUser(user);
     setShowConfirm(true);
   };
 
@@ -188,11 +220,14 @@ export default function TransferCard() {
 
     try {
       await api.post('/admin/sysad/transfer-card', {
-        oldCardUid: oldCardId.trim(),
+        oldCardUid: selectedUser.cardUid,
         newCardUid: newCardId.trim()
       });
 
       setTransferComplete(true);
+      showNotification('success', 'Transfer Complete', `Card data transferred successfully for ${selectedUser.firstName} ${selectedUser.lastName}`);
+      // Reload users to get updated data
+      await loadUsers();
     } catch (error) {
       showNotification('error', 'Transfer Failed', error.message || 'Failed to transfer card. Please try again.');
     } finally {
@@ -201,9 +236,8 @@ export default function TransferCard() {
   };
 
   const handleReset = () => {
-    setOldCardId('');
+    setSelectedUser(null);
     setNewCardId('');
-    setUserInfo(null);
     setTransferComplete(false);
   };
 
@@ -215,31 +249,11 @@ export default function TransferCard() {
           <CreditCard className="w-7 h-7" /> Transfer Card
         </h2>
         <p style={{ color: theme.text.secondary }} className="text-[13px] m-0">
-          Securely transfer user data from one RFID card to another
+          Transfer user data from one RFID card to another
         </p>
       </div>
 
-      {/* Warning Notice - More professional styling */}
-      <div
-        style={{
-          background: isDarkMode ? 'rgba(245,158,11,0.08)' : 'rgba(245,158,11,0.06)',
-          borderColor: 'rgba(245,158,11,0.25)'
-        }}
-        className="p-4 rounded-xl border mb-6 flex items-start gap-4"
-      >
-        <div style={{ background: 'rgba(245,158,11,0.15)' }} className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0">
-          <AlertTriangle className="w-5 h-5 text-amber-500" />
-        </div>
-        <div>
-          <p style={{ color: '#D97706' }} className="font-semibold text-sm">Security Notice</p>
-          <p style={{ color: theme.text.secondary }} className="text-xs mt-1 leading-relaxed">
-            This operation will transfer all account data including balance and transaction history.
-            The source card will be permanently deactivated.
-          </p>
-        </div>
-      </div>
-
-      {/* Transfer Complete Success - Professional styling */}
+      {/* Transfer Complete Success */}
       {transferComplete && (
         <div
           style={{
@@ -266,290 +280,160 @@ export default function TransferCard() {
         </div>
       )}
 
-      {/* Main Transfer Form - Professional Card-Based Design */}
+      {/* Main Content */}
       {!transferComplete && (
-        <div
-          style={{ background: theme.bg.card, borderColor: theme.border.primary }}
-          className="rounded-2xl border overflow-hidden"
-        >
-          {/* Form Header */}
+        <>
+          {/* New Card Input */}
           <div
-            style={{
-              background: isDarkMode
-                ? `linear-gradient(135deg, ${theme.accent.primary}20 0%, ${theme.accent.primary}08 100%)`
-                : `linear-gradient(135deg, ${theme.accent.primary}15 0%, ${theme.accent.primary}05 100%)`,
-              borderColor: `${theme.accent.primary}30`
-            }}
-            className="px-6 py-4 border-b"
+            style={{ background: theme.bg.card, borderColor: theme.border.primary }}
+            className="rounded-2xl border p-6 mb-6"
           >
-            <h3 style={{ color: accentColor }} className="font-bold text-sm uppercase tracking-wide">RFID Transfer Details</h3>
-          </div>
-
-          <div className="p-6">
-            <div className="grid grid-cols-1 lg:grid-cols-7 gap-6 items-start">
-              {/* Old Card */}
-              <div className="lg:col-span-3">
-                <div
-                  style={{
-                    background: isDarkMode ? 'rgba(239,68,68,0.08)' : 'rgba(239,68,68,0.04)',
-                    borderColor: 'rgba(239,68,68,0.2)'
-                  }}
-                  className="p-5 rounded-xl border"
-                >
-                  <div className="flex items-center gap-3 mb-4">
-                    <div style={{ background: 'rgba(239,68,68,0.15)' }} className="w-10 h-10 rounded-lg flex items-center justify-center">
-                      <CreditCard className="w-5 h-5 text-red-500" />
-                    </div>
-                    <div>
-                      <h4 style={{ color: theme.text.primary }} className="font-bold text-sm">Source Card</h4>
-                      <p style={{ color: theme.text.muted }} className="text-xs">Card to be deactivated</p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label style={{ color: theme.text.secondary }} className="block text-xs font-semibold uppercase mb-2">
-                      RFID Tag
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={oldCardId}
-                        onChange={(e) => setOldCardId(e.target.value.toUpperCase())}
-                        placeholder="Enter RFID (e.g. 6F0EA8AD)..."
-                        style={{
-                          background: isDarkMode ? 'rgba(15,18,39,0.8)' : '#FFFFFF',
-                          color: theme.text.primary,
-                          borderColor: theme.border.primary
-                        }}
-                        className="flex-1 px-4 py-3 rounded-xl border text-sm focus:outline-none font-mono transition-all focus:ring-2 focus:ring-red-500/20"
-                        disabled={searching || transferring}
-                      />
-                      <button
-                        onClick={handleSearchOldCard}
-                        disabled={searching || transferring || !oldCardId.trim()}
-                        style={{ background: accentColor }}
-                        className="px-4 py-3 rounded-xl font-semibold hover:opacity-90 transition-all disabled:opacity-50 flex items-center gap-2 text-white"
-                      >
-                        {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-                        <span className="hidden sm:inline">Find</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Arrow Indicator */}
-              <div className="lg:col-span-1 flex items-center justify-center py-4 lg:py-0 lg:h-full">
-                <div
-                  style={{
-                    background: isDarkMode ? `${accentColor}15` : `${accentColor}10`,
-                    borderColor: `${accentColor}30`
-                  }}
-                  className="w-14 h-14 rounded-xl border flex items-center justify-center rotate-90 lg:rotate-0"
-                >
-                  <ArrowRight style={{ color: accentColor }} className="w-6 h-6" />
-                </div>
-              </div>
-
-              {/* New Card */}
-              <div className="lg:col-span-3">
-                <div
-                  style={{
-                    background: isDarkMode ? 'rgba(16,185,129,0.08)' : 'rgba(16,185,129,0.04)',
-                    borderColor: userInfo ? 'rgba(16,185,129,0.3)' : 'rgba(16,185,129,0.15)'
-                  }}
-                  className={`p-5 rounded-xl border transition-all ${!userInfo ? 'opacity-60' : ''}`}
-                >
-                  <div className="flex items-center gap-3 mb-4">
-                    <div style={{ background: 'rgba(16,185,129,0.15)' }} className="w-10 h-10 rounded-lg flex items-center justify-center">
-                      <CreditCard className="w-5 h-5 text-emerald-500" />
-                    </div>
-                    <div>
-                      <h4 style={{ color: theme.text.primary }} className="font-bold text-sm">Destination Card</h4>
-                      <p style={{ color: theme.text.muted }} className="text-xs">New card to receive data</p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label style={{ color: theme.text.secondary }} className="block text-xs font-semibold uppercase mb-2">
-                      RFID Tag
-                    </label>
-                    <input
-                      type="text"
-                      value={newCardId}
-                      onChange={(e) => setNewCardId(e.target.value.toUpperCase())}
-                      placeholder={userInfo ? "Enter new RFID..." : "Search source RFID first..."}
-                      style={{
-                        background: isDarkMode ? 'rgba(15,18,39,0.8)' : '#FFFFFF',
-                        color: theme.text.primary,
-                        borderColor: theme.border.primary
-                      }}
-                      className="w-full px-4 py-3 rounded-xl border text-sm focus:outline-none font-mono transition-all focus:ring-2 focus:ring-emerald-500/20 disabled:cursor-not-allowed"
-                      disabled={searching || transferring || !userInfo}
-                    />
-                  </div>
-                </div>
-              </div>
+            <h3 style={{ color: accentColor }} className="font-bold text-sm uppercase tracking-wide mb-4">New RFID Card</h3>
+            <div className="flex gap-4">
+              <input
+                type="text"
+                value={newCardId}
+                onChange={(e) => setNewCardId(e.target.value)}
+                placeholder="Enter new RFID card ID"
+                style={{
+                  background: theme.bg.input,
+                  borderColor: theme.border.primary,
+                  color: theme.text.primary
+                }}
+                className="flex-1 px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+              />
             </div>
           </div>
-        </div>
-      )}
 
-      {/* User Info Preview - Professional styling */}
-      {userInfo && !transferComplete && (
-        <div
-          style={{ background: theme.bg.card, borderColor: theme.border.primary }}
-          className="mt-6 rounded-2xl border overflow-hidden"
-        >
-          {/* Section Header */}
+          {/* Users Table */}
           <div
-            style={{
-              background: isDarkMode
-                ? `linear-gradient(135deg, ${accentColor}18 0%, ${accentColor}06 100%)`
-                : `linear-gradient(135deg, ${accentColor}12 0%, ${accentColor}03 100%)`,
-              borderColor: 'rgba(139,92,246,0.15)'
-            }}
-            className="px-6 py-4 border-b flex items-center justify-between"
+            style={{ background: theme.bg.card, borderColor: theme.border.primary }}
+            className="rounded-2xl border overflow-hidden"
           >
-            <div className="flex items-center gap-3">
-              <div style={{ background: 'rgba(139,92,246,0.15)' }} className="w-8 h-8 rounded-lg flex items-center justify-center">
-                <User className="w-4 h-4" style={{ color: accentColor }} />
-              </div>
-              <div>
-                <h3 style={{ color: accentColor }} className="font-bold text-sm uppercase tracking-wide">Account Details</h3>
-                <p style={{ color: theme.text.muted }} className="text-xs">Data to be transferred</p>
-              </div>
-            </div>
-            <div style={{ background: 'rgba(16,185,129,0.15)', color: '#10B981' }} className="px-3 py-1 rounded-full text-xs font-semibold">
-              Verified
-            </div>
-          </div>
-
-          <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              {/* User Details */}
-              <div
-                style={{
-                  background: isDarkMode ? 'rgba(139,92,246,0.06)' : 'rgba(139,92,246,0.03)',
-                  borderColor: 'rgba(139,92,246,0.15)'
-                }}
-                className="p-4 rounded-xl border"
-              >
-                <div className="flex items-center gap-2 mb-3">
-                  <User className="w-4 h-4" style={{ color: accentColor }} />
-                  <p style={{ color: theme.text.secondary }} className="text-xs font-semibold uppercase">Account Holder</p>
-                </div>
-                <p style={{ color: theme.text.primary }} className="font-bold text-lg">
-                  {`${userInfo.firstName || ''} ${userInfo.lastName || ''}`.trim() || 'N/A'}
-                </p>
-                <p style={{ color: theme.text.muted }} className="text-xs mt-1 truncate">
-                  {userInfo.email || 'N/A'}
-                </p>
-              </div>
-
-              {/* Balance */}
-              <div
-                style={{
-                  background: isDarkMode ? 'rgba(16,185,129,0.08)' : 'rgba(16,185,129,0.04)',
-                  borderColor: 'rgba(16,185,129,0.2)'
-                }}
-                className="p-4 rounded-xl border"
-              >
-                <div className="flex items-center gap-2 mb-3">
-                  <DollarSign className="w-4 h-4 text-emerald-500" />
-                  <p style={{ color: theme.text.secondary }} className="text-xs font-semibold uppercase">Current Balance</p>
-                </div>
-                <p className="font-bold text-2xl text-emerald-500">
-                  ₱{(userInfo.balance || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-                </p>
-              </div>
-
-              {/* Transaction Count */}
-              <div
-                style={{
-                  background: isDarkMode ? 'rgba(59,130,246,0.08)' : 'rgba(59,130,246,0.04)',
-                  borderColor: 'rgba(59,130,246,0.2)'
-                }}
-                className="p-4 rounded-xl border"
-              >
-                <div className="flex items-center gap-2 mb-3">
-                  <History className="w-4 h-4 text-blue-500" />
-                  <p style={{ color: theme.text.secondary }} className="text-xs font-semibold uppercase">Total Transactions</p>
-                </div>
-                <p className="font-bold text-2xl text-blue-500">
-                  {userInfo.transactionCount || 0}
-                </p>
-              </div>
-            </div>
-
-            {/* Transfer Button */}
-            <div className="flex justify-center pt-2">
-              <button
-                onClick={handleTransferClick}
-                disabled={transferring || !newCardId.trim()}
-                style={{ background: accentColor }}
-                className="px-10 py-4 rounded-xl font-bold text-base text-white hover:opacity-90 transition-all disabled:opacity-50 flex items-center gap-3 shadow-lg"
-              >
-                {transferring ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Processing Transfer...
-                  </>
-                ) : (
-                  <>
-                    <CreditCard className="w-5 h-5" />
-                    Transfer Card Data
-                    <ArrowRight className="w-5 h-5" />
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Instructions - Professional styling */}
-      {!userInfo && !transferComplete && (
-        <div
-          style={{ background: theme.bg.card, borderColor: theme.border.primary }}
-          className="mt-6 rounded-2xl border overflow-hidden"
-        >
-          <div
-            style={{
-              background: isDarkMode ? 'rgba(59,130,246,0.08)' : 'rgba(59,130,246,0.04)',
-              borderColor: 'rgba(59,130,246,0.15)'
-            }}
-            className="px-6 py-4 border-b"
-          >
-            <h3 style={{ color: '#3B82F6' }} className="font-bold text-sm uppercase tracking-wide">Transfer Process</h3>
-          </div>
-          <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-              {[
-                { step: 1, title: 'Enter Source Card', desc: 'Input the UID of the lost or damaged card' },
-                { step: 2, title: 'Search & Verify', desc: 'Confirm the account holder information' },
-                { step: 3, title: 'Enter New Card', desc: 'Input the replacement card UID' },
-                { step: 4, title: 'Confirm Transfer', desc: 'Review and confirm the transfer details' },
-                { step: 5, title: 'Complete', desc: 'Old card deactivated, new card active' }
-              ].map((item) => (
-                <div key={item.step} className="text-center">
-                  <div
+            {/* Table Header */}
+            <div
+              style={{
+                background: isDarkMode ? 'rgba(255,212,28,0.1)' : 'rgba(59,130,246,0.1)',
+                borderColor: theme.border.primary
+              }}
+              className="px-6 py-4 border-b flex justify-between items-center"
+            >
+              <h3 style={{ color: accentColor }} className="font-bold text-sm uppercase tracking-wide">Users with RFID Cards</h3>
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: theme.text.muted }} />
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Search users..."
                     style={{
-                      background: isDarkMode ? 'rgba(139,92,246,0.15)' : 'rgba(139,92,246,0.1)',
-                      color: accentColor
+                      background: theme.bg.input,
+                      borderColor: theme.border.primary,
+                      color: theme.text.primary
                     }}
-                    className="w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-3 font-bold text-sm"
-                  >
-                    {item.step}
-                  </div>
-                  <p style={{ color: theme.text.primary }} className="font-semibold text-sm mb-1">{item.title}</p>
-                  <p style={{ color: theme.text.muted }} className="text-xs leading-relaxed">{item.desc}</p>
+                    className="pl-10 pr-4 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 w-64"
+                  />
                 </div>
-              ))}
+                <button
+                  onClick={loadUsers}
+                  style={{ background: 'rgba(255,212,28,0.15)', color: accentColor }}
+                  className="p-2 rounded-lg hover:opacity-80 transition-all"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Table Content */}
+            <div className="overflow-x-auto">
+              {loading ? (
+                <div className="flex justify-center items-center py-20">
+                  <Loader2 className="w-8 h-8 animate-spin" style={{ color: accentColor }} />
+                </div>
+              ) : filteredUsers.length === 0 ? (
+                <div style={{ color: theme.text.tertiary }} className="text-center py-20">
+                  <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p className="font-semibold">No users found</p>
+                  <p className="text-sm mt-2">Try adjusting your search</p>
+                </div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr style={{ background: isDarkMode ? 'rgba(255,212,28,0.1)' : 'rgba(59,130,246,0.1)' }}>
+                      <th style={{ color: theme.accent.primary, borderColor: theme.border.primary }} className="text-left p-4 text-xs font-bold uppercase border-b-2">ID Number</th>
+                      <th style={{ color: theme.accent.primary, borderColor: theme.border.primary }} className="text-left p-4 text-xs font-bold uppercase border-b-2">Name</th>
+                      <th style={{ color: theme.accent.primary, borderColor: theme.border.primary }} className="text-left p-4 text-xs font-bold uppercase border-b-2">Email</th>
+                      <th style={{ color: theme.accent.primary, borderColor: theme.border.primary }} className="text-left p-4 text-xs font-bold uppercase border-b-2">Role</th>
+                      <th style={{ color: theme.accent.primary, borderColor: theme.border.primary }} className="text-left p-4 text-xs font-bold uppercase border-b-2">Status</th>
+                      <th style={{ color: theme.accent.primary, borderColor: theme.border.primary }} className="text-center p-4 text-xs font-bold uppercase border-b-2">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredUsers.map((user, index) => (
+                      <tr
+                        key={user._id}
+                        style={{
+                          borderColor: theme.border.primary,
+                          animationDelay: `${index * 30}ms`
+                        }}
+                        className="border-b hover:bg-white/5 transition-all duration-200"
+                      >
+                        <td style={{ color: theme.text.primary }} className="p-4 font-mono font-semibold">
+                          {user.cardUid || user.schoolUId || user.adminId || 'N/A'}
+                        </td>
+                        <td style={{ color: theme.text.primary }} className="p-4 font-semibold">
+                          {`${user.firstName || ''} ${user.lastName || ''}`.trim() || 'N/A'}
+                        </td>
+                        <td style={{ color: theme.text.secondary }} className="p-4">
+                          {user.email || 'N/A'}
+                        </td>
+                        <td className="p-4">
+                          <RoleBadge role={user.role} isDarkMode={isDarkMode} />
+                        </td>
+                        <td className="p-4">
+                          <StatusBadge isActive={user.isActive} />
+                        </td>
+                        <td className="p-4">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => handleTransferClick(user)}
+                              disabled={!newCardId.trim() || transferring}
+                              style={{
+                                background: newCardId.trim() ? 'rgba(16,185,129,0.15)' : 'rgba(107,114,128,0.15)',
+                                color: newCardId.trim() ? '#10B981' : theme.text.muted,
+                                borderColor: newCardId.trim() ? 'rgba(16,185,129,0.3)' : 'rgba(107,114,128,0.3)'
+                              }}
+                              className="px-3 py-1.5 rounded-lg hover:opacity-80 transition-all text-xs font-semibold border disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {transferring ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <ArrowRight className="w-3 h-3" />
+                              )}
+                              Transfer
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
-        </div>
+        </>
       )}
+
+      {/* Transfer Confirmation Modal */}
+      <TransferConfirmModal
+        isOpen={showConfirm}
+        onClose={() => setShowConfirm(false)}
+        onConfirm={handleTransfer}
+        oldCard={selectedUser?.cardUid}
+        newCard={newCardId}
+        userName={`${selectedUser?.firstName || ''} ${selectedUser?.lastName || ''}`.trim()}
+      />
 
       {/* Notification Modal */}
       <TransferNotificationModal
@@ -558,16 +442,6 @@ export default function TransferCard() {
         type={notification.type}
         title={notification.title}
         message={notification.message}
-      />
-
-      {/* Confirmation Modal */}
-      <TransferConfirmModal
-        isOpen={showConfirm}
-        onClose={() => setShowConfirm(false)}
-        onConfirm={handleTransfer}
-        oldCard={oldCardId}
-        newCard={newCardId}
-        userName={userInfo ? `${userInfo.firstName} ${userInfo.lastName}` : ''}
       />
     </div>
   );
