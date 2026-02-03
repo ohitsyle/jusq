@@ -63,22 +63,25 @@ function TransferModal({ isOpen, onClose, selectedUser }) {
     { id: 4, name: 'Complete', icon: CheckCircle }
   ];
 
-  // Convert RFID to hex little endian
+  // Convert RFID to hex little endian and capitalize
   const convertToHexLittleEndian = (rfid) => {
     if (!rfid) return '';
     
+    // Convert to uppercase first
+    const upperRfid = rfid.toUpperCase();
+    
     // If already hex, return as is
-    if (/^[0-9A-Fa-f]+$/.test(rfid)) {
-      return rfid.toUpperCase();
+    if (/^[0-9A-F]+$/.test(upperRfid)) {
+      return upperRfid;
     }
     
     // If decimal, convert to hex
-    const decimalValue = parseInt(rfid, 10);
+    const decimalValue = parseInt(upperRfid, 10);
     if (!isNaN(decimalValue)) {
       return decimalValue.toString(16).toUpperCase();
     }
     
-    return rfid.toUpperCase();
+    return upperRfid;
   };
 
   const handleRfidSubmit = () => {
@@ -127,7 +130,7 @@ function TransferModal({ isOpen, onClose, selectedUser }) {
               <input
                 placeholder="Scan or enter new RFID..."
                 value={newRfid}
-                onChange={(e) => setNewRfid(e.target.value)}
+                onChange={(e) => setNewRfid(e.target.value.toUpperCase())}
                 className="w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-yellow-400/50 font-mono text-lg tracking-wider"
                 style={{
                   background: 'rgba(15, 18, 39, 0.5)',
@@ -632,7 +635,9 @@ export default function TransferCard() {
       params.append('sortBy', sortBy);
       
       const data = await api.get(`/admin/sysad/users?${params}`);
-      setUsers(data.users || []);
+      // Filter out admins - they don't have RFID cards
+      const filteredUsers = (data.users || []).filter(user => user._type !== 'admin');
+      setUsers(filteredUsers);
     } catch (error) {
       showNotification('error', 'Load Failed', 'Failed to load users. Please try again.');
     } finally {
@@ -740,8 +745,7 @@ export default function TransferCard() {
                   {[
                     { value: 'all', label: 'All' },
                     { value: 'student', label: 'Students' },
-                    { value: 'employee', label: 'Employees' },
-                    { value: 'admin', label: 'Admins' }
+                    { value: 'employee', label: 'Employees' }
                   ].map((option) => (
                     <button
                       key={option.value}

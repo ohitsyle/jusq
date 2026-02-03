@@ -168,39 +168,18 @@ router.get('/users', async (req, res) => {
     let userTotal = 0;
     let adminTotal = 0;
 
-    // Only include regular users if not filtering by admin role
-    if (role !== 'admin') {
-      [users, userTotal] = await Promise.all([
-        User.find(userFilter)
-          .select('-password -pin')
-          .sort(sort)
-          .lean(),
-        User.countDocuments(userFilter)
-      ]);
-    }
+    // Only include regular users - exclude admins for transfer card
+    // Admins don't have RFID cards, so they shouldn't appear in transfer card list
+    [users, userTotal] = await Promise.all([
+      User.find(userFilter)
+        .select('-password -pin')
+        .sort(sort)
+        .lean(),
+      User.countDocuments(userFilter)
+    ]);
 
-    // Include admins if needed
-    if (includeAdmins) {
-      [admins, adminTotal] = await Promise.all([
-        Admin.find(adminFilter)
-          .select('-password')
-          .sort(sort)
-          .lean(),
-        Admin.countDocuments(adminFilter)
-      ]);
-    }
-
-    // Combine and format results
-    const combinedResults = [
-      ...users.map(u => ({ ...u, _type: 'user' })),
-      ...admins.map(a => ({
-        ...a,
-        _type: 'admin',
-        // Map admin fields to user fields for consistent display
-        schoolUId: a.adminId,
-        isActive: a.isActive
-      }))
-    ];
+    // No admins included for transfer card functionality
+    const combinedResults = users.map(u => ({ ...u, _type: 'user' }));
 
     // Sort combined results
     combinedResults.sort((a, b) => {
@@ -213,7 +192,7 @@ router.get('/users', async (req, res) => {
     });
 
     // Apply pagination to combined results
-    const total = userTotal + adminTotal;
+    const total = userTotal;
     const paginatedResults = combinedResults.slice(skip, skip + parseInt(limit));
 
     res.json({
