@@ -568,13 +568,23 @@ router.put('/users/:userId', async (req, res) => {
 
 /**
  * DELETE /api/admin/sysad/users/:userId
- * Permanently delete a user from the database
+ * Permanently delete a user or admin from the database
  */
 router.delete('/users/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
 
-    const user = await User.findById(userId);
+    // Try to find in User collection first
+    let user = await User.findById(userId);
+    let isAdmin = false;
+    
+    if (!user) {
+      // If not found in User collection, try Admin collection
+      const Admin = (await import('../models/Admin.js')).default;
+      user = await Admin.findById(userId);
+      isAdmin = true;
+    }
+    
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
@@ -582,23 +592,37 @@ router.delete('/users/:userId', async (req, res) => {
     // Store user info for logging before deletion
     const userInfo = {
       id: user._id,
-      name: `${user.firstName} ${user.lastName}`,
+      name: user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim(),
       email: user.email,
-      schoolUId: user.schoolUId
+      schoolUId: user.schoolUId,
+      role: user.role || (isAdmin ? 'admin' : 'user')
     };
 
-    // Permanently delete the user
-    await User.findByIdAndDelete(userId);
+    // Permanently delete the user from appropriate collection
+    if (isAdmin) {
+      const Admin = (await import('../models/Admin.js')).default;
+      await Admin.findByIdAndDelete(userId);
+    } else {
+      await User.findByIdAndDelete(userId);
+    }
 
     // Log action
     await SystemLog.create({
       eventType: 'user_deleted',
-      description: `User permanently deleted: ${userInfo.name} (${userInfo.email})`,
+      description: `${isAdmin ? 'Admin' : 'User'} permanently deleted: ${userInfo.name} (${userInfo.email})`,
       severity: 'warning',
-      metadata: { userId: userInfo.id, schoolUId: userInfo.schoolUId, adminAction: true }
+      metadata: { 
+        userId: userInfo.id, 
+        schoolUId: userInfo.schoolUId, 
+        role: userInfo.role,
+        adminAction: true 
+      }
     });
 
-    res.json({ success: true, message: 'User permanently deleted' });
+    res.json({ 
+      success: true, 
+      message: `${isAdmin ? 'Admin' : 'User'} permanently deleted` 
+    });
   } catch (error) {
     console.error('❌ Delete user error:', error);
     res.status(500).json({ success: false, message: error.message });
@@ -607,42 +631,62 @@ router.delete('/users/:userId', async (req, res) => {
 
 /**
  * PATCH /api/admin/sysad/users/:userId/toggle-status
- * Toggle user active/inactive status (uses isActive boolean, not status string)
+ * Toggle user or admin active/inactive status (uses isActive boolean, not status string)
  */
 router.patch('/users/:userId/toggle-status', async (req, res) => {
   try {
     const { userId } = req.params;
 
-    const user = await User.findById(userId);
+    // Try to find in User collection first
+    let user = await User.findById(userId);
+    let isAdmin = false;
+    
+    if (!user) {
+      // If not found in User collection, try Admin collection
+      const Admin = (await import('../models/Admin.js')).default;
+      user = await Admin.findById(userId);
+      isAdmin = true;
+    }
+    
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    // Toggle isActive (boolean field in User model)
+    // Toggle isActive (boolean field)
     user.isActive = !user.isActive;
-    // Also update isDeactivated field to keep them in sync
-    user.isDeactivated = !user.isActive;
-    if (user.isDeactivated) {
-      user.deactivatedAt = new Date();
-    } else {
-      user.deactivatedAt = null;
+    
+    // For User model, also update isDeactivated field to keep them in sync
+    if (!isAdmin) {
+      user.isDeactivated = !user.isActive;
+      if (user.isDeactivated) {
+        user.deactivatedAt = new Date();
+      } else {
+        user.deactivatedAt = null;
+      }
     }
+    
     await user.save();
 
     const statusText = user.isActive ? 'activated' : 'deactivated';
+    const userName = user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim();
 
     // Log action
     await SystemLog.create({
       eventType: 'user_status_changed',
-      description: `User ${statusText}: ${user.firstName} ${user.lastName}`,
+      description: `${isAdmin ? 'Admin' : 'User'} ${statusText}: ${userName}`,
       severity: 'info',
-      metadata: { userId: user._id, isActive: user.isActive, adminAction: true }
+      metadata: { 
+        userId: user._id, 
+        isActive: user.isActive, 
+        role: user.role || (isAdmin ? 'admin' : 'user'),
+        adminAction: true 
+      }
     });
 
     res.json({
       success: true,
-      message: `User ${statusText} successfully`,
-      user: { ...user.toObject(), password: undefined }
+      message: `${isAdmin ? 'Admin' : 'User'} ${statusText} successfully`,
+      user: { ...user.toObject(), password: undefined, pin: undefined }
     });
   } catch (error) {
     console.error('❌ Toggle status error:', error);
