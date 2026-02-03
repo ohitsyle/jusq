@@ -28,8 +28,8 @@ export function useMaintenanceMode() {
 
   // Check maintenance mode status
   const checkMaintenanceStatus = useCallback(async () => {
-    // Don't check maintenance status if on force-logout page
-    if (window.location.pathname === '/force-logout') {
+    // Don't check maintenance status if on force-logout or login page
+    if (window.location.pathname === '/force-logout' || window.location.pathname === '/login') {
       return;
     }
 
@@ -77,8 +77,8 @@ export function useMaintenanceMode() {
 
   // Set up periodic checking
   useEffect(() => {
-    // Don't run maintenance check on force-logout page to avoid infinite loop
-    if (window.location.pathname === '/force-logout') {
+    // Don't run maintenance check on force-logout or login page to avoid infinite loop
+    if (window.location.pathname === '/force-logout' || window.location.pathname === '/login') {
       return;
     }
 
