@@ -513,12 +513,18 @@ function ConcernModal({ onClose, theme, isDarkMode }) {
   const fetchMerchants = async () => {
     setLoadingMerchants(true);
     try {
+      console.log('Fetching merchants...');
       const response = await api.get('/user/merchants');
+      console.log('Merchants response:', response);
       if (response.success) {
+        console.log('Merchants data:', response.merchants);
         setMerchants(response.merchants);
+      } else {
+        console.error('API returned success=false:', response);
+        setMerchants([]);
       }
     } catch (error) {
-      console.error('Failed to fetch merchants');
+      console.error('Failed to fetch merchants:', error);
       setMerchants([]);
     } finally {
       setLoadingMerchants(false);
@@ -600,18 +606,12 @@ function ConcernModal({ onClose, theme, isDarkMode }) {
           background: isDarkMode
             ? 'linear-gradient(135deg, #1E2347 0%, #181D40 100%)'
             : 'linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%)',
-          border: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}`
-        }}
-        className="relative rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden"
-        style={{
-          background: isDarkMode
-            ? 'linear-gradient(135deg, #1E2347 0%, #181D40 100%)'
-            : 'linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%)',
           border: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}`,
           boxShadow: isDarkMode
             ? '0 25px 50px rgba(0,0,0,0.5)'
             : '0 25px 50px rgba(0,0,0,0.15)'
         }}
+        className="relative rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden"
       >
         {/* Header */}
         <div
