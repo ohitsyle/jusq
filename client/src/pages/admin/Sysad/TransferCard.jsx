@@ -49,7 +49,7 @@ function TransferNotificationModal({ isOpen, onClose, type, title, message }) {
 }
 
 // Confirmation Modal for TransferCard
-function TransferConfirmModal({ isOpen, onClose, onConfirm, oldCard, newCard, userName }) {
+function TransferConfirmModal({ isOpen, onClose, onConfirm, selectedUser, newCardId }) {
   const { theme, isDarkMode } = useTheme();
   if (!isOpen) return null;
 
@@ -66,29 +66,33 @@ function TransferConfirmModal({ isOpen, onClose, onConfirm, oldCard, newCard, us
               <AlertTriangle className="w-8 h-8 text-amber-500" />
             </div>
           </div>
-          <h3 style={{ color: theme.text.primary }} className="text-xl font-bold text-center mb-2">Confirm Card Transfer</h3>
+          <h3 style={{ color: theme.text.primary }} className="text-xl font-bold text-center mb-2">Transfer User Information</h3>
           <p style={{ color: theme.text.secondary }} className="text-sm text-center mb-4">
-            You are about to transfer all data from one card to another. This action cannot be undone.
+            Are you sure you want to transfer this user's information to a new RFID card?
           </p>
 
           <div style={{ background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB', borderColor: theme.border.primary }} className="rounded-xl border p-4 space-y-3 mb-4">
             <div className="flex justify-between items-center">
               <span style={{ color: theme.text.secondary }} className="text-sm">User</span>
-              <span style={{ color: theme.text.primary }} className="font-semibold">{userName}</span>
+              <span style={{ color: theme.text.primary }} className="font-semibold">{`${selectedUser?.firstName || ''} ${selectedUser?.lastName || ''}`.trim()}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span style={{ color: theme.text.secondary }} className="text-sm">From Card</span>
-              <span className="font-mono text-red-500 font-semibold">{oldCard}</span>
+              <span style={{ color: theme.text.secondary }} className="text-sm">Email</span>
+              <span style={{ color: theme.text.primary }} className="font-semibold">{selectedUser?.email || 'N/A'}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span style={{ color: theme.text.secondary }} className="text-sm">To Card</span>
-              <span className="font-mono text-emerald-500 font-semibold">{newCard}</span>
+              <span style={{ color: theme.text.secondary }} className="text-sm">Role</span>
+              <span style={{ color: theme.text.primary }} className="font-semibold">{selectedUser?.role || 'N/A'}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span style={{ color: theme.text.secondary }} className="text-sm">New Card ID</span>
+              <span className="font-mono text-emerald-500 font-semibold">{newCardId}</span>
             </div>
           </div>
 
-          <div style={{ background: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.3)' }} className="rounded-xl border p-3 mb-4">
-            <p className="text-red-500 text-xs text-center">
-              The old card will be permanently deactivated
+          <div style={{ background: 'rgba(59,130,246,0.1)', borderColor: 'rgba(59,130,246,0.3)' }} className="rounded-xl border p-3 mb-4">
+            <p className="text-blue-500 text-xs text-center">
+              This will create a new user account with the transferred information and send an OTP for activation
             </p>
           </div>
         </div>
@@ -105,7 +109,7 @@ function TransferConfirmModal({ isOpen, onClose, onConfirm, oldCard, newCard, us
             onClick={onConfirm}
             className="flex-1 py-3 rounded-xl font-semibold transition-all hover:opacity-90 bg-amber-500 text-white"
           >
-            Transfer
+            Transfer User
           </button>
         </div>
       </div>
@@ -207,7 +211,7 @@ export default function TransferCard() {
 
   const handleTransferClick = (user) => {
     if (!newCardId.trim()) {
-      showNotification('warning', 'Input Required', 'Please enter the new card ID.');
+      showNotification('warning', 'Input Required', 'Please enter the new RFID card ID.');
       return;
     }
     setSelectedUser(user);
@@ -219,17 +223,33 @@ export default function TransferCard() {
     setTransferring(true);
 
     try {
-      await api.post('/admin/sysad/transfer-card', {
-        oldCardUid: selectedUser.cardUid,
-        newCardUid: newCardId.trim()
+      // Step 1: Create new user with transferred info but deactivated
+      const newUserResponse = await api.post('/admin/sysad/transfer-user', {
+        firstName: selectedUser.firstName,
+        lastName: selectedUser.lastName,
+        email: selectedUser.email,
+        role: selectedUser.role,
+        schoolUId: selectedUser.schoolUId,
+        cardUid: newCardId.trim(),
+        isDeactivated: false,
+        isActive: false,
+        originalUserId: selectedUser._id // Keep reference to original user
       });
 
+      // Step 2: Send OTP to user
+      await api.post('/admin/auth/send-otp', {
+        email: selectedUser.email,
+        userId: newUserResponse.user._id
+      });
+
+      // Step 3: Show success and reset
       setTransferComplete(true);
-      showNotification('success', 'Transfer Complete', `Card data transferred successfully for ${selectedUser.firstName} ${selectedUser.lastName}`);
+      showNotification('success', 'Transfer Initiated', `User information transferred to new RFID card. OTP sent to ${selectedUser.email}`);
+      
       // Reload users to get updated data
       await loadUsers();
     } catch (error) {
-      showNotification('error', 'Transfer Failed', error.message || 'Failed to transfer card. Please try again.');
+      showNotification('error', 'Transfer Failed', error.message || 'Failed to transfer user information. Please try again.');
     } finally {
       setTransferring(false);
     }
@@ -249,7 +269,7 @@ export default function TransferCard() {
           <CreditCard className="w-7 h-7" /> Transfer Card
         </h2>
         <p style={{ color: theme.text.secondary }} className="text-[13px] m-0">
-          Transfer user data from one RFID card to another
+          Transfer user information to a new RFID card with OTP activation
         </p>
       </div>
 
@@ -265,10 +285,18 @@ export default function TransferCard() {
           <div style={{ background: 'rgba(16,185,129,0.15)' }} className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5">
             <CheckCircle className="w-10 h-10 text-emerald-500" />
           </div>
-          <h3 style={{ color: '#10B981' }} className="text-2xl font-bold mb-2">Transfer Complete</h3>
+          <h3 style={{ color: '#10B981' }} className="text-2xl font-bold mb-2">Transfer Initiated</h3>
           <p style={{ color: theme.text.secondary }} className="mb-6 text-sm max-w-md mx-auto">
-            All user data has been successfully transferred to the new card. The previous card has been deactivated.
+            User information has been transferred to the new RFID card. An activation OTP has been sent to the user's email address.
           </p>
+          <div style={{ background: 'rgba(59,130,246,0.1)', borderColor: 'rgba(59,130,246,0.3)' }} className="rounded-xl border p-4 mb-6">
+            <p className="text-blue-500 text-sm">
+              <strong>Next Steps:</strong><br />
+              1. User will receive OTP via email<br />
+              2. User activates account with OTP<br />
+              3. New RFID card becomes active
+            </p>
+          </div>
           <button
             onClick={handleReset}
             style={{ background: accentColor }}
@@ -288,13 +316,13 @@ export default function TransferCard() {
             style={{ background: theme.bg.card, borderColor: theme.border.primary }}
             className="rounded-2xl border p-6 mb-6"
           >
-            <h3 style={{ color: accentColor }} className="font-bold text-sm uppercase tracking-wide mb-4">New RFID Card</h3>
+            <h3 style={{ color: accentColor }} className="font-bold text-sm uppercase tracking-wide mb-4">New RFID Card ID</h3>
             <div className="flex gap-4">
               <input
                 type="text"
                 value={newCardId}
                 onChange={(e) => setNewCardId(e.target.value)}
-                placeholder="Enter new RFID card ID"
+                placeholder="Enter new RFID card ID (e.g., A1B2C3D4E5)"
                 style={{
                   background: theme.bg.input,
                   borderColor: theme.border.primary,
@@ -430,9 +458,8 @@ export default function TransferCard() {
         isOpen={showConfirm}
         onClose={() => setShowConfirm(false)}
         onConfirm={handleTransfer}
-        oldCard={selectedUser?.cardUid}
-        newCard={newCardId}
-        userName={`${selectedUser?.firstName || ''} ${selectedUser?.lastName || ''}`.trim()}
+        selectedUser={selectedUser}
+        newCardId={newCardId}
       />
 
       {/* Notification Modal */}
