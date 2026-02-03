@@ -30,6 +30,19 @@ const PaymentService = {
     
     console.log('💸 Processing refund: ₱', fareAmount, 'for:', rfidUId);
 
+    // Validate student status first
+    const statusValidation = await this.validateStudentStatus(rfidUId);
+    if (!statusValidation.valid) {
+      return {
+        success: false,
+        error: {
+          message: statusValidation.reason,
+          code: statusValidation.code
+        },
+        transactionType: 'refund'
+      };
+    }
+
     // Check for recent offline transactions (duplicate detection)
     const recentCheck = await OfflineStorageService.hasRecentTransaction(rfidUId, 5);
     if (recentCheck.hasRecent) {
@@ -41,7 +54,8 @@ const PaymentService = {
           code: 'RECENT_TRANSACTION',
           studentName: studentName,
           timeAgo: recentCheck.timeAgo
-        }
+        },
+        transactionType: 'refund'
       };
     }
 
@@ -130,6 +144,8 @@ const PaymentService = {
           schoolUId: res.data.user?.schoolUId,
           email: res.data.user?.email,
           studentId: res.data.user?.studentId,
+          isActive: res.data.user?.isActive,
+          isDeactivated: res.data.user?.isDeactivated,
           cachedAt: new Date().toISOString()
         };
 
@@ -165,6 +181,79 @@ const PaymentService = {
   },
 
   // ============================================================
+  // STUDENT STATUS VALIDATION
+  // ============================================================
+  async validateStudentStatus(rfidUId) {
+    try {
+      // Try to get user data from server first (online)
+      const res = await api.get(`/user/balance/${rfidUId}`);
+      
+      if (res.data && res.data.user) {
+        const user = res.data.user;
+        
+        // Check if student is active and not deactivated
+        if (!user.isActive) {
+          return {
+            valid: false,
+            reason: 'Student account is not active',
+            code: 'INACTIVE_ACCOUNT'
+          };
+        }
+        
+        if (user.isDeactivated) {
+          return {
+            valid: false,
+            reason: 'Student account is deactivated',
+            code: 'DEACTIVATED_ACCOUNT'
+          };
+        }
+        
+        return {
+          valid: true,
+          user: user
+        };
+      }
+    } catch (error) {
+      // If we can't reach server, check cached data for offline validation
+      console.log('🔄 Server unreachable, checking cached student status...');
+      const cachedCard = await OfflineStorageService.lookupCard(rfidUId);
+      
+      if (cachedCard) {
+        // For offline mode, we need to be more lenient but still check if we have status info
+        if (cachedCard.isActive === false) {
+          return {
+            valid: false,
+            reason: 'Student account is not active (cached)',
+            code: 'INACTIVE_ACCOUNT'
+          };
+        }
+        
+        if (cachedCard.isDeactivated === true) {
+          return {
+            valid: false,
+            reason: 'Student account is deactivated (cached)',
+            code: 'DEACTIVATED_ACCOUNT'
+          };
+        }
+        
+        // If cached data doesn't have status info, allow transaction (will be validated online when synced)
+        return {
+          valid: true,
+          offlineMode: true,
+          user: cachedCard
+        };
+      }
+      
+      // No cached data available - allow for offline but will be validated online when synced
+      return {
+        valid: true,
+        offlineMode: true,
+        needsOnlineValidation: true
+      };
+    }
+  },
+
+  // ============================================================
   // USER DATA MANAGEMENT
   // ============================================================
   async fetchAndCacheUserData(rfidUId) {
@@ -184,6 +273,8 @@ const PaymentService = {
           schoolUId: res.data.user?.schoolUId,
           email: res.data.user?.email,
           studentId: res.data.user?.studentId,
+          isActive: res.data.user?.isActive,
+          isDeactivated: res.data.user?.isDeactivated,
           cachedAt: new Date().toISOString()
         };
 
@@ -207,6 +298,18 @@ const PaymentService = {
     const fare = fareAmount || DEFAULT_FARE;
 
     console.log('💳 Processing fare:', fare, 'for route:', routeId);
+
+    // Validate student status first
+    const statusValidation = await this.validateStudentStatus(rfidUId);
+    if (!statusValidation.valid) {
+      return {
+        success: false,
+        error: {
+          message: statusValidation.reason,
+          code: statusValidation.code
+        }
+      };
+    }
 
     // Check for recent offline transactions (duplicate detection)
     const recentCheck = await OfflineStorageService.hasRecentTransaction(rfidUId, 5); // 5-minute window
@@ -311,6 +414,8 @@ const PaymentService = {
           schoolUId: res.data.user?.schoolUId,
           email: res.data.user?.email,
           studentId: res.data.user?.studentId,
+          isActive: res.data.user?.isActive,
+          isDeactivated: res.data.user?.isDeactivated,
           cachedAt: new Date().toISOString()
         };
 

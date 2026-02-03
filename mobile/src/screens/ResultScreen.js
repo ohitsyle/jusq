@@ -15,7 +15,9 @@ export default function ResultScreen({ navigation, route }) {
     message,
     error,
     rfidUId,
-    userType = 'driver'
+    userType = 'driver',
+    offlineMode = false,
+    transactionType = 'payment'
   } = route.params || {};
 
   const scaleValue = new Animated.Value(0);
@@ -61,14 +63,18 @@ export default function ResultScreen({ navigation, route }) {
         return {
           background: '#10B981', // Emerald Green
           icon: '✓',
-          title: 'Payment Successful!',
+          title: offlineMode ? 
+            (transactionType === 'refund' ? 'Refund Processed (Offline)' : 'Payment Processed (Offline)') :
+            (transactionType === 'refund' ? 'Refund Successful!' : 'Payment Successful!'),
           iconBg: 'rgba(255,255,255,0.25)'
         };
       case 'warning':
         return {
           background: '#F59E0B', // Amber Orange
           icon: '⚠',
-          title: 'Payment Successful',
+          title: offlineMode ? 
+            (transactionType === 'refund' ? 'Refund Processed (Offline)' : 'Payment Processed (Offline)') :
+            (transactionType === 'refund' ? 'Refund Successful' : 'Payment Successful'),
           iconBg: 'rgba(255,255,255,0.25)'
         };
       case 'failure':

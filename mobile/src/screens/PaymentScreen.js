@@ -239,7 +239,8 @@ export default function PaymentScreen({ navigation, route }) {
           newBalance: data.newBalance,
           rfidUId: rfidUId,
           userType: 'driver',
-          offlineMode: paymentResult.mode === 'offline'
+          offlineMode: paymentResult.offlineMode || paymentResult.mode === 'offline',
+          transactionType: data.transactionType || paymentResult.transactionType || 'payment'
         });
       } else {
         const errorMsg = paymentResult.error?.error || paymentResult.message || 'Payment failed';
