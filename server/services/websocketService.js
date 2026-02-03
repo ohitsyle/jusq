@@ -158,7 +158,8 @@ class WebSocketService {
     return {
       connectedMobileClients: this.connectedClients.size,
       connectedMotorpoolClients: this.motorpoolClients.size,
-      totalConnections: this.io?.engine.clientsCount || 0
+      totalConnections: this.io?.engine.clientsCount || 0,
+      lastUpdate: new Date() // Add timestamp for polling detection
     };
   }
 

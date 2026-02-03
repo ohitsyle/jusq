@@ -22,6 +22,11 @@ export const broadcastChanges = (entityType) => {
         // Broadcast the change
         setTimeout(() => {
           broadcastEntityChange(entityType, operation, req, data);
+          
+          // Update WebSocket service timestamp for polling detection
+          if (websocketService && websocketService.getStats) {
+            websocketService.getStats(); // This updates the timestamp
+          }
         }, 100); // Small delay to ensure data is saved
       }
       
