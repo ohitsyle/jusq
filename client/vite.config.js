@@ -17,9 +17,9 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       output: {
-        entryFileNames: `asset-[name]-fixed-${Date.now()}.js`,
-        chunkFileNames: `asset-[name]-fixed-${Date.now()}.js`,
-        assetFileNames: `asset-[name]-fixed-${Date.now()}.[ext]`
+        entryFileNames: `asset-[name]-final-${Date.now()}.js`,
+        chunkFileNames: `asset-[name]-final-${Date.now()}.js`,
+        assetFileNames: `asset-[name]-final-${Date.now()}.[ext]`
       }
     }
   },
