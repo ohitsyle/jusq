@@ -32,23 +32,45 @@ const PaymentService = {
 
     console.log('💳 Processing fare:', fare, 'for route:', routeId);
 
+    // Check for recent offline transactions (duplicate detection)
+    const recentCheck = await OfflineStorageService.hasRecentTransaction(rfidUId, 5); // 5-minute window
+    if (recentCheck.hasRecent) {
+      const studentName = recentCheck.transaction.studentName || 'Student';
+      return {
+        success: false,
+        error: {
+          message: `${studentName} already scanned their ID ${recentCheck.timeAgo} seconds ago`,
+          code: 'DUPLICATE_SCAN',
+          studentName: studentName,
+          timeAgo: recentCheck.timeAgo
+        }
+      };
+    }
+
     if (!isOnline) {
       // Look up user from cached card data
       const cachedCard = await OfflineStorageService.lookupCard(rfidUId);
       const studentName = cachedCard?.fullName || 'Unknown Student';
       const cachedBalance = cachedCard?.balance ?? 0;
 
-      // Buffer transaction for later sync
-      await this.bufferOfflineTransaction({
+      // Create offline transaction record
+      const offlineTransaction = {
         rfidUId,
         driverId,
         shuttleId: shuttleId || DEVICE_ID,
         routeId,
         tripId,
         fareAmount: fare,
-        studentName: studentName, // Store name for reference
-        timestamp: new Date().toISOString()
-      });
+        studentName: studentName,
+        timestamp: new Date().toISOString(),
+        mode: 'offline'
+      };
+
+      // Add to offline transactions for duplicate detection
+      await OfflineStorageService.addOfflineTransaction(offlineTransaction);
+
+      // Buffer transaction for later sync
+      await this.bufferOfflineTransaction(offlineTransaction);
 
       console.log('📦 Offline payment for:', studentName, '- ₱', fare);
 
@@ -78,6 +100,17 @@ const PaymentService = {
         deviceId: DEVICE_ID,
         timestamp: new Date().toISOString()
       });
+
+      // Cache user card data for offline use
+      if (res.data && res.data.user) {
+        await OfflineStorageService.cacheCardData({
+          rfidUId,
+          fullName: res.data.user.fullName || res.data.user.firstName + ' ' + res.data.user.lastName,
+          balance: res.data.newBalance || res.data.balance,
+          schoolUId: res.data.user.schoolUId,
+          email: res.data.user.email
+        });
+      }
 
       return { 
         success: true, 
@@ -197,36 +230,72 @@ const PaymentService = {
     const queue = await this.getOfflineQueue();
     
     if (!queue.length) {
-      return { success: true, processed: 0, count: 0 };
+      console.log('✅ No offline transactions to sync');
+      return { success: true, processed: 0 };
     }
 
-    console.log('🔄 Syncing', queue.length, 'offline transactions...');
+    console.log(`🔄 Syncing ${queue.length} offline transactions...`);
 
-    try {
-      const res = await api.post('/shuttle/sync', {
-        deviceId: DEVICE_ID,
-        transactions: queue
-      });
+    let processed = 0;
+    let failed = 0;
 
-      if (res.data) {
-        await this.clearOfflineQueue();
-        console.log('✅ Sync complete:', res.data);
-        return { 
-          success: true, 
-          processed: res.data.processed || queue.length,
-          rejected: res.data.rejected || [],
-          count: res.data.processed || queue.length
-        };
+    for (const transaction of queue) {
+      try {
+        console.log(`📤 Syncing transaction for ${transaction.studentName || transaction.rfidUId}`);
+        
+        // Send transaction to server
+        const res = await api.post('/shuttle/pay', {
+          rfidUId: transaction.rfidUId,
+          driverId: transaction.driverId,
+          shuttleId: transaction.shuttleId,
+          routeId: transaction.routeId,
+          tripId: transaction.tripId,
+          fareAmount: transaction.fareAmount,
+          deviceId: DEVICE_ID,
+          timestamp: transaction.timestamp,
+          isOfflineSync: true // Flag to indicate this is an offline sync
+        });
+
+        // Cache user data if returned
+        if (res.data && res.data.user) {
+          await OfflineStorageService.cacheCardData({
+            rfidUId: transaction.rfidUId,
+            fullName: res.data.user.fullName || res.data.user.firstName + ' ' + res.data.user.lastName,
+            balance: res.data.newBalance || res.data.balance,
+            schoolUId: res.data.user.schoolUId,
+            email: res.data.user.email
+          });
+        }
+
+        processed++;
+        console.log(`✅ Synced transaction for ${transaction.studentName || transaction.rfidUId}`);
+        
+      } catch (error) {
+        failed++;
+        console.error(`❌ Failed to sync transaction for ${transaction.studentName || transaction.rfidUId}:`, error.message);
+        
+        // If it's a server error (4xx), don't retry this transaction
+        if (error.response && error.response.status >= 400 && error.response.status < 500) {
+          console.log(`⚠️ Skipping failed transaction (server error): ${transaction.rfidUId}`);
+        }
       }
-      
-      return { success: false, error: 'No response from server' };
-    } catch (e) {
-      console.error('❌ Sync failed:', e);
-      return {
-        success: false,
-        error: e.response?.data || e.message
-      };
     }
+
+    // Clear the queue after processing
+    if (processed > 0) {
+      await this.clearOfflineQueue();
+      console.log(`🗑️ Cleared offline queue after syncing ${processed} transactions`);
+    }
+
+    // Clear offline transaction records (for duplicate detection)
+    await OfflineStorageService.clearOfflineTransactions();
+
+    return {
+      success: true,
+      processed,
+      failed,
+      total: queue.length
+    };
   },
 
   // Legacy alias (some code might use syncOfflinePayments)

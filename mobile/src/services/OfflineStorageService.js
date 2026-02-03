@@ -11,7 +11,9 @@ const STORAGE_KEYS = {
   SHUTTLE_POSITIONS: 'cached_shuttle_positions',
   TRIP_DATA: 'active_trip_data',
   MERCHANT_DATA: 'merchant_session_data',
-  SETTINGS: 'system_settings'
+  SETTINGS: 'system_settings',
+  CACHED_CARDS: 'cached_cards', // Cache user card data for offline use
+  OFFLINE_TRANSACTIONS: 'offline_transactions' // Track offline transactions for duplicate detection
 };
 
 const OfflineStorageService = {
@@ -298,30 +300,154 @@ const OfflineStorageService = {
   // ============================================================
   async getStorageStats() {
     try {
-      const keys = await AsyncStorage.getAllKeys();
-      const items = await AsyncStorage.multiGet(keys);
+      const keys = [
+        STORAGE_KEYS.ROUTES,
+        STORAGE_KEYS.SHUTTLES,
+        STORAGE_KEYS.USER_SESSION,
+        STORAGE_KEYS.OFFLINE_QUEUE,
+        STORAGE_KEYS.CACHED_CARDS,
+        STORAGE_KEYS.OFFLINE_TRANSACTIONS
+      ];
 
-      let totalSize = 0;
       const stats = {};
+      for (const key of keys) {
+        const value = await AsyncStorage.getItem(key);
+        stats[key] = value ? JSON.parse(value).length || 0 : 0;
+      }
 
-      items.forEach(([key, value]) => {
-        const size = new Blob([value]).size;
-        totalSize += size;
-        stats[key] = {
-          size: size,
-          sizeKB: (size / 1024).toFixed(2)
-        };
-      });
-
-      return {
-        totalKeys: keys.length,
-        totalSize: totalSize,
-        totalSizeKB: (totalSize / 1024).toFixed(2),
-        items: stats
-      };
+      return stats;
     } catch (error) {
       console.error('❌ Failed to get storage stats:', error);
+      return {};
+    }
+  },
+
+  // ============================================================
+  // CARD CACHING (for offline duplicate detection)
+  // ============================================================
+  async cacheCardData(cardData) {
+    try {
+      const cached = await AsyncStorage.getItem(STORAGE_KEYS.CACHED_CARDS);
+      const cards = cached ? JSON.parse(cached) : {};
+      
+      // Update or add card data
+      cards[cardData.rfidUId] = {
+        ...cardData,
+        cachedAt: new Date().toISOString()
+      };
+
+      await AsyncStorage.setItem(STORAGE_KEYS.CACHED_CARDS, JSON.stringify(cards));
+      console.log('✅ Cached card data for:', cardData.fullName || cardData.rfidUId);
+    } catch (error) {
+      console.error('❌ Failed to cache card data:', error);
+    }
+  },
+
+  async lookupCard(rfidUId) {
+    try {
+      const cached = await AsyncStorage.getItem(STORAGE_KEYS.CACHED_CARDS);
+      const cards = cached ? JSON.parse(cached) : {};
+      
+      return cards[rfidUId] || null;
+    } catch (error) {
+      console.error('❌ Failed to lookup card:', error);
       return null;
+    }
+  },
+
+  // ============================================================
+  // OFFLINE TRANSACTION TRACKING (for duplicate detection)
+  // ============================================================
+  async hasRecentTransaction(rfidUId, timeWindowMinutes = 5) {
+    try {
+      const transactions = await this.getOfflineTransactions();
+      const now = Date.now();
+      const windowStart = now - (timeWindowMinutes * 60 * 1000);
+
+      // Check if there's a recent transaction for this RFID
+      const recentTransaction = transactions.find(tx => 
+        tx.rfidUId === rfidUId && 
+        new Date(tx.timestamp).getTime() > windowStart
+      );
+
+      if (recentTransaction) {
+        console.log('🚫 Recent transaction found for:', rfidUId, 'at:', recentTransaction.timestamp);
+        return {
+          hasRecent: true,
+          transaction: recentTransaction,
+          timeAgo: Math.floor((now - new Date(recentTransaction.timestamp).getTime()) / 1000)
+        };
+      }
+
+      return { hasRecent: false };
+    } catch (error) {
+      console.error('❌ Failed to check recent transactions:', error);
+      return { hasRecent: false };
+    }
+  },
+
+  async addOfflineTransaction(transaction) {
+    try {
+      const transactions = await this.getOfflineTransactions();
+      
+      // Add the new transaction
+      transactions.push({
+        ...transaction,
+        id: Date.now().toString(), // Unique ID for this transaction
+        addedAt: new Date().toISOString()
+      });
+
+      // Keep only last 100 transactions to prevent storage bloat
+      if (transactions.length > 100) {
+        transactions.splice(0, transactions.length - 100);
+      }
+
+      await AsyncStorage.setItem(STORAGE_KEYS.OFFLINE_TRANSACTIONS, JSON.stringify(transactions));
+      console.log('📦 Added offline transaction for:', transaction.studentName || transaction.rfidUId);
+    } catch (error) {
+      console.error('❌ Failed to add offline transaction:', error);
+    }
+  },
+
+  async getOfflineTransactions() {
+    try {
+      const cached = await AsyncStorage.getItem(STORAGE_KEYS.OFFLINE_TRANSACTIONS);
+      return cached ? JSON.parse(cached) : [];
+    } catch (error) {
+      console.error('❌ Failed to get offline transactions:', error);
+      return [];
+    }
+  },
+
+  async clearOfflineTransactions() {
+    try {
+      await AsyncStorage.removeItem(STORAGE_KEYS.OFFLINE_TRANSACTIONS);
+      console.log('🗑️ Offline transactions cleared');
+    } catch (error) {
+      console.error('❌ Failed to clear offline transactions:', error);
+    }
+  },
+
+  // ============================================================
+  // CLEAR ALL CACHE (useful for logout)
+  // ============================================================
+  async clearAllCache() {
+    try {
+      await AsyncStorage.multiRemove([
+        STORAGE_KEYS.ROUTES,
+        STORAGE_KEYS.SHUTTLES,
+        STORAGE_KEYS.USER_SESSION,
+        STORAGE_KEYS.SHUTTLE_POSITIONS,
+        STORAGE_KEYS.TRIP_DATA,
+        STORAGE_KEYS.MERCHANT_DATA,
+        STORAGE_KEYS.SETTINGS,
+        STORAGE_KEYS.LAST_SYNC,
+        STORAGE_KEYS.CACHED_CARDS,
+        STORAGE_KEYS.OFFLINE_TRANSACTIONS
+      ]);
+      console.log('🗑️ All cache cleared');
+    } catch (error) {
+      console.error('❌ Failed to clear all cache:', error);
     }
   }
 };
