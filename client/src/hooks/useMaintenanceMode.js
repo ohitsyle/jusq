@@ -28,6 +28,11 @@ export function useMaintenanceMode() {
 
   // Check maintenance mode status
   const checkMaintenanceStatus = useCallback(async () => {
+    // Don't check maintenance status if on force-logout page
+    if (window.location.pathname === '/force-logout') {
+      return;
+    }
+
     try {
       const response = await fetch(`${backendUrl}/api/admin/sysad/maintenance-status`, {
         method: 'GET',
@@ -72,6 +77,11 @@ export function useMaintenanceMode() {
 
   // Set up periodic checking
   useEffect(() => {
+    // Don't run maintenance check on force-logout page to avoid infinite loop
+    if (window.location.pathname === '/force-logout') {
+      return;
+    }
+
     // Check immediately on mount
     checkMaintenanceStatus();
 
