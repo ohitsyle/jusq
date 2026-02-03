@@ -394,6 +394,85 @@ export default function TransferCard() {
       {/* Main Content */}
       {!transferComplete && (
         <>
+          {/* Actions Bar */}
+          <div
+            style={{
+              background: isDarkMode ? 'rgba(15,18,39,0.8)' : theme.bg.card,
+              borderColor: theme.accent.primary
+            }}
+            className="rounded-xl border-2 p-4 mb-5"
+          >
+            <div className="flex flex-wrap gap-3 items-center justify-between">
+              {/* Left: Search */}
+              <div className="flex flex-wrap gap-3 items-center flex-1">
+                {/* Search */}
+                <div className="relative flex-1 min-w-[200px] max-w-[300px]">
+                  <Search style={{ color: theme.text.tertiary }} className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" />
+                  <input
+                    type="text"
+                    placeholder="Search by name, ID, email..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }}
+                    className="w-full pl-10 pr-4 py-2 rounded-xl border text-sm focus:outline-none transition-all focus:ring-2 focus:ring-opacity-50"
+                  />
+                </div>
+
+                {/* Role Filter - Selection Buttons */}
+                <div className="flex gap-1 p-1 rounded-xl" style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F3F4F6' }}>
+                  {[
+                    { value: 'all', label: 'All' },
+                    { value: 'student', label: 'Students' },
+                    { value: 'employee', label: 'Employees' },
+                    { value: 'admin', label: 'Admins' }
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => setSearchTerm('')} // Reset search when filter changes
+                      style={{
+                        background: 'transparent',
+                        color: theme.text.secondary
+                      }}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Status Filter - Selection Buttons */}
+                <div className="flex gap-1 p-1 rounded-xl" style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F3F4F6' }}>
+                  {[
+                    { value: 'all', label: 'All', color: null },
+                    { value: 'active', label: 'Active', color: '#10B981' },
+                    { value: 'inactive', label: 'Inactive', color: '#EF4444' }
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => setSearchTerm('')} // Reset search when filter changes
+                      style={{
+                        background: 'transparent',
+                        color: theme.text.secondary
+                      }}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Right: Refresh Button */}
+              <button
+                onClick={loadUsers}
+                style={{ background: 'rgba(255,212,28,0.15)', color: accentColor }}
+                className="p-2 rounded-lg hover:opacity-80 transition-all"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
           {/* Users Table */}
           <div
             style={{ background: theme.bg.card, borderColor: theme.border.primary }}
@@ -405,33 +484,9 @@ export default function TransferCard() {
                 background: isDarkMode ? 'rgba(255,212,28,0.1)' : 'rgba(59,130,246,0.1)',
                 borderColor: theme.border.primary
               }}
-              className="px-6 py-4 border-b flex justify-between items-center"
+              className="px-6 py-4 border-b"
             >
               <h3 style={{ color: accentColor }} className="font-bold text-sm uppercase tracking-wide">Users with RFID Cards</h3>
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: theme.text.muted }} />
-                  <input
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Search users..."
-                    style={{
-                      background: theme.bg.input,
-                      borderColor: theme.border.primary,
-                      color: theme.text.primary
-                    }}
-                    className="pl-10 pr-4 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 w-64"
-                  />
-                </div>
-                <button
-                  onClick={loadUsers}
-                  style={{ background: 'rgba(255,212,28,0.15)', color: accentColor }}
-                  className="p-2 rounded-lg hover:opacity-80 transition-all"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                </button>
-              </div>
             </div>
 
             {/* Table Content */}
