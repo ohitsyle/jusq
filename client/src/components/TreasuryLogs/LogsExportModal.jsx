@@ -149,7 +149,7 @@ export default function LogsExportModal({ onClose, logs }) {
     setIsExporting(true);
 
     try {
-      const response = await fetch('http://localhost:4000/api/treasury/logs/export', {
+      const response = await fetch('http://18.166.29.239:3000/api/treasury/logs/export', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

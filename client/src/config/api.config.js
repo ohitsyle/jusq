@@ -10,7 +10,7 @@ const ENV = import.meta.env.MODE || 'development';
 const API_URLS = {
   development: '/api',  // Relative path - Vite dev server will proxy to localhost:5000
   staging: 'https://staging-api.nucash.com/api',
-  production: 'https://api.nucash.com/api'
+  production: 'http://18.166.29.239:3000/api'
 };
 
 // Admin API Configuration
