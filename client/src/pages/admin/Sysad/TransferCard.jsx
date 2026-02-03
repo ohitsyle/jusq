@@ -48,7 +48,82 @@ function TransferNotificationModal({ isOpen, onClose, type, title, message }) {
   );
 }
 
-// Confirmation Modal for TransferCard
+// Card Input Modal for TransferCard
+function CardInputModal({ isOpen, onClose, onSubmit, selectedUser }) {
+  const { theme, isDarkMode } = useTheme();
+  const [cardId, setCardId] = useState('');
+  const accentColor = theme.accent.primary;
+  
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div
+        style={{ background: isDarkMode ? '#1E2347' : '#FFFFFF', borderColor: theme.border.primary }}
+        className="relative rounded-2xl shadow-2xl border w-full max-w-md overflow-hidden animate-modalSlide"
+      >
+        <div className="p-6">
+          <div className="flex items-center justify-center mb-4">
+            <div style={{ background: 'rgba(255,212,28,0.15)' }} className="w-16 h-16 rounded-full flex items-center justify-center">
+              <CreditCard className="w-8 h-8 text-amber-500" />
+            </div>
+          </div>
+          <h3 style={{ color: theme.text.primary }} className="text-xl font-bold text-center mb-2">Enter New RFID Card</h3>
+          <p style={{ color: theme.text.secondary }} className="text-sm text-center mb-4">
+            Enter the RFID card ID for transferring {selectedUser?.firstName} {selectedUser?.lastName}
+          </p>
+
+          <div className="space-y-4">
+            <div>
+              <label style={{ color: theme.text.primary }} className="block text-sm font-medium mb-2">
+                RFID Card ID
+              </label>
+              <input
+                type="text"
+                value={cardId}
+                onChange={(e) => setCardId(e.target.value)}
+                placeholder="e.g., A1B2C3D4E5"
+                style={{
+                  background: theme.bg.input,
+                  borderColor: theme.border.primary,
+                  color: theme.text.primary
+                }}
+                className="w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                autoFocus
+              />
+            </div>
+          </div>
+
+          <div className="p-4 flex gap-3 border-t" style={{ borderColor: theme.border.primary }}>
+            <button
+              onClick={onClose}
+              style={{ background: isDarkMode ? 'rgba(71,85,105,0.5)' : '#E5E7EB', color: theme.text.primary }}
+              className="flex-1 py-3 rounded-xl font-semibold transition-all hover:opacity-80"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => onSubmit(cardId)}
+              disabled={!cardId.trim()}
+              style={{
+                background: cardId.trim() ? accentColor : 'rgba(107,114,128,0.15)',
+                color: cardId.trim() ? '#FFFFFF' : theme.text.muted
+              }}
+              className="flex-1 py-3 rounded-xl font-semibold transition-all hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Continue
+            </button>
+          </div>
+        </div>
+        <style>{`
+          @keyframes modalSlide { from { opacity: 0; transform: scale(0.9) translateY(-20px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+          .animate-modalSlide { animation: modalSlide 0.25s ease-out; }
+        `}</style>
+      </div>
+    </div>
+  );
+}
 function TransferConfirmModal({ isOpen, onClose, onConfirm, selectedUser, newCardId }) {
   const { theme, isDarkMode } = useTheme();
   if (!isOpen) return null;
@@ -168,9 +243,10 @@ export default function TransferCard() {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
-  const [newCardId, setNewCardId] = useState('');
   const [transferring, setTransferring] = useState(false);
   const [transferComplete, setTransferComplete] = useState(false);
+  const [showCardInput, setShowCardInput] = useState(false);
+  const [newCardId, setNewCardId] = useState('');
 
   // Modal states
   const [notification, setNotification] = useState({ isOpen: false, type: 'success', title: '', message: '' });
@@ -210,11 +286,17 @@ export default function TransferCard() {
   );
 
   const handleTransferClick = (user) => {
-    if (!newCardId.trim()) {
+    setSelectedUser(user);
+    setShowCardInput(true);
+  };
+
+  const handleCardInputSubmit = (cardId) => {
+    if (!cardId.trim()) {
       showNotification('warning', 'Input Required', 'Please enter the new RFID card ID.');
       return;
     }
-    setSelectedUser(user);
+    setNewCardId(cardId.trim());
+    setShowCardInput(false);
     setShowConfirm(true);
   };
 
@@ -259,6 +341,7 @@ export default function TransferCard() {
     setSelectedUser(null);
     setNewCardId('');
     setTransferComplete(false);
+    setShowCardInput(false);
   };
 
   return (
@@ -311,28 +394,6 @@ export default function TransferCard() {
       {/* Main Content */}
       {!transferComplete && (
         <>
-          {/* New Card Input */}
-          <div
-            style={{ background: theme.bg.card, borderColor: theme.border.primary }}
-            className="rounded-2xl border p-6 mb-6"
-          >
-            <h3 style={{ color: accentColor }} className="font-bold text-sm uppercase tracking-wide mb-4">New RFID Card ID</h3>
-            <div className="flex gap-4">
-              <input
-                type="text"
-                value={newCardId}
-                onChange={(e) => setNewCardId(e.target.value)}
-                placeholder="Enter new RFID card ID (e.g., A1B2C3D4E5)"
-                style={{
-                  background: theme.bg.input,
-                  borderColor: theme.border.primary,
-                  color: theme.text.primary
-                }}
-                className="flex-1 px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-amber-500/20"
-              />
-            </div>
-          </div>
-
           {/* Users Table */}
           <div
             style={{ background: theme.bg.card, borderColor: theme.border.primary }}
@@ -426,11 +487,11 @@ export default function TransferCard() {
                           <div className="flex items-center justify-center gap-2">
                             <button
                               onClick={() => handleTransferClick(user)}
-                              disabled={!newCardId.trim() || transferring}
+                              disabled={transferring}
                               style={{
-                                background: newCardId.trim() ? 'rgba(16,185,129,0.15)' : 'rgba(107,114,128,0.15)',
-                                color: newCardId.trim() ? '#10B981' : theme.text.muted,
-                                borderColor: newCardId.trim() ? 'rgba(16,185,129,0.3)' : 'rgba(107,114,128,0.3)'
+                                background: 'rgba(16,185,129,0.15)',
+                                color: '#10B981',
+                                borderColor: 'rgba(16,185,129,0.3)'
                               }}
                               className="px-3 py-1.5 rounded-lg hover:opacity-80 transition-all text-xs font-semibold border disabled:cursor-not-allowed disabled:opacity-50"
                             >
@@ -452,6 +513,14 @@ export default function TransferCard() {
           </div>
         </>
       )}
+
+      {/* Card Input Modal */}
+      <CardInputModal
+        isOpen={showCardInput}
+        onClose={() => setShowCardInput(false)}
+        onSubmit={handleCardInputSubmit}
+        selectedUser={selectedUser}
+      />
 
       {/* Transfer Confirmation Modal */}
       <TransferConfirmModal
