@@ -510,7 +510,7 @@ export default function TransferCard() {
                 <div className="flex justify-center items-center py-20">
                   <Loader2 className="w-8 h-8 animate-spin" style={{ color: accentColor }} />
                 </div>
-              ) : filteredUsers.length === 0 ? (
+              ) : users.length === 0 ? (
                 <div style={{ color: theme.text.tertiary }} className="text-center py-20">
                   <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
                   <p className="font-semibold">No users found</p>
@@ -529,7 +529,7 @@ export default function TransferCard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredUsers.map((user, index) => (
+                    {users.map((user, index) => (
                       <tr
                         key={user._id}
                         style={{
