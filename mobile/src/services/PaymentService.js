@@ -677,25 +677,30 @@ const PaymentService = {
   // This syncs all buffered offline transactions to the server
   // ============================================================
   async syncOfflineQueue() {
-    const queue = await this.getOfflineQueue();
-    
-    if (!queue.length) {
-      console.log('✅ No offline transactions to sync');
-      return { success: true, processed: 0, failed: 0 };
+    // Prevent multiple simultaneous syncs
+    if (this._syncInProgress) {
+      console.log('⏭️ Sync already in progress, skipping duplicate call');
+      return { success: false, processed: 0, failed: 0, remaining: 0, skipped: true };
     }
 
-    console.log(`🔄 Syncing ${queue.length} offline transactions...`);
-
-    let processed = 0;
-    let failed = 0;
-    const failedTransactions = []; // Keep track of failed transactions
-
-    // Process transactions in batches to avoid overwhelming the server
-    const batchSize = 5;
-    for (let i = 0; i < queue.length; i += batchSize) {
-      const batch = queue.slice(i, i + batchSize);
+    this._syncInProgress = true;
+    
+    try {
+      const queue = await this.getOfflineQueue();
       
-      for (const transaction of batch) {
+      if (queue.length === 0) {
+        console.log('✅ No offline transactions to sync');
+        this._syncInProgress = false;
+        return { success: true, processed: 0, failed: 0, remaining: 0 };
+      }
+
+      console.log(`🔄 Syncing ${queue.length} offline transactions...`);
+      
+      let processed = 0;
+      let failed = 0;
+      const failedTransactions = [];
+
+      for (const transaction of queue) {
         try {
           console.log(`📤 Syncing transaction for ${transaction.studentName || transaction.rfidUId}`);
           
@@ -730,9 +735,18 @@ const PaymentService = {
             });
           }
 
-          if (res.success) {
+          console.log('🔍 Server response:', JSON.stringify(res, null, 2));
+          
+          // Handle axios response structure (res.data contains actual response)
+          const responseData = res.data || res;
+          
+          if (responseData.success) {
             processed++;
             console.log(`✅ Synced transaction for ${transaction.studentName || transaction.rfidUId}`);
+            
+            // Mark this transaction as synced to prevent duplicate processing
+            transaction.synced = true;
+            transaction.syncedAt = Date.now();
             
             // Track offline transaction for duplicate detection
             await OfflineStorageService.addOfflineTransaction({
@@ -744,7 +758,7 @@ const PaymentService = {
           } else {
             failed++;
             failedTransactions.push(transaction);
-            console.error(`❌ Failed to sync transaction for ${transaction.studentName || transaction.rfidUId}:`, res.message);
+            console.error(`❌ Failed to sync transaction for ${transaction.studentName || transaction.rfidUId}:`, responseData?.error || responseData?.message || 'Unknown error');
           }
         } catch (error) {
           failed++;
@@ -758,34 +772,41 @@ const PaymentService = {
           }
         }
       }
+
+      // Update queue: remove successful transactions, keep failed ones for retry
+      if (processed > 0) {
+        if (failedTransactions.length > 0) {
+          // Keep only failed transactions for next retry
+          await AsyncStorage.setItem('offlineQueue', JSON.stringify(failedTransactions));
+          console.log(`🔄 Kept ${failedTransactions.length} failed transactions for retry`);
+        } else {
+          // All transactions succeeded, clear the queue
+          await this.clearOfflineQueue();
+          console.log(`🗑️ Cleared offline queue after syncing all ${processed} transactions`);
+        }
+      }
+
+      console.log(`✅ Sync completed: ${processed} processed, ${failed} failed`);
       
-      // Small delay between batches to avoid overwhelming the server
-      if (i + batchSize < queue.length) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
+      return {
+        success: processed > 0,
+        processed,
+        failed,
+        remaining: failedTransactions.length
+      };
+    } catch (error) {
+      console.error('❌ Error syncing offline transactions:', error);
+      return {
+        success: false,
+        processed: 0,
+        failed: queue.length,
+        remaining: queue.length,
+        error: error.message
+      };
+    } finally {
+      // Always reset the sync flag
+      this._syncInProgress = false;
     }
-
-    // Update queue: remove successful transactions, keep failed ones for retry
-    if (processed > 0) {
-      if (failedTransactions.length > 0) {
-        // Keep only failed transactions for next retry
-        await AsyncStorage.setItem('offlineQueue', JSON.stringify(failedTransactions));
-        console.log(`🔄 Kept ${failedTransactions.length} failed transactions for retry`);
-      } else {
-        // All transactions succeeded, clear the queue
-        await this.clearOfflineQueue();
-        console.log(`🗑️ Cleared offline queue after syncing all ${processed} transactions`);
-      }
-    }
-
-    console.log(`✅ Sync completed: ${processed} processed, ${failed} failed`);
-    
-    return {
-      success: processed > 0,
-      processed,
-      failed,
-      remaining: failedTransactions.length
-    };
   },
 
   // Legacy alias (some code might use syncOfflinePayments)

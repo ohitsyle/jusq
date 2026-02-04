@@ -231,8 +231,87 @@ router.post('/pay', async (req, res) => {
  */
 router.post('/refund', async (req, res) => {
   try {
-    const { transactionIds, reason } = req.body;
+    const { transactionIds, reason, rfidUId, driverId, shuttleId, routeId, tripId, fareAmount, deviceTimestamp, offlineMode } = req.body;
 
+    // Handle offline refunds (direct refund by RFID)
+    if (offlineMode && rfidUId && fareAmount) {
+      console.log('💸 Processing offline refund for:', rfidUId, 'Amount:', fareAmount);
+      
+      // Find user by RFID
+      const user = await User.findOne({ rfidUId });
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      if (!user.isActive) {
+        return res.status(403).json({ error: 'Account is inactive' });
+      }
+
+      // Process refund
+      const balanceBefore = user.balance;
+      const balanceAfter = balanceBefore + fareAmount;
+      
+      user.balance = balanceAfter;
+      await user.save();
+
+      // Create refund transaction record
+      const transactionId = Transaction.generateTransactionId();
+      const transaction = new Transaction({
+        transactionId,
+        userId: user._id,
+        rfidUId: user.rfidUId,
+        userName: user.fullName,
+        userEmail: user.email,
+        amount: fareAmount,
+        type: 'credit',
+        transactionType: 'refund',
+        status: 'Completed',
+        paymentMethod: 'offline_refund',
+        driverId,
+        shuttleId,
+        routeId,
+        tripId,
+        timestamp: new Date(deviceTimestamp || Date.now()),
+        deviceTimestamp: deviceTimestamp,
+        offlineMode: true,
+        reason: reason || 'Offline refund processed',
+        balanceBefore,
+        balanceAfter,
+        merchantName: 'NU Shuttle Service'
+      });
+
+      await transaction.save();
+
+      console.log(`✅ Offline refund processed: ${user.fullName} + ₱${fareAmount} (${balanceBefore} → ${balanceAfter})`);
+
+      // Send email receipt for refund
+      if (user.email) {
+        sendRefundReceipt({
+          userEmail: user.email,
+          userName: user.fullName,
+          refundAmount: fareAmount,
+          previousBalance: balanceBefore,
+          newBalance: balanceAfter,
+          timestamp: new Date(),
+          merchantName: 'NU Shuttle Service',
+          transactionId,
+          reason: reason || 'Offline refund processed'
+        }).catch(err => console.error('📧 Refund email error:', err));
+      }
+
+      return res.json({
+        success: true,
+        studentName: user.fullName,
+        refundAmount: fareAmount,
+        previousBalance: balanceBefore,
+        newBalance: balanceAfter,
+        rfidUId: user.rfidUId,
+        transactionId,
+        reason: reason || 'Offline refund processed'
+      });
+    }
+
+    // Handle online refunds (by transaction IDs)
     if (!transactionIds || !Array.isArray(transactionIds) || transactionIds.length === 0) {
       return res.status(400).json({ error: 'Transaction IDs required' });
     }
