@@ -35,6 +35,21 @@ export default function PaymentScreen({ navigation, route }) {
   // Track mounted state to prevent state updates after unmount
   const isMountedRef = useRef(true);
 
+  // Manual cache trigger for testing
+  const handleCacheUsers = async () => {
+    if (!isOnline) {
+      Alert.alert('Offline', 'Please connect to internet to cache users');
+      return;
+    }
+
+    try {
+      const cachedCount = await PaymentService.cacheAllActiveUsers();
+      Alert.alert('Success', `Cached ${cachedCount} active users for offline mode`);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to cache users');
+    }
+  };
+
   const driverName = route.params?.name || 'Driver';
   const driverId = route.params?.driverId || '';
   const shuttleId = route.params?.shuttleId || 'SHUTTLE_01';
@@ -61,16 +76,10 @@ export default function PaymentScreen({ navigation, route }) {
     }, 1000);
 
     initNFC();
-    checkOnlineStatus();
-    updateQueueCount();
-
-    const onlineInterval = setInterval(() => {
-      checkOnlineStatus();
-    }, 5000);
+    // Network status and queue count are now handled by useOfflineMode hook
 
     return () => {
       clearInterval(interval);
-      clearInterval(onlineInterval);
       isMountedRef.current = false; // Mark as unmounted
     };
   }, []);
@@ -102,17 +111,8 @@ export default function PaymentScreen({ navigation, route }) {
   };
 
   const checkOnlineStatus = async () => {
-    const online = await PaymentService.isOnline();
-    if (!isMountedRef.current) return; // Prevent state update after unmount
-    setIsOnline(online);
-
-    if (online && queueCount > 0 && !isSyncing) {
-      setTimeout(() => {
-        if (isMountedRef.current) { // Check before calling async function
-          handleSync();
-        }
-      }, 2000);
-    }
+    // This is now handled by the useOfflineMode hook
+    // No need for this function anymore
   };
 
   const updateQueueCount = async () => {
@@ -372,11 +372,18 @@ export default function PaymentScreen({ navigation, route }) {
               {statusMessage}
             </Text>
           </View>
-          {!isOnline && queueCount > 0 && (
-            <TouchableOpacity onPress={handleSync} style={styles.syncBtn} disabled={isSyncing}>
-              <Text style={styles.syncText}>{isSyncing ? '...' : 'Sync'}</Text>
-            </TouchableOpacity>
-          )}
+          <View style={styles.statusButtons}>
+            {isOnline && (
+              <TouchableOpacity onPress={handleCacheUsers} style={styles.cacheBtn}>
+                <Text style={styles.cacheText}>Cache Users</Text>
+              </TouchableOpacity>
+            )}
+            {!isOnline && queueCount > 0 && (
+              <TouchableOpacity onPress={handleSync} style={styles.syncBtn} disabled={isSyncing}>
+                <Text style={styles.syncText}>{isSyncing ? '...' : 'Sync'}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         {/* Main Content */}
@@ -549,6 +556,23 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#FBFBFB',
     fontWeight: '600',
+  },
+  statusButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  cacheBtn: {
+    backgroundColor: 'rgba(34,197,94,0.3)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(34,197,94,0.5)',
+  },
+  cacheText: {
+    fontSize: 12,
+    color: '#22C55E',
+    fontWeight: '700',
   },
   syncBtn: {
     backgroundColor: 'rgba(255,255,255,0.2)',

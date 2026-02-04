@@ -28,6 +28,19 @@ export const useOfflineMode = () => {
       console.log('Could not get detailed connection info:', error);
     }
 
+    // If we just came online, cache active users and trigger auto-sync
+    if (online && !wasOnline) {
+      console.log('🌐 Just came online, caching active users...');
+      cacheActiveUsers();
+      
+      // Trigger auto-sync after a short delay
+      setTimeout(() => {
+        if (isOnline) {
+          handleAutoSync();
+        }
+      }, 1000);
+    }
+
     // Show alert when coming back online with queued payments
     if (online && !wasOnline && queueCount > 0) {
       Alert.alert(
@@ -115,6 +128,21 @@ export const useOfflineMode = () => {
     }
   }, [isOnline, isSyncing, updateQueueCount, updateLastSyncTime]);
 
+  // Cache active users when coming online
+  const cacheActiveUsers = useCallback(async () => {
+    if (!isOnline) return;
+    
+    try {
+      console.log('🔄 Caching active users for offline mode...');
+      const cachedCount = await PaymentService.cacheAllActiveUsers();
+      if (cachedCount > 0) {
+        console.log(`✅ Cached ${cachedCount} active users for offline payments`);
+      }
+    } catch (error) {
+      console.error('❌ Failed to cache active users:', error);
+    }
+  }, [isOnline]);
+
   // Clear offline queue (admin function)
   const clearOfflineQueue = useCallback(async () => {
     Alert.alert(
@@ -160,9 +188,21 @@ export const useOfflineMode = () => {
 
   // Initialize and setup listeners
   useEffect(() => {
+    // Initialize NetworkService if not already initialized
+    if (!NetworkService.isInitialized) {
+      NetworkService.initialize();
+    }
+
     // Initial status
-    updateNetworkStatus(NetworkService.isConnected, null);
+    const initialOnline = NetworkService.isConnected;
+    updateNetworkStatus(initialOnline, null);
     NetworkService.addListener(updateNetworkStatus);
+
+    // If initially online, cache active users
+    if (initialOnline) {
+      console.log('🌐 Initially online, caching active users...');
+      cacheActiveUsers();
+    }
 
     // Update queue count periodically
     updateQueueCount();
@@ -177,7 +217,7 @@ export const useOfflineMode = () => {
       clearInterval(queueInterval);
       clearInterval(syncInterval);
     };
-  }, [updateNetworkStatus, updateQueueCount, updateLastSyncTime]);
+  }, []); // Remove dependencies to prevent re-initialization
 
   return {
     // State

@@ -78,6 +78,36 @@ const OfflineStorageService = {
   },
 
   // ============================================================
+  // USERS CACHING
+  // ============================================================
+  async cacheUsers(users) {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.CACHED_CARDS, JSON.stringify({
+        data: users,
+        timestamp: Date.now()
+      }));
+      console.log('✅ Cached', users.length, 'active users for offline payments');
+    } catch (error) {
+      console.error('❌ Failed to cache users:', error);
+    }
+  },
+
+  async getCachedUsers() {
+    try {
+      const cached = await AsyncStorage.getItem(STORAGE_KEYS.CACHED_CARDS);
+      if (cached) {
+        const { data, timestamp } = JSON.parse(cached);
+        console.log('📦 Retrieved', data.length, 'cached users from', new Date(timestamp).toLocaleString());
+        return data;
+      }
+      return [];
+    } catch (error) {
+      console.error('❌ Failed to get cached users:', error);
+      return [];
+    }
+  },
+
+  // ============================================================
   // USER SESSION MANAGEMENT
   // ============================================================
   async saveUserSession(userData) {
@@ -345,8 +375,23 @@ const OfflineStorageService = {
 
   async lookupCard(rfidUId) {
     try {
+      // Try the new users cache first
       const cached = await AsyncStorage.getItem(STORAGE_KEYS.CACHED_CARDS);
-      const cards = cached ? JSON.parse(cached) : {};
+      if (cached) {
+        const { data } = JSON.parse(cached);
+        if (Array.isArray(data)) {
+          const user = data.find(u => u.rfidUId === rfidUId);
+          if (user) {
+            console.log('✅ Found user in cache:', user);
+            console.log('👤 User data:', JSON.stringify(user, null, 2));
+            return user;
+          }
+        }
+      }
+      
+      // Fallback to old format (if exists)
+      const oldCached = await AsyncStorage.getItem(STORAGE_KEYS.CACHED_CARDS);
+      const cards = oldCached ? JSON.parse(oldCached) : {};
       
       return cards[rfidUId] || null;
     } catch (error) {

@@ -177,7 +177,19 @@ class SyncManager {
         console.error('❌ Shuttles sync failed:', error);
       }
 
-      // 4. Fetch and cache system settings
+      // 4. Fetch and cache active users for offline payments
+      try {
+        const usersResponse = await api.get('/shuttle/cards');
+        if (usersResponse.data && usersResponse.data.cards) {
+          await OfflineStorageService.cacheUsers(usersResponse.data.cards);
+          results.users = true;
+          console.log(`✅ Users synced: ${usersResponse.data.cards.length} active users`);
+        }
+      } catch (error) {
+        console.error('❌ Users sync failed:', error);
+      }
+
+      // 5. Fetch and cache system settings
       try {
         const settingsResponse = await api.get('/system/config');
         if (settingsResponse.data) {

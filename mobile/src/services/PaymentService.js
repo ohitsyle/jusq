@@ -291,7 +291,7 @@ const PaymentService = {
       const cachedCard = await OfflineStorageService.lookupCard(rfidUId);
       
       if (cachedCard) {
-        // For offline mode, we need to be more strict - if we have cached status info, use it
+        // Only allow offline payments for cached, verified users
         if (cachedCard.isActive === false) {
           return {
             valid: false,
@@ -308,29 +308,29 @@ const PaymentService = {
           };
         }
         
-        // If cached data doesn't have status info, be more conservative for offline
-        // Only allow if we have some cached user info
+        // Only allow if we have reliable cached user data (verified student)
         if (cachedCard.fullName && cachedCard.fullName !== 'Unknown Student') {
+          console.log('✅ Cached student data found:', cachedCard.fullName);
           return {
             valid: true,
             offlineMode: true,
             user: cachedCard
           };
         } else {
-          // No reliable cached data - don't allow offline transactions for unknown cards
           return {
             valid: false,
-            reason: 'Card not recognized (no cached data)',
-            code: 'CARD_NOT_RECOGNIZED'
+            reason: 'Invalid cached student data',
+            code: 'INVALID_CACHE_DATA'
           };
         }
       }
       
-      // No cached data available - don't allow offline transactions for completely unknown cards
+      // No cached data available - reject unknown cards for security
+      console.log('❌ No cached data for card - rejecting offline payment');
       return {
         valid: false,
-        reason: 'Card not recognized (offline mode)',
-        code: 'CARD_NOT_RECOGNIZED'
+        reason: 'Student not recognized. Please connect to internet to verify this card.',
+        code: 'CARD_NOT_CACHED'
       };
     }
   },
@@ -338,6 +338,40 @@ const PaymentService = {
   // ============================================================
   // USER DATA MANAGEMENT
   // ============================================================
+  
+  // Cache all active users for offline mode
+  async cacheAllActiveUsers() {
+    try {
+      console.log('🔄 Caching all active users for offline mode...');
+      const res = await api.get('/shuttle/cards'); // Use existing endpoint
+      
+      if (res.data && res.data.cards && Array.isArray(res.data.cards)) {
+        const cachePromises = res.data.cards.map(user => {
+          const userData = {
+            rfidUId: user.rfidUId,
+            fullName: user.fullName,
+            balance: user.balance || 0,
+            isActive: user.isActive,
+            isDeactivated: !user.isActive,
+            schoolUId: user.schoolUId,
+            userType: user.userType,
+            cachedAt: new Date().toISOString()
+          };
+          return OfflineStorageService.cacheCardData(userData);
+        });
+        
+        await Promise.all(cachePromises);
+        console.log(`✅ Cached ${res.data.cards.length} active users for offline mode`);
+        return res.data.cards.length;
+      }
+      
+      return 0;
+    } catch (error) {
+      console.error('❌ Failed to cache active users:', error.message);
+      return 0;
+    }
+  },
+
   async fetchAndCacheUserData(rfidUId) {
     try {
       // Try to get user data from server

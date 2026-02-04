@@ -528,20 +528,29 @@ router.get('/cards', async (req, res) => {
       },
       {
         rfidUId: 1,
-        fullName: 1,
-        balance: 1,
+        firstName: 1,
+        lastName: 1,
+        middleName: 1,
         schoolUId: 1,
         userType: 1,
+        balance: 1,
+        isActive: 1,
         _id: 0
       }
     ).lean();
+
+    // Construct fullName for each user (virtual fields not included in lean queries)
+    const usersWithFullName = users.map(user => ({
+      ...user,
+      fullName: `${user.firstName} ${user.middleName ? user.middleName + ' ' : ''}${user.lastName}`.trim()
+    }));
 
     console.log(`✅ Sending ${users.length} card records for offline cache`);
 
     res.json({
       success: true,
-      count: users.length,
-      cards: users,
+      count: usersWithFullName.length,
+      cards: usersWithFullName,
       timestamp: new Date().toISOString()
     });
 

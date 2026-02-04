@@ -10,6 +10,7 @@ class NetworkService {
     this.unsubscribe = null;
     this.lastCheckTime = null;
     this.checkInterval = null;
+    this.isInitialized = false;
   }
 
   // ============================================================
@@ -17,6 +18,11 @@ class NetworkService {
   // ============================================================
   initialize() {
     console.log('🌐 Initializing network monitoring...');
+    
+    if (this.isInitialized) {
+      console.log('🌐 NetworkService already initialized');
+      return this;
+    }
 
     // Subscribe to network state changes
     this.unsubscribe = NetInfo.addEventListener(state => {
@@ -40,6 +46,9 @@ class NetworkService {
 
     // Periodic check every 30 seconds
     this.startPeriodicCheck(30000);
+    
+    this.isInitialized = true;
+    console.log('🌐 NetworkService initialized successfully');
 
     return this;
   }
