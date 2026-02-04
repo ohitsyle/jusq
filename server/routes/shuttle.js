@@ -233,6 +233,14 @@ router.post('/refund', async (req, res) => {
   try {
     const { transactionIds, reason, rfidUId, driverId, shuttleId, routeId, tripId, fareAmount, deviceTimestamp, offlineMode } = req.body;
 
+    console.log('💸 Refund request received:', { 
+      offlineMode, 
+      rfidUId, 
+      fareAmount, 
+      transactionIds: transactionIds?.length || 0,
+      reason 
+    });
+
     // Handle offline refunds (direct refund by RFID)
     if (offlineMode && rfidUId && fareAmount) {
       console.log('💸 Processing offline refund for:', rfidUId, 'Amount:', fareAmount);

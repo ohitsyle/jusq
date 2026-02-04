@@ -179,9 +179,12 @@ export default function PaymentScreen({ navigation, route }) {
       if (paymentResult.success) {
         const passenger = {
           name: paymentResult.data.studentName,
+          studentName: paymentResult.data.studentName, // Add studentName for consistency
           rfidUId: rfidUId,
           amount: paymentResult.data.fareAmount,
+          fareAmount: paymentResult.data.fareAmount, // Add fareAmount for refund logic
           transactionId: paymentResult.transactionId || paymentResult.data?.transactionId,
+          tripId: paymentResult.data?.tripId || null, // Add tripId for refund
           timestamp: new Date().toISOString()
         };
         
@@ -275,49 +278,77 @@ export default function PaymentScreen({ navigation, route }) {
             style: 'destructive',
             onPress: async () => {
               try {
-                // Get transaction IDs from passengers
-                const transactionIds = passengersBoarded
-                  .map(p => p.transactionId)
-                  .filter(id => id);
+                console.log(`💸 Starting refund for ${passengersBoarded.length} passengers`);
+                
+                let refundedCount = 0;
+                const refundResults = [];
 
-                if (transactionIds.length > 0) {
-                  // Call refund API
-                  const response = await api.post('/shuttle/refund', {
-                    transactionIds: transactionIds,
-                    reason: 'Route changed by driver'
-                  });
+                // Process each passenger refund
+                for (const passenger of passengersBoarded) {
+                  try {
+                    console.log(`💸 Refunding passenger: ${passenger.studentName || passenger.rfidUId}, Amount: ₱${passenger.fareAmount}`);
+                    
+                    const refundResult = await PaymentService.processRefund(
+                      passenger.rfidUId,
+                      driverId,
+                      shuttleId,
+                      routeId,
+                      passenger.tripId,
+                      passenger.fareAmount,
+                      'Route changed by driver'
+                    );
 
-                  console.log('✅ Refund result:', response);
-
-                  // Safely access response data
-                  const refundedCount = response?.data?.refunded || response?.refunded || transactionIds.length;
-
-                  Alert.alert(
-                    'Refunded!',
-                    `${refundedCount} payment(s) refunded successfully`,
-                    [
-                      {
-                        text: 'OK',
-                        onPress: () => {
-                          setPassengersBoarded([]);
-                          navigation.replace('RouteSelection', {
-                            name: driverName,
-                            driverId: driverId,
-                            shuttleId: shuttleId
-                          });
-                        }
-                      }
-                    ]
-                  );
-                } else {
-                  // No transactions to refund
-                  setPassengersBoarded([]);
-                  navigation.replace('RouteSelection', {
-                    name: driverName,
-                    driverId: driverId,
-                    shuttleId: shuttleId
-                  });
+                    if (refundResult.success) {
+                      refundedCount++;
+                      refundResults.push({
+                        studentName: refundResult.studentName || passenger.studentName,
+                        amount: refundResult.fareAmount || passenger.fareAmount,
+                        success: true
+                      });
+                      
+                      console.log(`✅ Refund processed: ${refundResult.studentName || passenger.studentName} + ₱${refundResult.fareAmount || passenger.fareAmount}`);
+                    } else {
+                      refundResults.push({
+                        studentName: passenger.studentName,
+                        amount: passenger.fareAmount,
+                        success: false,
+                        error: refundResult.error?.message
+                      });
+                      
+                      console.log(`❌ Refund failed: ${passenger.studentName} - ${refundResult.error?.message}`);
+                    }
+                  } catch (error) {
+                    console.error(`❌ Refund error for ${passenger.studentName}:`, error);
+                    refundResults.push({
+                      studentName: passenger.studentName,
+                      amount: passenger.fareAmount,
+                      success: false,
+                      error: error.message
+                    });
+                  }
                 }
+
+                console.log('✅ Refund result:', { refundedCount, total: passengersBoarded.length, results: refundResults });
+
+                Alert.alert(
+                  refundedCount > 0 ? 'Refunded!' : 'Refund Failed',
+                  refundedCount > 0 
+                    ? `${refundedCount} payment(s) refunded successfully${refundedCount < passengersBoarded.length ? ` (${passengersBoarded.length - refundedCount} failed)` : ''}`
+                    : 'Could not process refunds. Please try again.',
+                  [
+                    {
+                      text: 'OK',
+                      onPress: () => {
+                        setPassengersBoarded([]);
+                        navigation.replace('RouteSelection', {
+                          name: driverName,
+                          driverId: driverId,
+                          shuttleId: shuttleId
+                        });
+                      }
+                    }
+                  ]
+                );
               } catch (error) {
                 console.error('Refund error:', error);
                 Alert.alert('Refund Failed', 'Could not process refunds. Please try again.');
