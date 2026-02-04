@@ -128,15 +128,21 @@ router.post('/pay', async (req, res) => {
     
     console.log(`💰 Balance calculation: ${balanceBefore} - ${fare} = ${balanceAfter}`);
     
-    // Check if balance would go below limit
-    if (balanceAfter < negativeLimit) {
-      return res.status(400).json({
-        error: 'Insufficient balance. Please recharge your card.',
-        requiresRecharge: true,
-        currentBalance: balanceBefore,
-        fare: fare,
-        negativeLimit: negativeLimit
-      });
+    // Skip balance check for offline payments (they were already validated offline)
+    const isOfflineMode = req.body.offlineMode === true;
+    if (!isOfflineMode) {
+      // Check if balance would go below limit (only for online payments)
+      if (balanceAfter < negativeLimit) {
+        return res.status(400).json({
+          error: 'Insufficient balance. Please recharge your card.',
+          requiresRecharge: true,
+          currentBalance: balanceBefore,
+          fare: fare,
+          negativeLimit: negativeLimit
+        });
+      }
+    } else {
+      console.log('🔄 Offline mode detected - skipping balance check');
     }
 
     // Update user balance ONCE
