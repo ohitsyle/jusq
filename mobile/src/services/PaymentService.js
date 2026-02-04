@@ -717,7 +717,8 @@ const PaymentService = {
             });
           } else {
             // Process payment
-            res = await api.post('/shuttle/payment', {
+            console.log('🔍 Transaction data being sent:', JSON.stringify(transaction, null, 2));
+            res = await api.post('/shuttle/pay', {
               rfidUId: transaction.rfidUId,
               driverId: transaction.driverId,
               shuttleId: transaction.shuttleId,

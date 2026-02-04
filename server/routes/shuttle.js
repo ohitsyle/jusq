@@ -42,11 +42,41 @@ router.post('/pay', async (req, res) => {
   try {
     const { rfidUId, driverId, shuttleId, routeId, tripId, fareAmount } = req.body;
 
-    console.log('💳 Processing payment:', { rfidUId, driverId, shuttleId, routeId, fareAmount });
+    console.log('💳 Processing payment:', { rfidUId, driverId, shuttleId, routeId, tripId, fareAmount });
+    console.log('🔍 Full request body:', JSON.stringify(req.body, null, 2));
 
     // Validate required fields
     if (!rfidUId) {
+      console.log('❌ Missing rfidUId');
       return res.status(400).json({ error: 'RFID UID is required' });
+    }
+
+    if (!driverId) {
+      console.log('❌ Missing driverId');
+      return res.status(400).json({ error: 'Driver ID is required' });
+    }
+
+    if (!shuttleId) {
+      console.log('❌ Missing shuttleId');
+      return res.status(400).json({ error: 'Shuttle ID is required' });
+    }
+
+    if (!routeId) {
+      console.log('❌ Missing routeId');
+      return res.status(400).json({ error: 'Route ID is required' });
+    }
+
+    if (!tripId) {
+      console.log('❌ Missing tripId');
+      // For offline payments, generate a temporary tripId
+      const tempTripId = `OFFLINE_${Date.now()}_${shuttleId}`;
+      console.log('🔄 Generated temporary tripId for offline payment:', tempTripId);
+      req.body.tripId = tempTripId;
+    }
+
+    if (!fareAmount || fareAmount <= 0) {
+      console.log('❌ Invalid fareAmount:', fareAmount);
+      return res.status(400).json({ error: 'Valid fare amount is required' });
     }
 
     // Find user by rfidUId

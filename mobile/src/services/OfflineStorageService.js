@@ -375,25 +375,37 @@ const OfflineStorageService = {
 
   async lookupCard(rfidUId) {
     try {
-      // Try the new users cache first
+      // Try the new users cache first (array format from SyncManager)
       const cached = await AsyncStorage.getItem(STORAGE_KEYS.CACHED_CARDS);
       if (cached) {
-        const { data } = JSON.parse(cached);
-        if (Array.isArray(data)) {
-          const user = data.find(u => u.rfidUId === rfidUId);
+        const parsed = JSON.parse(cached);
+        console.log('🔍 Raw cached data:', JSON.stringify(parsed, null, 2));
+        
+        // Check if it's the new array format (has 'data' array)
+        if (parsed.data && Array.isArray(parsed.data)) {
+          const user = parsed.data.find(u => u.rfidUId === rfidUId);
           if (user) {
-            console.log('✅ Found user in cache:', user);
+            console.log('✅ Found user in new cache:', user.fullName);
             console.log('👤 User data:', JSON.stringify(user, null, 2));
             return user;
+          } else {
+            console.log('❌ User not found in array cache');
           }
         }
+        
+        // Check if it's the old object format (has direct rfidUId keys)
+        if (parsed[rfidUId]) {
+          console.log('✅ Found user in old cache:', parsed[rfidUId]);
+          console.log('👤 User data:', JSON.stringify(parsed[rfidUId], null, 2));
+          return parsed[rfidUId];
+        } else {
+          console.log('❌ User not found in old cache either');
+        }
+      } else {
+        console.log('❌ No cached data found at all');
       }
       
-      // Fallback to old format (if exists)
-      const oldCached = await AsyncStorage.getItem(STORAGE_KEYS.CACHED_CARDS);
-      const cards = oldCached ? JSON.parse(oldCached) : {};
-      
-      return cards[rfidUId] || null;
+      return null;
     } catch (error) {
       console.error('❌ Failed to lookup card:', error);
       return null;
