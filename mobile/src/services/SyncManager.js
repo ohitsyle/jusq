@@ -12,8 +12,10 @@ class SyncManager {
     this.isSyncing = false;
     this.syncListeners = [];
     this.autoSyncEnabled = true;
-    this.syncIntervalMs = 2000; // 2 seconds when online (reduced from 10 seconds)
+    this.syncIntervalMs = 30000; // 30 seconds when online
     this.lastSyncResult = null;
+    this.consecutiveFailures = 0;
+    this.maxBackoffMs = 300000; // Max 5 minutes between syncs on repeated failures
   }
 
   // ============================================================
@@ -207,6 +209,10 @@ class SyncManager {
       const duration = Date.now() - startTime;
       console.log(`✅ Full sync completed in ${duration}ms`);
 
+      // Reset backoff on successful sync
+      this.consecutiveFailures = 0;
+      this._resetSyncInterval();
+
       this.lastSyncResult = {
         success: true,
         results,
@@ -221,6 +227,10 @@ class SyncManager {
 
     } catch (error) {
       console.error('❌ Sync failed:', error);
+
+      // Exponential backoff on failure
+      this.consecutiveFailures++;
+      this._applySyncBackoff();
 
       this.lastSyncResult = {
         success: false,
@@ -388,6 +398,35 @@ class SyncManager {
       lastSync: lastSync || 'Never',
       lastSyncResult: this.lastSyncResult
     };
+  }
+
+  // ============================================================
+  // SYNC BACKOFF (prevents hammering server on repeated failures)
+  // ============================================================
+  _applySyncBackoff() {
+    // Exponential backoff: 30s, 60s, 120s, 240s, capped at maxBackoffMs
+    const backoffMs = Math.min(
+      this.syncIntervalMs * Math.pow(2, this.consecutiveFailures),
+      this.maxBackoffMs
+    );
+
+    console.log(`⏳ Sync backoff: next sync in ${backoffMs / 1000}s (${this.consecutiveFailures} consecutive failures)`);
+
+    // Restart auto-sync with the new backoff interval
+    this.stopAutoSync();
+    this.syncInterval = setInterval(async () => {
+      if (NetworkService.isConnected && this.autoSyncEnabled) {
+        await this.syncAll();
+      }
+    }, backoffMs);
+  }
+
+  _resetSyncInterval() {
+    // Only restart if the interval has changed (was backed off)
+    if (this.consecutiveFailures === 0 && this.syncInterval) {
+      this.stopAutoSync();
+      this.startAutoSync(this.syncIntervalMs);
+    }
   }
 
   // ============================================================

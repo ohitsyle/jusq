@@ -1,16 +1,15 @@
-// src/merchant/components/Merchants/MerchantsList.jsx
-// Merchant account management - Card-based layout with overview
+// src/pages/admin/Merchant/Merchants.jsx
+// Merchant account management - Theme-aware, uses api utility
 
 import React, { useState, useEffect } from 'react';
+import { useTheme } from '../../../context/ThemeContext';
+import api from '../../../utils/api';
 import ConfirmDialog from '../../../components/shared/ConfirmDialog';
 
 export default function MerchantsList() {
+  const { theme, isDarkMode } = useTheme();
   const [merchants, setMerchants] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [adminData] = useState(() => {
-    const data = localStorage.getItem('adminData');
-    return data ? JSON.parse(data) : null;
-  });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMerchant, setEditingMerchant] = useState(null);
   const [alert, setAlert] = useState(null);
@@ -33,17 +32,7 @@ export default function MerchantsList() {
 
   const loadMerchants = async () => {
     try {
-      const token = localStorage.getItem('adminToken');
-
-      const response = await fetch('http://18.166.29.239:3000/api/merchant/merchants', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) throw new Error('Failed to load merchants');
-
-      const data = await response.json();
+      const data = await api.get('/merchant/merchants');
       setMerchants(data.merchants || []);
     } catch (error) {
       console.error('Error loading merchants:', error);
@@ -55,13 +44,7 @@ export default function MerchantsList() {
 
   const handleAdd = () => {
     setEditingMerchant(null);
-    setFormData({
-      businessName: '',
-      firstName: '',
-      lastName: '',
-      email: '',
-      password: ''
-    });
+    setFormData({ businessName: '', firstName: '', lastName: '', email: '', password: '' });
     setIsModalOpen(true);
   };
 
@@ -84,23 +67,19 @@ export default function MerchantsList() {
       setAlert({ type: 'error', message: 'Business name is required' });
       return;
     }
-
     if (!formData.firstName || formData.firstName.trim().length === 0) {
       setAlert({ type: 'error', message: 'First name is required' });
       return;
     }
-
     if (!formData.lastName || formData.lastName.trim().length === 0) {
       setAlert({ type: 'error', message: 'Last name is required' });
       return;
     }
-
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!formData.email || !emailRegex.test(formData.email.trim())) {
       setAlert({ type: 'error', message: 'Please enter a valid email address' });
       return;
     }
-
     if (formData.password && !/^\d{6}$/.test(formData.password)) {
       setAlert({ type: 'error', message: 'PIN must be exactly 6 digits' });
       return;
@@ -109,26 +88,10 @@ export default function MerchantsList() {
     setIsSubmitting(true);
 
     try {
-      const token = localStorage.getItem('adminToken');
-
       if (editingMerchant) {
         const updateData = { ...formData };
         if (!updateData.password) delete updateData.password;
-
-        const response = await fetch(`http://18.166.29.239:3000/api/merchant/merchants/${editingMerchant._id}`, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(updateData)
-        });
-
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || 'Failed to update merchant');
-        }
-
+        await api.put(`/merchant/merchants/${editingMerchant._id}`, updateData);
         setAlert({ type: 'success', message: 'Merchant updated successfully!' });
       } else {
         if (!formData.password) {
@@ -136,23 +99,7 @@ export default function MerchantsList() {
           setIsSubmitting(false);
           return;
         }
-
-        console.log('📤 Sending merchant data:', formData);
-
-        const response = await fetch('http://18.166.29.239:3000/api/merchant/merchants', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(formData)
-        });
-
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || 'Failed to create merchant');
-        }
-
+        await api.post('/merchant/merchants', formData);
         setAlert({ type: 'success', message: 'Merchant created successfully!' });
       }
 
@@ -162,10 +109,10 @@ export default function MerchantsList() {
     } catch (error) {
       console.error('Error saving merchant:', error);
       let errorMsg = 'Failed to save merchant';
-      if (error.message.includes('Email already exists') || error.message.includes('409')) {
+      if (error.message?.includes('Email already exists') || error.error?.includes('Email already exists')) {
         errorMsg = 'Email already exists. Please use a different email.';
       } else {
-        errorMsg = error.message;
+        errorMsg = error.error || error.message || errorMsg;
       }
       setAlert({ type: 'error', message: errorMsg });
     } finally {
@@ -178,19 +125,7 @@ export default function MerchantsList() {
     const action = newStatus ? 'activate' : 'deactivate';
 
     try {
-      const token = localStorage.getItem('adminToken');
-
-      const response = await fetch(`http://18.166.29.239:3000/api/merchant/merchants/${merchant._id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ isActive: newStatus })
-      });
-
-      if (!response.ok) throw new Error(`Failed to ${action} merchant`);
-
+      await api.put(`/merchant/merchants/${merchant._id}`, { isActive: newStatus });
       setAlert({ type: 'success', message: `Merchant ${action}d successfully!` });
       loadMerchants();
       setTimeout(() => setAlert(null), 3000);
@@ -209,17 +144,7 @@ export default function MerchantsList() {
     setConfirmDialog({ isOpen: false, merchantId: null });
 
     try {
-      const token = localStorage.getItem('adminToken');
-
-      const response = await fetch(`http://18.166.29.239:3000/api/merchant/merchants/${merchantId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) throw new Error('Failed to delete merchant');
-
+      await api.delete(`/merchant/merchants/${merchantId}`);
       setAlert({ type: 'success', message: 'Merchant deleted permanently!' });
       setIsModalOpen(false);
       loadMerchants();
@@ -239,42 +164,20 @@ export default function MerchantsList() {
       m.merchantId?.toLowerCase().includes(searchQuery.toLowerCase())
     )
     .sort((a, b) => {
-      // Sort by isActive status (active first)
-      if (a.isActive !== b.isActive) {
-        return b.isActive ? 1 : -1;
-      }
-      // Then sort by businessName
+      if (a.isActive !== b.isActive) return b.isActive ? 1 : -1;
       return (a.businessName || '').localeCompare(b.businessName || '');
     });
 
-  // Pagination
   const totalPages = Math.ceil(filteredMerchants.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentItems = filteredMerchants.slice(startIndex, endIndex);
+  const currentItems = filteredMerchants.slice(startIndex, startIndex + itemsPerPage);
 
-  // Reset to first page when search query changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery]);
+  useEffect(() => { setCurrentPage(1); }, [searchQuery]);
 
   if (loading) {
     return (
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '400px',
-        color: '#FFD41C'
-      }}>
-        <div style={{
-          width: '40px',
-          height: '40px',
-          border: '4px solid rgba(255, 212, 28, 0.3)',
-          borderTopColor: '#FFD41C',
-          borderRadius: '50%',
-          animation: 'spin 0.8s linear infinite'
-        }} />
+      <div style={{ color: theme.accent.primary }} className="text-center py-[60px]">
+        Loading merchants...
       </div>
     );
   }
@@ -282,47 +185,19 @@ export default function MerchantsList() {
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '24px',
-        flexWrap: 'wrap',
-        gap: '16px'
-      }}>
+      <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
         <div>
-          <h2 style={{
-            fontSize: '24px',
-            fontWeight: 700,
-            color: '#FBFBFB',
-            margin: '0 0 8px 0'
-          }}>
+          <h2 style={{ color: theme.text.primary }} className="text-2xl font-bold m-0 mb-2">
             Merchant Accounts
           </h2>
-          <p style={{
-            fontSize: '14px',
-            color: 'rgba(251, 251, 251, 0.6)',
-            margin: 0
-          }}>
+          <p style={{ color: theme.text.secondary }} className="text-sm m-0">
             {filteredMerchants.length} merchant{filteredMerchants.length !== 1 ? 's' : ''} registered (Page {currentPage} of {totalPages || 1})
           </p>
         </div>
         <button
           onClick={handleAdd}
-          style={{
-            padding: '12px 24px',
-            background: '#FFD41C',
-            color: '#181D40',
-            border: 'none',
-            borderRadius: '10px',
-            fontSize: '14px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            boxShadow: '0 4px 12px rgba(255, 212, 28, 0.4)'
-          }}
+          style={{ background: theme.accent.primary, color: isDarkMode ? '#181D40' : '#FFF' }}
+          className="py-3 px-6 rounded-xl text-sm font-bold cursor-pointer flex items-center gap-2 shadow-lg border-none"
         >
           <span>➕</span>
           <span>Add Merchant</span>
@@ -331,22 +206,10 @@ export default function MerchantsList() {
 
       {/* Alert */}
       {alert && (
-        <div style={{
-          padding: '14px 20px',
-          background: alert.type === 'success'
-            ? 'rgba(16, 185, 129, 0.15)'
-            : 'rgba(239, 68, 68, 0.15)',
-          border: `2px solid ${alert.type === 'success'
-            ? 'rgba(16, 185, 129, 0.3)'
-            : 'rgba(239, 68, 68, 0.3)'}`,
-          borderRadius: '12px',
-          color: alert.type === 'success' ? '#10B981' : '#EF4444',
-          fontSize: '14px',
-          fontWeight: 600,
-          marginBottom: '20px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px'
+        <div className="py-3 px-5 rounded-xl text-sm font-semibold mb-5 flex items-center gap-2" style={{
+          background: alert.type === 'success' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
+          border: `2px solid ${alert.type === 'success' ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
+          color: alert.type === 'success' ? '#10B981' : '#EF4444'
         }}>
           <span>{alert.type === 'success' ? '✓' : '⚠️'}</span>
           <span>{alert.message}</span>
@@ -354,109 +217,75 @@ export default function MerchantsList() {
       )}
 
       {/* Search */}
-      <div style={{ marginBottom: '20px' }}>
+      <div className="mb-5">
         <input
           type="text"
           placeholder="🔍 Search merchants by name, contact, email, or ID..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           style={{
-            width: '100%',
-            padding: '12px 16px',
-            background: 'rgba(30, 35, 71, 0.5)',
-            border: '2px solid rgba(255, 212, 28, 0.3)',
-            borderRadius: '10px',
-            color: '#FBFBFB',
-            fontSize: '14px',
-            outline: 'none'
+            background: isDarkMode ? 'rgba(30,35,71,0.5)' : 'rgba(0,0,0,0.04)',
+            borderColor: theme.border.primary,
+            color: theme.text.primary
           }}
+          className="w-full py-3 px-4 border-2 rounded-xl text-sm outline-none"
         />
       </div>
 
-      {/* Merchant Cards Grid - Scrollable Area */}
+      {/* Merchant Cards Grid */}
       <div className="flex-1 overflow-y-auto pr-2">
-      {filteredMerchants.length > 0 ? (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
-          gap: '20px'
-        }}>
-          {currentItems.map((merchant) => (
-            <MerchantCard
-              key={merchant._id}
-              merchant={merchant}
-              onEdit={handleEdit}
-              onToggleActive={handleToggleActive}
-            />
-          ))}
-        </div>
-      ) : (
-        <div style={{
-          background: 'linear-gradient(135deg, #1E2347 0%, #181D40 100%)',
-          borderRadius: '16px',
-          border: '2px solid rgba(255, 212, 28, 0.3)',
-          padding: '60px',
-          textAlign: 'center',
-          color: 'rgba(251, 251, 251, 0.5)'
-        }}>
-          <div style={{ fontSize: '64px', marginBottom: '16px' }}>🏪</div>
-          <p style={{ margin: 0, fontSize: '16px' }}>
-            {searchQuery ? 'No merchants found matching your search' : 'No merchants yet. Add your first merchant!'}
-          </p>
-        </div>
-      )}
+        {filteredMerchants.length > 0 ? (
+          <div className="grid gap-5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))' }}>
+            {currentItems.map((merchant) => (
+              <MerchantCard
+                key={merchant._id}
+                merchant={merchant}
+                onEdit={handleEdit}
+                onToggleActive={handleToggleActive}
+                theme={theme}
+                isDarkMode={isDarkMode}
+              />
+            ))}
+          </div>
+        ) : (
+          <div style={{ background: theme.bg.card, borderColor: theme.border.primary, color: theme.text.tertiary }}
+            className="rounded-2xl border-2 p-16 text-center">
+            <div className="text-6xl mb-4">🏪</div>
+            <p className="m-0 text-base">
+              {searchQuery ? 'No merchants found matching your search' : 'No merchants yet. Add your first merchant!'}
+            </p>
+          </div>
+        )}
 
-        {/* Pagination Controls */}
+        {/* Pagination */}
         {totalPages > 1 && (
-          <div style={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: '12px',
-            marginTop: '24px',
-            paddingTop: '24px',
-            borderTop: '2px solid rgba(255,212,28,0.2)'
-          }}>
+          <div style={{ borderColor: theme.border.primary }} className="flex justify-center items-center gap-3 mt-6 pt-6 border-t-2">
             <button
               onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
               disabled={currentPage === 1}
               style={{
-                padding: '10px 20px',
-                background: currentPage === 1 ? 'rgba(255,212,28,0.1)' : 'rgba(255,212,28,0.2)',
-                border: '2px solid rgba(255,212,28,0.3)',
-                borderRadius: '8px',
-                color: currentPage === 1 ? 'rgba(255,212,28,0.5)' : '#FFD41C',
-                fontSize: '14px',
-                fontWeight: 600,
-                cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-                transition: 'all 0.2s'
+                background: currentPage === 1 ? `${theme.accent.primary}15` : `${theme.accent.primary}30`,
+                borderColor: theme.border.primary,
+                color: currentPage === 1 ? theme.text.tertiary : theme.accent.primary
               }}
+              className="py-2 px-5 border-2 rounded-lg text-sm font-semibold transition-all"
+              {...(currentPage === 1 ? { style: { ...{ cursor: 'not-allowed' } } } : { style: { cursor: 'pointer' } })}
             >
               ← Previous
             </button>
-            <span style={{
-              color: 'rgba(251,251,251,0.8)',
-              fontSize: '14px',
-              fontWeight: 600,
-              minWidth: '120px',
-              textAlign: 'center'
-            }}>
+            <span style={{ color: theme.text.secondary }} className="text-sm font-semibold min-w-[120px] text-center">
               Page {currentPage} of {totalPages}
             </span>
             <button
               onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages}
               style={{
-                padding: '10px 20px',
-                background: currentPage === totalPages ? 'rgba(255,212,28,0.1)' : 'rgba(255,212,28,0.2)',
-                border: '2px solid rgba(255,212,28,0.3)',
-                borderRadius: '8px',
-                color: currentPage === totalPages ? 'rgba(255,212,28,0.5)' : '#FFD41C',
-                fontSize: '14px',
-                fontWeight: 600,
-                cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
-                transition: 'all 0.2s'
+                background: currentPage === totalPages ? `${theme.accent.primary}15` : `${theme.accent.primary}30`,
+                borderColor: theme.border.primary,
+                color: currentPage === totalPages ? theme.text.tertiary : theme.accent.primary,
+                cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'
               }}
+              className="py-2 px-5 border-2 rounded-lg text-sm font-semibold transition-all"
             >
               Next →
             </button>
@@ -464,131 +293,59 @@ export default function MerchantsList() {
         )}
       </div>
 
-      {/* Modal */}
+      {/* Add/Edit Modal */}
       {isModalOpen && (
         <div
           onClick={() => setIsModalOpen(false)}
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            background: 'rgba(15, 18, 39, 0.9)',
-            backdropFilter: 'blur(8px)',
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            animation: 'fadeIn 0.2s ease'
-          }}
+          className="fixed inset-0 flex items-center justify-center z-[9999]"
+          style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)',
-              borderRadius: '16px',
-              border: '1px solid rgba(255, 212, 28, 0.2)',
-              padding: '32px',
-              width: '90%',
-              maxWidth: '600px',
-              maxHeight: '90vh',
-              overflow: 'auto',
-              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
-              animation: 'slideUp 0.3s ease'
+              background: isDarkMode
+                ? 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)'
+                : theme.bg.card,
+              borderColor: theme.border.primary
             }}
+            className="rounded-2xl border p-8 w-[90%] max-w-[600px] max-h-[90vh] overflow-auto shadow-2xl"
           >
-            <h3 style={{
-              fontSize: '20px',
-              fontWeight: 700,
-              color: '#FBFBFB',
-              margin: '0 0 24px 0'
-            }}>
+            <h3 style={{ color: theme.text.primary }} className="text-xl font-bold m-0 mb-6">
               {editingMerchant ? 'Edit Merchant' : 'Add New Merchant'}
             </h3>
 
             <form onSubmit={handleSubmit}>
-              <div style={{ display: 'grid', gap: '16px' }}>
+              <div className="grid gap-4">
                 {editingMerchant && editingMerchant.merchantId && (
                   <div>
-                    <label style={{
-                      display: 'block',
-                      marginBottom: '8px',
-                      fontSize: '12px',
-                      fontWeight: 700,
-                      color: '#FFD41C',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px'
-                    }}>
+                    <label style={{ color: theme.accent.primary }} className="block mb-2 text-xs font-bold uppercase tracking-wide">
                       Merchant ID
                     </label>
                     <div style={{
-                      padding: '12px 16px',
-                      background: 'rgba(255, 212, 28, 0.1)',
-                      border: '2px solid rgba(255, 212, 28, 0.3)',
-                      borderRadius: '8px',
-                      color: '#FFD41C',
-                      fontSize: '14px',
-                      fontWeight: 700
-                    }}>
+                      background: `${theme.accent.primary}15`,
+                      borderColor: theme.border.primary,
+                      color: theme.accent.primary
+                    }} className="py-3 px-4 border-2 rounded-lg text-sm font-bold">
                       {editingMerchant.merchantId}
                     </div>
                   </div>
                 )}
 
-                <FormField
-                  label="Business Name"
-                  value={formData.businessName}
-                  onChange={(value) => setFormData({ ...formData, businessName: value })}
-                  placeholder="e.g., Canteen 1"
-                  required
-                />
+                <FormField label="Business Name" value={formData.businessName} onChange={(v) => setFormData({ ...formData, businessName: v })} placeholder="e.g., Canteen 1" required theme={theme} />
+                <FormField label="First Name" value={formData.firstName} onChange={(v) => setFormData({ ...formData, firstName: v })} placeholder="e.g., Juan" required theme={theme} />
+                <FormField label="Last Name" value={formData.lastName} onChange={(v) => setFormData({ ...formData, lastName: v })} placeholder="e.g., Dela Cruz" required theme={theme} />
+                <FormField label="Email" type="email" value={formData.email} onChange={(v) => setFormData({ ...formData, email: v })} placeholder="merchant@nu-laguna.edu.ph" required theme={theme} />
 
-                <FormField
-                  label="First Name"
-                  value={formData.firstName}
-                  onChange={(value) => setFormData({ ...formData, firstName: value })}
-                  placeholder="e.g., Juan"
-                  required
-                />
-
-                <FormField
-                  label="Last Name"
-                  value={formData.lastName}
-                  onChange={(value) => setFormData({ ...formData, lastName: value })}
-                  placeholder="e.g., Dela Cruz"
-                  required
-                />
-
-                <FormField
-                  label="Email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(value) => setFormData({ ...formData, email: value })}
-                  placeholder="merchant@nu-laguna.edu.ph"
-                  required
-                />
-
-                {/* PIN Field - Styled like driver password */}
+                {/* PIN Field */}
                 <div>
-                  <label style={{
-                    display: 'block',
-                    marginBottom: '8px',
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    color: '#FFD41C',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px'
-                  }}>
-                    {editingMerchant ? '6-Digit PIN (leave blank to keep current)' : '6-Digit PIN'} {!editingMerchant && <span style={{ color: '#EF4444' }}>*</span>}
+                  <label style={{ color: theme.accent.primary }} className="block mb-2 text-xs font-bold uppercase tracking-wide">
+                    {editingMerchant ? '6-Digit PIN (leave blank to keep current)' : '6-Digit PIN'} {!editingMerchant && <span className="text-red-500">*</span>}
                   </label>
                   <input
                     type="text"
-                    name="password"
                     value={formData.password}
                     onChange={(e) => {
                       const value = e.target.value;
-                      // Only allow digits
                       if (value === '' || /^\d+$/.test(value)) {
                         setFormData({ ...formData, password: value });
                       }
@@ -598,68 +355,40 @@ export default function MerchantsList() {
                     placeholder="123456"
                     pattern="\d{6}"
                     style={{
-                      width: '100%',
-                      padding: '12px',
-                      border: '2px solid rgba(255,212,28,0.3)',
-                      borderRadius: '8px',
-                      background: 'rgba(251,251,251,0.05)',
-                      color: 'rgba(251,251,251,0.9)',
-                      fontSize: '18px',
-                      boxSizing: 'border-box',
-                      letterSpacing: '8px',
-                      textAlign: 'center',
-                      fontWeight: 700,
-                      outline: 'none'
+                      background: isDarkMode ? 'rgba(251,251,251,0.05)' : 'rgba(0,0,0,0.03)',
+                      borderColor: theme.border.primary,
+                      color: theme.text.primary
                     }}
+                    className="w-full py-3 px-4 border-2 rounded-lg text-lg text-center font-bold tracking-[8px] outline-none box-border"
                   />
                 </div>
               </div>
 
-              <div style={{
-                display: 'flex',
-                gap: '12px',
-                marginTop: '24px',
-                justifyContent: editingMerchant ? 'space-between' : 'flex-end'
-              }}>
+              <div className={`flex gap-3 mt-6 ${editingMerchant ? 'justify-between' : 'justify-end'}`}>
                 {editingMerchant && (
                   <button
                     type="button"
                     onClick={() => handleDeleteClick(editingMerchant._id)}
+                    className="py-3 px-6 rounded-lg text-sm font-semibold cursor-pointer transition-all border-2 hover:opacity-80"
                     style={{
-                      padding: '12px 24px',
-                      background: 'rgba(239, 68, 68, 0.15)',
-                      border: '2px solid rgba(239, 68, 68, 0.4)',
-                      borderRadius: '8px',
-                      color: '#EF4444',
-                      fontSize: '14px',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'rgba(239, 68, 68, 0.25)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)';
+                      background: 'rgba(239,68,68,0.15)',
+                      borderColor: 'rgba(239,68,68,0.4)',
+                      color: '#EF4444'
                     }}
                   >
                     🗑️ Delete Permanently
                   </button>
                 )}
-                <div style={{ display: 'flex', gap: '12px' }}>
+                <div className="flex gap-3">
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(false)}
                     style={{
-                      padding: '12px 24px',
-                      background: 'rgba(255, 212, 28, 0.1)',
-                      border: '2px solid rgba(255, 212, 28, 0.3)',
-                      borderRadius: '8px',
-                      color: '#FFD41C',
-                      fontSize: '14px',
-                      fontWeight: 600,
-                      cursor: 'pointer'
+                      background: `${theme.accent.primary}15`,
+                      borderColor: theme.border.primary,
+                      color: theme.accent.primary
                     }}
+                    className="py-3 px-6 border-2 rounded-lg text-sm font-semibold cursor-pointer"
                   >
                     Cancel
                   </button>
@@ -667,17 +396,11 @@ export default function MerchantsList() {
                     type="submit"
                     disabled={isSubmitting}
                     style={{
-                      padding: '12px 24px',
-                      background: isSubmitting ? '#CCCCCC' : '#FFD41C',
-                      color: '#181D40',
-                      border: 'none',
-                      borderRadius: '8px',
-                      fontSize: '14px',
-                      fontWeight: 700,
-                      cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                      boxShadow: isSubmitting ? 'none' : '0 4px 12px rgba(255, 212, 28, 0.4)',
+                      background: isSubmitting ? '#999' : theme.accent.primary,
+                      color: isDarkMode ? '#181D40' : '#FFF',
                       opacity: isSubmitting ? 0.6 : 1
                     }}
+                    className="py-3 px-6 border-none rounded-lg text-sm font-bold cursor-pointer shadow-lg"
                   >
                     {isSubmitting ? 'Saving...' : (editingMerchant ? 'Update Merchant' : 'Create Merchant')}
                   </button>
@@ -699,198 +422,74 @@ export default function MerchantsList() {
         onConfirm={handleDeleteConfirm}
         onCancel={() => setConfirmDialog({ isOpen: false, merchantId: null })}
       />
-
-      {/* CSS Animations */}
-      <style>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        @keyframes pulse {
-          0%, 100% {
-            opacity: 1;
-            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
-          }
-          50% {
-            opacity: 0.7;
-            box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.1);
-          }
-        }
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-        @keyframes slideUp {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `}</style>
     </div>
   );
 }
 
-function MerchantCard({ merchant, onEdit, onToggleActive }) {
+function MerchantCard({ merchant, onEdit, onToggleActive, theme, isDarkMode }) {
   const isActive = merchant.isActive !== false;
 
   return (
-    <div style={{
-      background: 'linear-gradient(135deg, #1E2347 0%, #181D40 100%)',
-      borderRadius: '16px',
-      border: '2px solid rgba(255, 212, 28, 0.3)',
-      padding: '24px',
-      transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-      cursor: 'pointer',
-      opacity: isActive ? 1 : 0.7
-    }}
-    onMouseEnter={(e) => {
-      e.currentTarget.style.transform = 'translateY(-4px)';
-      e.currentTarget.style.boxShadow = '0 8px 24px rgba(255, 212, 28, 0.2)';
-    }}
-    onMouseLeave={(e) => {
-      e.currentTarget.style.transform = 'translateY(0)';
-      e.currentTarget.style.boxShadow = 'none';
-    }}
+    <div
+      style={{
+        background: theme.bg.card,
+        borderColor: theme.border.primary,
+        opacity: isActive ? 1 : 0.7
+      }}
+      className="rounded-2xl border-2 p-6 transition-all duration-200 cursor-pointer hover:-translate-y-1 hover:shadow-xl"
     >
       {/* Header with ID Badge */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: '16px'
-      }}>
+      <div className="flex justify-between items-start mb-4">
         <div style={{
-          padding: '6px 14px',
-          background: 'rgba(255, 212, 28, 0.15)',
-          border: '1px solid rgba(255, 212, 28, 0.3)',
-          borderRadius: '8px',
-          fontSize: '12px',
-          fontWeight: 700,
-          color: '#FFD41C'
-        }}>
+          background: `${theme.accent.primary}20`,
+          borderColor: theme.border.primary,
+          color: theme.accent.primary
+        }} className="py-1.5 px-3.5 border rounded-lg text-xs font-bold">
           {merchant.merchantId || 'N/A'}
         </div>
-        <div style={{
-          width: '12px',
-          height: '12px',
+        <div className="w-3 h-3 rounded-full" style={{
           background: isActive ? '#10B981' : '#EF4444',
-          borderRadius: '50%',
-          boxShadow: `0 0 0 3px ${isActive ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
-          animation: isActive ? 'pulse 2s ease-in-out infinite' : 'none'
+          boxShadow: `0 0 0 3px ${isActive ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}`
         }} />
       </div>
 
       {/* Business Name */}
-      <h3 style={{
-        fontSize: '20px',
-        fontWeight: 700,
-        color: '#FBFBFB',
-        margin: '0 0 8px 0'
-      }}>
+      <h3 style={{ color: theme.text.primary }} className="text-xl font-bold m-0 mb-2">
         {merchant.businessName}
       </h3>
 
       {/* Contact Info */}
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '8px',
-        marginBottom: '16px'
-      }}>
-        <div style={{
-          fontSize: '13px',
-          color: 'rgba(251, 251, 251, 0.8)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px'
-        }}>
+      <div className="flex flex-col gap-2 mb-4">
+        <div style={{ color: theme.text.secondary }} className="text-[13px] flex items-center gap-2">
           <span>👤</span>
           <span>{merchant.firstName} {merchant.lastName}</span>
         </div>
-        <div style={{
-          fontSize: '13px',
-          color: 'rgba(251, 251, 251, 0.8)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px'
-        }}>
+        <div style={{ color: theme.text.secondary }} className="text-[13px] flex items-center gap-2">
           <span>📧</span>
           <span>{merchant.email}</span>
         </div>
       </div>
 
       {/* Actions */}
-      <div style={{
-        display: 'flex',
-        gap: '8px',
-        paddingTop: '16px',
-        borderTop: '1px solid rgba(255, 212, 28, 0.2)'
-      }}>
+      <div style={{ borderColor: theme.border.primary }} className="flex gap-2 pt-4 border-t">
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit(merchant);
-          }}
+          onClick={(e) => { e.stopPropagation(); onEdit(merchant); }}
+          className="flex-1 py-2.5 px-4 rounded-lg text-[13px] font-semibold cursor-pointer transition-all border hover:opacity-80"
           style={{
-            flex: 1,
-            padding: '10px 16px',
-            background: 'rgba(59, 130, 246, 0.2)',
-            border: '1px solid rgba(59, 130, 246, 0.4)',
-            borderRadius: '8px',
-            color: '#3B82F6',
-            fontSize: '13px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.2s ease'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(59, 130, 246, 0.3)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)';
+            background: 'rgba(59,130,246,0.2)',
+            borderColor: 'rgba(59,130,246,0.4)',
+            color: '#3B82F6'
           }}
         >
           ✏️ Edit
         </button>
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleActive(merchant);
-          }}
+          onClick={(e) => { e.stopPropagation(); onToggleActive(merchant); }}
+          className="flex-1 py-2.5 px-4 rounded-lg text-[13px] font-semibold cursor-pointer transition-all border hover:opacity-80"
           style={{
-            flex: 1,
-            padding: '10px 16px',
-            background: isActive ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)',
-            border: `1px solid ${isActive ? 'rgba(239, 68, 68, 0.4)' : 'rgba(16, 185, 129, 0.4)'}`,
-            borderRadius: '8px',
-            color: isActive ? '#EF4444' : '#10B981',
-            fontSize: '13px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.2s ease'
-          }}
-          onMouseEnter={(e) => {
-            if (isActive) {
-              e.currentTarget.style.background = 'rgba(239, 68, 68, 0.3)';
-            } else {
-              e.currentTarget.style.background = 'rgba(16, 185, 129, 0.3)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (isActive) {
-              e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
-            } else {
-              e.currentTarget.style.background = 'rgba(16, 185, 129, 0.2)';
-            }
+            background: isActive ? 'rgba(239,68,68,0.2)' : 'rgba(16,185,129,0.2)',
+            borderColor: isActive ? 'rgba(239,68,68,0.4)' : 'rgba(16,185,129,0.4)',
+            color: isActive ? '#EF4444' : '#10B981'
           }}
         >
           {isActive ? '🔴 Deactivate' : '✅ Activate'}
@@ -900,19 +499,11 @@ function MerchantCard({ merchant, onEdit, onToggleActive }) {
   );
 }
 
-function FormField({ label, type = 'text', value, onChange, placeholder, required, maxLength }) {
+function FormField({ label, type = 'text', value, onChange, placeholder, required, theme }) {
   return (
     <div>
-      <label style={{
-        display: 'block',
-        marginBottom: '8px',
-        fontSize: '12px',
-        fontWeight: 700,
-        color: '#FFD41C',
-        textTransform: 'uppercase',
-        letterSpacing: '0.5px'
-      }}>
-        {label} {required && <span style={{ color: '#EF4444' }}>*</span>}
+      <label style={{ color: theme.accent.primary }} className="block mb-2 text-xs font-bold uppercase tracking-wide">
+        {label} {required && <span className="text-red-500">*</span>}
       </label>
       <input
         type={type}
@@ -920,18 +511,12 @@ function FormField({ label, type = 'text', value, onChange, placeholder, require
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         required={required}
-        maxLength={maxLength}
         style={{
-          width: '100%',
-          padding: '12px 16px',
-          background: 'rgba(251, 251, 251, 0.05)',
-          border: '2px solid rgba(255, 212, 28, 0.3)',
-          borderRadius: '8px',
-          color: '#FBFBFB',
-          fontSize: '14px',
-          outline: 'none',
-          boxSizing: 'border-box'
+          background: 'rgba(251,251,251,0.05)',
+          borderColor: theme.border.primary,
+          color: theme.text.primary
         }}
+        className="w-full py-3 px-4 border-2 rounded-lg text-sm outline-none box-border"
       />
     </div>
   );

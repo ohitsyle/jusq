@@ -445,16 +445,23 @@ const OfflineStorageService = {
 
   async addOfflineTransaction(transaction) {
     try {
-      const transactions = await this.getOfflineTransactions();
-      
+      let transactions = await this.getOfflineTransactions();
+
       // Add the new transaction
       transactions.push({
         ...transaction,
-        id: Date.now().toString(), // Unique ID for this transaction
+        id: Date.now().toString(),
         addedAt: new Date().toISOString()
       });
 
-      // Keep only last 100 transactions to prevent storage bloat
+      // Clean up: remove transactions older than 30 minutes to prevent stale dedup blocks
+      const thirtyMinutesAgo = Date.now() - (30 * 60 * 1000);
+      transactions = transactions.filter(tx => {
+        const txTime = new Date(tx.timestamp || tx.addedAt).getTime();
+        return txTime > thirtyMinutesAgo;
+      });
+
+      // Also cap at 100 entries as a safety net
       if (transactions.length > 100) {
         transactions.splice(0, transactions.length - 100);
       }

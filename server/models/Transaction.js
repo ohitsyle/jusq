@@ -84,6 +84,13 @@ const TransactionSchema = new mongoose.Schema({
     default: null
   },
 
+  // Device timestamp from offline transactions (used for dedup)
+  deviceTimestamp: {
+    type: String,
+    default: null,
+    index: true
+  },
+
   // View Permission - Which role can view this transaction
   viewFor: {
     type: String,

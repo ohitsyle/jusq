@@ -26,6 +26,7 @@ export default function MerchantLayout({ children }) {
   const merchantTabs = [
     { path: '/admin/merchant', icon: '🏠', label: 'Home' },
     { path: '/admin/merchant/merchants', icon: '🏪', label: 'Merchants' },
+    { path: '/admin/merchant/transactions', icon: '💳', label: 'Transactions' },
     { path: '/admin/merchant/phones', icon: '📱', label: 'Phones' },
   ];
 

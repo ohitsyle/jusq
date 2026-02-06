@@ -40,10 +40,35 @@ import('../services/emailService.js')
  */
 router.post('/pay', async (req, res) => {
   try {
-    const { rfidUId, driverId, shuttleId, routeId, tripId, fareAmount } = req.body;
+    const { rfidUId, driverId, shuttleId, routeId, tripId, fareAmount, deviceTimestamp, offlineMode } = req.body;
 
     console.log('💳 Processing payment:', { rfidUId, driverId, shuttleId, routeId, tripId, fareAmount });
-    console.log('🔍 Full request body:', JSON.stringify(req.body, null, 2));
+
+    // ===== DUPLICATE DETECTION =====
+    // For offline transactions being synced, check if this exact transaction already exists
+    if (deviceTimestamp && offlineMode) {
+      const existingTx = await Transaction.findOne({
+        deviceTimestamp: deviceTimestamp,
+        shuttleId: shuttleId || null,
+        transactionType: 'debit',
+        status: 'Completed'
+      });
+
+      if (existingTx) {
+        console.log(`⚠️ Duplicate offline transaction detected (deviceTimestamp: ${deviceTimestamp}). Returning existing.`);
+        const user = await User.findOne({ rfidUId });
+        return res.json({
+          success: true,
+          duplicate: true,
+          studentName: user?.fullName || 'Unknown',
+          fareAmount: existingTx.amount,
+          previousBalance: existingTx.balance + existingTx.amount,
+          newBalance: existingTx.balance,
+          rfidUId: rfidUId,
+          transactionId: existingTx.transactionId
+        });
+      }
+    }
 
     // Validate required fields
     if (!rfidUId) {
@@ -164,7 +189,8 @@ router.post('/pay', async (req, res) => {
       balance: balanceAfter,
       shuttleId: shuttleId || null,
       driverId: driverId || null,
-      routeId: routeId || null
+      routeId: routeId || null,
+      deviceTimestamp: req.body.deviceTimestamp || null
     });
 
     // Create detailed shuttle transaction if tripId provided
@@ -512,8 +538,31 @@ router.post('/sync', async (req, res) => {
 
     for (const tx of transactions) {
       try {
+        // ===== DUPLICATE DETECTION =====
+        // Check if this offline transaction was already synced
+        if (tx.timestamp) {
+          const existingTx = await Transaction.findOne({
+            deviceTimestamp: tx.timestamp,
+            shuttleId: tx.shuttleId || null,
+            transactionType: 'debit',
+            status: 'Completed'
+          });
+
+          if (existingTx) {
+            console.log(`⚠️ Duplicate sync transaction skipped (deviceTimestamp: ${tx.timestamp})`);
+            processed.push({
+              rfidUId: tx.rfidUId,
+              userName: existingTx.email || tx.rfidUId,
+              amount: existingTx.amount,
+              transactionId: existingTx.transactionId,
+              duplicate: true
+            });
+            continue;
+          }
+        }
+
         const user = await User.findOne({ rfidUId: tx.rfidUId });
-        
+
         if (!user) {
           rejected.push({ rfidUId: tx.rfidUId, error: 'User not found' });
           continue;
@@ -525,7 +574,7 @@ router.post('/sync', async (req, res) => {
         // Deduct balance
         const balanceBefore = user.balance;
         const balanceAfter = balanceBefore - fare;
-        
+
         user.balance = balanceAfter;
         await user.save();
 
@@ -544,7 +593,8 @@ router.post('/sync', async (req, res) => {
           balance: balanceAfter,
           shuttleId: tx.shuttleId || null,
           driverId: tx.driverId || null,
-          routeId: tx.routeId || null
+          routeId: tx.routeId || null,
+          deviceTimestamp: tx.timestamp || null
         });
 
         processed.push({

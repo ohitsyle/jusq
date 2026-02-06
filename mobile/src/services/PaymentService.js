@@ -679,36 +679,51 @@ const PaymentService = {
   async syncOfflineQueue() {
     // Prevent multiple simultaneous syncs
     if (this._syncInProgress) {
-      console.log('⏭️ Sync already in progress, skipping duplicate call');
       return { success: false, processed: 0, failed: 0, remaining: 0, skipped: true };
     }
 
     this._syncInProgress = true;
-    
+
     try {
       const queue = await this.getOfflineQueue();
-      
+
       if (queue.length === 0) {
-        console.log('✅ No offline transactions to sync');
         this._syncInProgress = false;
         return { success: true, processed: 0, failed: 0, remaining: 0 };
       }
 
       console.log(`🔄 Syncing ${queue.length} offline transactions...`);
-      
+
       let processed = 0;
       let failed = 0;
       const failedTransactions = [];
+      const MAX_RETRIES = 5;
 
       for (const transaction of queue) {
+        // Skip already-synced transactions that somehow stayed in queue
+        if (transaction.synced) {
+          processed++;
+          continue;
+        }
+
+        // Track retry count - give up after MAX_RETRIES to prevent infinite loop
+        const retryCount = transaction._retryCount || 0;
+        if (retryCount >= MAX_RETRIES) {
+          console.error(`🚫 Giving up on transaction for ${transaction.studentName || transaction.rfidUId} after ${MAX_RETRIES} retries`);
+          // Mark as permanently failed so it stops retrying
+          transaction._permanentlyFailed = true;
+          transaction._failReason = 'Max retries exceeded';
+          failedTransactions.push(transaction);
+          continue;
+        }
+
         try {
-          console.log(`📤 Syncing transaction for ${transaction.studentName || transaction.rfidUId}`);
-          
+          console.log(`📤 Syncing transaction for ${transaction.studentName || transaction.rfidUId} (attempt ${retryCount + 1})`);
+
           let res;
-          
+
           // Handle different transaction types
           if (transaction.type === 'refund') {
-            // Process refund
             res = await api.post('/shuttle/refund', {
               rfidUId: transaction.rfidUId,
               driverId: transaction.driverId,
@@ -721,8 +736,6 @@ const PaymentService = {
               offlineMode: true
             });
           } else {
-            // Process payment
-            console.log('🔍 Transaction data being sent:', JSON.stringify(transaction, null, 2));
             res = await api.post('/shuttle/pay', {
               rfidUId: transaction.rfidUId,
               driverId: transaction.driverId,
@@ -735,76 +748,90 @@ const PaymentService = {
             });
           }
 
-          console.log('🔍 Server response:', JSON.stringify(res, null, 2));
-          
-          // Handle axios response structure (res.data contains actual response)
           const responseData = res.data || res;
-          
+
           if (responseData.success) {
             processed++;
-            console.log(`✅ Synced transaction for ${transaction.studentName || transaction.rfidUId}`);
-            
-            // Mark this transaction as synced to prevent duplicate processing
-            transaction.synced = true;
-            transaction.syncedAt = Date.now();
-            
-            // Track offline transaction for duplicate detection
-            await OfflineStorageService.addOfflineTransaction({
-              rfidUId: transaction.rfidUId,
-              studentName: transaction.studentName,
-              timestamp: transaction.timestamp,
-              syncedAt: Date.now()
-            });
+            console.log(`✅ Synced transaction for ${transaction.studentName || transaction.rfidUId}${responseData.duplicate ? ' (server detected duplicate)' : ''}`);
           } else {
             failed++;
+            transaction._retryCount = retryCount + 1;
             failedTransactions.push(transaction);
-            console.error(`❌ Failed to sync transaction for ${transaction.studentName || transaction.rfidUId}:`, responseData?.error || responseData?.message || 'Unknown error');
+            console.error(`❌ Failed to sync for ${transaction.studentName || transaction.rfidUId}:`, responseData?.error || 'Unknown error');
           }
         } catch (error) {
           failed++;
-          failedTransactions.push(transaction);
-          console.error(`❌ Error syncing transaction for ${transaction.studentName || transaction.rfidUId}:`, error.message);
-          
-          // If it's a network error, stop trying and wait for next sync
-          if (error.message.includes('Network') || error.message.includes('timeout')) {
+
+          // If it's a client error (4xx), increment retry count - likely a permanent issue
+          if (error.response && error.response.status >= 400 && error.response.status < 500) {
+            transaction._retryCount = retryCount + 1;
+            failedTransactions.push(transaction);
+            console.error(`❌ Client error syncing for ${transaction.studentName || transaction.rfidUId}: ${error.response.status} - ${error.response.data?.error || error.message}`);
+          } else if (error.message.includes('Network') || error.message.includes('timeout') || !error.response) {
+            // Network error - keep current retry count and stop trying the rest
+            transaction._retryCount = retryCount;
+            failedTransactions.push(transaction);
+            // Also keep remaining unprocessed transactions
+            const currentIndex = queue.indexOf(transaction);
+            for (let i = currentIndex + 1; i < queue.length; i++) {
+              if (!queue[i].synced) {
+                failedTransactions.push(queue[i]);
+              }
+            }
             console.log('⚠️ Network error during sync, will retry later');
             break;
+          } else {
+            // Other server errors (5xx) - increment retry but don't stop
+            transaction._retryCount = retryCount + 1;
+            failedTransactions.push(transaction);
+            console.error(`❌ Server error syncing for ${transaction.studentName || transaction.rfidUId}:`, error.message);
           }
         }
       }
 
-      // Update queue: remove successful transactions, keep failed ones for retry
-      if (processed > 0) {
-        if (failedTransactions.length > 0) {
-          // Keep only failed transactions for next retry
-          await AsyncStorage.setItem('offlineQueue', JSON.stringify(failedTransactions));
-          console.log(`🔄 Kept ${failedTransactions.length} failed transactions for retry`);
+      // ALWAYS persist the updated queue state (this was the main bug -
+      // previously only persisted when processed > 0, leaving failed queue stuck)
+      if (failedTransactions.length > 0) {
+        // Filter out permanently failed transactions
+        const retryable = failedTransactions.filter(tx => !tx._permanentlyFailed);
+        if (retryable.length > 0) {
+          await AsyncStorage.setItem('offlineQueue', JSON.stringify(retryable));
+          console.log(`🔄 ${retryable.length} transactions queued for retry`);
         } else {
-          // All transactions succeeded, clear the queue
           await this.clearOfflineQueue();
-          console.log(`🗑️ Cleared offline queue after syncing all ${processed} transactions`);
+          console.log('🗑️ All failed transactions exhausted retries, queue cleared');
         }
+
+        // Log permanently failed transactions for debugging
+        const permanent = failedTransactions.filter(tx => tx._permanentlyFailed);
+        if (permanent.length > 0) {
+          console.error(`🚫 ${permanent.length} transactions permanently failed:`,
+            permanent.map(tx => tx.studentName || tx.rfidUId).join(', '));
+        }
+      } else {
+        // All succeeded
+        await this.clearOfflineQueue();
+        console.log(`🗑️ Cleared offline queue after syncing all ${processed} transactions`);
       }
 
       console.log(`✅ Sync completed: ${processed} processed, ${failed} failed`);
-      
+
       return {
-        success: processed > 0,
+        success: processed > 0 || failedTransactions.length === 0,
         processed,
         failed,
-        remaining: failedTransactions.length
+        remaining: failedTransactions.filter(tx => !tx._permanentlyFailed).length
       };
     } catch (error) {
       console.error('❌ Error syncing offline transactions:', error);
       return {
         success: false,
         processed: 0,
-        failed: queue.length,
-        remaining: queue.length,
+        failed: 0,
+        remaining: 0,
         error: error.message
       };
     } finally {
-      // Always reset the sync flag
       this._syncInProgress = false;
     }
   },

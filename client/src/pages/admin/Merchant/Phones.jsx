@@ -1,11 +1,15 @@
 // src/pages/admin/Merchant/Phones.jsx
+// Phone inventory management - Theme-aware, uses api utility
+
 import React, { useState, useEffect } from 'react';
+import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import SearchBar from '../../../components/shared/SearchBar';
 import ExportButton from '../../../components/shared/ExportButton';
 import { exportToCSV, prepareDataForExport } from '../../../utils/csvExport';
 
 export default function MerchantPhonesList() {
+  const { theme, isDarkMode } = useTheme();
   const [phones, setPhones] = useState([]);
   const [merchants, setMerchants] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -54,7 +58,6 @@ export default function MerchantPhonesList() {
 
   const getNextPhoneId = () => {
     if (phones.length === 0) return 'PHONE_001';
-
     let highestNum = 0;
     for (const phone of phones) {
       if (phone.phoneId) {
@@ -65,7 +68,6 @@ export default function MerchantPhonesList() {
         }
       }
     }
-
     return `PHONE_${String(highestNum + 1).padStart(3, '0')}`;
   };
 
@@ -97,7 +99,6 @@ export default function MerchantPhonesList() {
         await api.put(`/merchant/phones/${editingPhone._id}`, formData);
         setAlert({ type: 'success', message: 'Phone updated successfully!' });
       } else {
-        // phoneId is now generated server-side to avoid duplicate key errors
         await api.post('/merchant/phones', formData);
         setAlert({ type: 'success', message: 'Phone created successfully!' });
       }
@@ -196,19 +197,18 @@ export default function MerchantPhonesList() {
     );
   });
 
-  // Pagination
   const totalPages = Math.ceil(filteredPhones.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentItems = filteredPhones.slice(startIndex, endIndex);
+  const currentItems = filteredPhones.slice(startIndex, startIndex + itemsPerPage);
 
-  // Reset to first page when search query changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery]);
+  useEffect(() => { setCurrentPage(1); }, [searchQuery]);
 
   if (loading) {
-    return <div className="text-center py-[60px] text-[#FFD41C]">Loading phones...</div>;
+    return (
+      <div style={{ color: theme.accent.primary }} className="text-center py-[60px]">
+        Loading phones...
+      </div>
+    );
   }
 
   return (
@@ -225,38 +225,30 @@ export default function MerchantPhonesList() {
           color: alert.type === 'success' ? '#22C55E' : '#EF4444',
           border: `2px solid ${alert.type === 'success' ? '#22C55E' : '#EF4444'}`,
           boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-          zIndex: 10000,
-          animation: 'fadeIn 0.3s ease'
+          zIndex: 10000
         }}>
           {alert.message}
         </div>
       )}
 
       {/* Header */}
-      <div className="mb-[30px] border-b-2 border-[rgba(255,212,28,0.2)] pb-5">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+      <div style={{ borderColor: theme.border.primary }} className="mb-7 border-b-2 pb-5">
+        <div className="flex justify-between items-start mb-5">
           <div>
-            <h2 className="text-2xl font-bold text-[#FFD41C] m-0 mb-2 flex items-center gap-[10px]">
+            <h2 style={{ color: theme.accent.primary }} className="text-2xl font-bold m-0 mb-2 flex items-center gap-2.5">
               <span>📱</span> Merchant Phone Inventory
             </h2>
-            <p className="text-[13px] text-[rgba(251,251,251,0.6)] m-0">
+            <p style={{ color: theme.text.secondary }} className="text-[13px] m-0">
               {searchQuery
                 ? `Showing: ${filteredPhones.length} of ${phones.length} (Page ${currentPage} of ${totalPages || 1})`
                 : `Total devices: ${phones.length} • Available: ${phones.filter(p => p.status === 'available').length} • Assigned: ${phones.filter(p => p.status === 'assigned').length} (Page ${currentPage} of ${totalPages || 1})`}
             </p>
           </div>
-          <button onClick={() => { resetForm(); setEditingPhone(null); setShowModal(true); }} style={{
-            padding: '12px 24px',
-            background: '#FFD41C',
-            color: '#181D40',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '14px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            boxShadow: '0 4px 12px rgba(255,212,28,0.4)',
-            transition: 'all 0.3s'
-          }}>
+          <button
+            onClick={() => { resetForm(); setEditingPhone(null); setShowModal(true); }}
+            style={{ background: theme.accent.primary, color: isDarkMode ? '#181D40' : '#FFF' }}
+            className="py-3 px-6 rounded-lg text-sm font-bold cursor-pointer border-none shadow-lg transition-all"
+          >
             + Add Phone
           </button>
         </div>
@@ -270,181 +262,135 @@ export default function MerchantPhonesList() {
         </div>
       </div>
 
-      {/* Table - Scrollable Area */}
+      {/* Table */}
       <div className="flex-1 overflow-y-auto pr-2">
-      {phones.length === 0 ? (
-        <div className="text-center py-[60px] text-[rgba(251,251,251,0.5)]">
-          <div className="text-5xl mb-4">📱</div>
-          <div>No phones found</div>
-        </div>
-      ) : filteredPhones.length === 0 ? (
-        <div className="text-center py-[60px] text-[rgba(251,251,251,0.5)]">
-          <div className="text-5xl mb-4">🔍</div>
-          <div style={{ marginBottom: '12px' }}>No phones match your search</div>
-          <button onClick={() => setSearchQuery('')} style={{
-            padding: '8px 16px',
-            background: 'rgba(255,212,28,0.15)',
-            border: '2px solid rgba(255,212,28,0.3)',
-            borderRadius: '8px',
-            color: '#FFD41C',
-            fontSize: '13px',
-            fontWeight: 600,
-            cursor: 'pointer'
-          }}>
-            Clear Search
-          </button>
-        </div>
-      ) : (
-        <div className="overflow-x-auto rounded-xl border border-[rgba(255,212,28,0.2)]">
-          <table className="w-full border-collapse text-[13px]">
-            <thead>
-              <tr className="bg-[rgba(255,212,28,0.1)]">
-                <th className="text-left p-4 text-[11px] font-extrabold text-[#FFD41C] uppercase border-b-2 border-[rgba(255,212,28,0.3)]">Phone ID</th>
-                <th className="text-left p-4 text-[11px] font-extrabold text-[#FFD41C] uppercase border-b-2 border-[rgba(255,212,28,0.3)]">Device</th>
-                <th className="text-left p-4 text-[11px] font-extrabold text-[#FFD41C] uppercase border-b-2 border-[rgba(255,212,28,0.3)]">Type</th>
-                <th className="text-left p-4 text-[11px] font-extrabold text-[#FFD41C] uppercase border-b-2 border-[rgba(255,212,28,0.3)]">Assigned Merchant</th>
-                <th className="text-left p-4 text-[11px] font-extrabold text-[#FFD41C] uppercase border-b-2 border-[rgba(255,212,28,0.3)]">Status</th>
-                <th style={{ textAlign: 'right', padding: '16px', fontSize: '11px', fontWeight: 800, color: '#FFD41C', textTransform: 'uppercase', borderBottom: '2px solid rgba(255,212,28,0.3)' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {currentItems.map((phone) => {
-                const statusStyle = getStatusColor(phone.status);
-                return (
-                  <tr key={phone._id} style={{ borderBottom: '1px solid rgba(255,212,28,0.1)' }}>
-                    <td style={{ padding: '16px', color: 'rgba(251,251,251,0.9)' }}>
-                      <strong>{phone.phoneId}</strong>
-                    </td>
-                    <td style={{ padding: '16px', color: 'rgba(251,251,251,0.9)' }}>
-                      {phone.phoneModel}
-                    </td>
-                    <td style={{ padding: '16px', color: 'rgba(251,251,251,0.9)' }}>
-                      {phone.phoneType}
-                    </td>
-                    <td style={{ padding: '16px' }}>
-                      <select
-                        value={phone.assignedMerchantId || ''}
-                        onChange={(e) => handleMerchantAssignment(phone, e.target.value)}
-                        style={{
-                          padding: '8px 12px',
-                          background: 'rgba(255,212,28,0.1)',
-                          color: '#FFD41C',
-                          border: '1px solid rgba(255,212,28,0.3)',
-                          borderRadius: '6px',
-                          fontSize: '12px',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          minWidth: '200px'
-                        }}
-                      >
-                        <option value="">Unassigned</option>
-                        {merchants.map(merchant => (
-                          <option key={merchant.merchantId} value={merchant.merchantId}>
-                            {merchant.businessName} ({merchant.merchantId})
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td style={{ padding: '16px' }}>
-                      <span style={{
-                        padding: '6px 12px',
-                        background: statusStyle.bg,
-                        color: statusStyle.color,
-                        borderRadius: '6px',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        textTransform: 'uppercase',
-                        display: 'inline-block'
-                      }}>
-                        {phone.status}
-                      </span>
-                    </td>
-                    <td style={{ padding: '16px', textAlign: 'right' }}>
-                      <button onClick={() => handleEdit(phone)} style={{
-                        padding: '6px 12px',
-                        background: 'rgba(59,130,246,0.2)',
-                        color: '#3B82F6',
-                        border: '1px solid rgba(59,130,246,0.3)',
-                        borderRadius: '6px',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        marginRight: '8px'
-                      }}>
-                        Edit
-                      </button>
-                      <button onClick={() => handleDelete(phone._id)} style={{
-                        padding: '6px 12px',
-                        background: 'rgba(239,68,68,0.2)',
-                        color: '#EF4444',
-                        border: '1px solid rgba(239,68,68,0.3)',
-                        borderRadius: '6px',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        cursor: 'pointer'
-                      }}>
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+        {phones.length === 0 ? (
+          <div style={{ color: theme.text.tertiary }} className="text-center py-[60px]">
+            <div className="text-5xl mb-4">📱</div>
+            <div>No phones found</div>
+          </div>
+        ) : filteredPhones.length === 0 ? (
+          <div style={{ color: theme.text.tertiary }} className="text-center py-[60px]">
+            <div className="text-5xl mb-4">🔍</div>
+            <div className="mb-3">No phones match your search</div>
+            <button
+              onClick={() => setSearchQuery('')}
+              style={{
+                background: `${theme.accent.primary}20`,
+                borderColor: theme.border.primary,
+                color: theme.accent.primary
+              }}
+              className="py-2 px-4 border-2 rounded-lg text-[13px] font-semibold cursor-pointer"
+            >
+              Clear Search
+            </button>
+          </div>
+        ) : (
+          <div style={{ borderColor: theme.border.primary }} className="overflow-x-auto rounded-xl border">
+            <table className="w-full border-collapse text-[13px]">
+              <thead>
+                <tr style={{ background: `${theme.accent.primary}15` }}>
+                  {['Phone ID', 'Device', 'Type', 'Assigned Merchant', 'Status', ''].map((header, i) => (
+                    <th
+                      key={header || 'actions'}
+                      style={{ color: theme.accent.primary, borderColor: theme.border.primary, textAlign: i === 5 ? 'right' : 'left' }}
+                      className="p-4 text-[11px] font-extrabold uppercase border-b-2"
+                    >
+                      {header || 'Actions'}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {currentItems.map((phone) => {
+                  const statusStyle = getStatusColor(phone.status);
+                  return (
+                    <tr key={phone._id} style={{ borderBottom: `1px solid ${theme.border.primary}` }}>
+                      <td style={{ color: theme.text.primary }} className="p-4">
+                        <strong>{phone.phoneId}</strong>
+                      </td>
+                      <td style={{ color: theme.text.primary }} className="p-4">{phone.phoneModel}</td>
+                      <td style={{ color: theme.text.primary }} className="p-4">{phone.phoneType}</td>
+                      <td className="p-4">
+                        <select
+                          value={phone.assignedMerchantId || ''}
+                          onChange={(e) => handleMerchantAssignment(phone, e.target.value)}
+                          style={{
+                            background: `${theme.accent.primary}15`,
+                            color: theme.accent.primary,
+                            borderColor: theme.border.primary
+                          }}
+                          className="py-2 px-3 border rounded-md text-xs font-semibold cursor-pointer min-w-[200px]"
+                        >
+                          <option value="">Unassigned</option>
+                          {merchants.map(merchant => (
+                            <option key={merchant.merchantId} value={merchant.merchantId}>
+                              {merchant.businessName} ({merchant.merchantId})
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="p-4">
+                        <span className="py-1.5 px-3 rounded-md text-[11px] font-bold uppercase inline-block" style={{
+                          background: statusStyle.bg,
+                          color: statusStyle.color
+                        }}>
+                          {phone.status}
+                        </span>
+                      </td>
+                      <td className="p-4 text-right">
+                        <button
+                          onClick={() => handleEdit(phone)}
+                          className="py-1.5 px-3 rounded-md text-xs font-semibold cursor-pointer mr-2 border hover:opacity-80 transition-all"
+                          style={{ background: 'rgba(59,130,246,0.2)', color: '#3B82F6', borderColor: 'rgba(59,130,246,0.3)' }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(phone._id)}
+                          className="py-1.5 px-3 rounded-md text-xs font-semibold cursor-pointer border hover:opacity-80 transition-all"
+                          style={{ background: 'rgba(239,68,68,0.2)', color: '#EF4444', borderColor: 'rgba(239,68,68,0.3)' }}
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-        {/* Pagination Controls */}
+        {/* Pagination */}
         {totalPages > 1 && (
-          <div style={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: '12px',
-            marginTop: '24px',
-            paddingTop: '24px',
-            borderTop: '2px solid rgba(255,212,28,0.2)'
-          }}>
+          <div style={{ borderColor: theme.border.primary }} className="flex justify-center items-center gap-3 mt-6 pt-6 border-t-2">
             <button
               onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
               disabled={currentPage === 1}
               style={{
-                padding: '10px 20px',
-                background: currentPage === 1 ? 'rgba(255,212,28,0.1)' : 'rgba(255,212,28,0.2)',
-                border: '2px solid rgba(255,212,28,0.3)',
-                borderRadius: '8px',
-                color: currentPage === 1 ? 'rgba(255,212,28,0.5)' : '#FFD41C',
-                fontSize: '14px',
-                fontWeight: 600,
-                cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-                transition: 'all 0.2s'
+                background: currentPage === 1 ? `${theme.accent.primary}15` : `${theme.accent.primary}30`,
+                borderColor: theme.border.primary,
+                color: currentPage === 1 ? theme.text.tertiary : theme.accent.primary,
+                cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
               }}
+              className="py-2.5 px-5 border-2 rounded-lg text-sm font-semibold transition-all"
             >
               ← Previous
             </button>
-            <span style={{
-              color: 'rgba(251,251,251,0.8)',
-              fontSize: '14px',
-              fontWeight: 600,
-              minWidth: '120px',
-              textAlign: 'center'
-            }}>
+            <span style={{ color: theme.text.secondary }} className="text-sm font-semibold min-w-[120px] text-center">
               Page {currentPage} of {totalPages}
             </span>
             <button
               onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages}
               style={{
-                padding: '10px 20px',
-                background: currentPage === totalPages ? 'rgba(255,212,28,0.1)' : 'rgba(255,212,28,0.2)',
-                border: '2px solid rgba(255,212,28,0.3)',
-                borderRadius: '8px',
-                color: currentPage === totalPages ? 'rgba(255,212,28,0.5)' : '#FFD41C',
-                fontSize: '14px',
-                fontWeight: 600,
-                cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
-                transition: 'all 0.2s'
+                background: currentPage === totalPages ? `${theme.accent.primary}15` : `${theme.accent.primary}30`,
+                borderColor: theme.border.primary,
+                color: currentPage === totalPages ? theme.text.tertiary : theme.accent.primary,
+                cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'
               }}
+              className="py-2.5 px-5 border-2 rounded-lg text-sm font-semibold transition-all"
             >
               Next →
             </button>
@@ -452,129 +398,71 @@ export default function MerchantPhonesList() {
         )}
       </div>
 
-      {/* ANIMATED MODAL */}
+      {/* Add/Edit Modal */}
       {showModal && (
-        <div onClick={() => setShowModal(false)} style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          background: 'rgba(15,18,39,0.9)',
-          backdropFilter: 'blur(8px)',
-          zIndex: 9999,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          animation: 'fadeIn 0.2s ease'
-        }}>
-          <div onClick={(e) => e.stopPropagation()} style={{
-            background: 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)',
-            borderRadius: '16px',
-            maxWidth: '600px',
-            width: '90%',
-            maxHeight: '85vh',
-            overflow: 'auto',
-            border: '2px solid rgba(255,212,28,0.3)',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
-            animation: 'slideIn 0.3s ease'
-          }}>
+        <div
+          onClick={() => setShowModal(false)}
+          className="fixed inset-0 flex items-center justify-center z-[9999]"
+          style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: isDarkMode
+                ? 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)'
+                : theme.bg.card,
+              borderColor: theme.border.primary
+            }}
+            className="rounded-2xl max-w-[600px] w-[90%] max-h-[85vh] overflow-auto border-2 shadow-2xl"
+          >
             {/* Modal Header */}
-            <div style={{
-              padding: '24px',
-              borderBottom: '2px solid rgba(255,212,28,0.2)',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}>
-              <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#FFD41C', margin: 0 }}>
+            <div style={{ borderColor: theme.border.primary }} className="p-6 border-b-2 flex justify-between items-center">
+              <h2 style={{ color: theme.accent.primary }} className="text-[22px] font-bold m-0">
                 {editingPhone ? 'Edit Phone' : 'Add New Phone'}
               </h2>
-              <button onClick={() => setShowModal(false)} style={{
-                background: 'rgba(239,68,68,0.2)',
-                border: 'none',
-                color: '#EF4444',
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                cursor: 'pointer',
-                fontSize: '18px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>×</button>
+              <button
+                onClick={() => setShowModal(false)}
+                className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer text-lg border-none"
+                style={{ background: 'rgba(239,68,68,0.2)', color: '#EF4444' }}
+              >×</button>
             </div>
 
             {/* Modal Body */}
-            <form onSubmit={handleSubmit} style={{ padding: '24px' }}>
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', fontWeight: 700, color: '#FFD41C', textTransform: 'uppercase' }}>
-                  Phone ID {!editingPhone && <span style={{ fontSize: '11px', color: 'rgba(251,251,251,0.5)', fontWeight: 400 }}>(Auto-generated)</span>}
-                </label>
-                <input
-                  type="text"
-                  value={editingPhone ? formData.phoneId : getNextPhoneId()}
-                  disabled
+            <form onSubmit={handleSubmit} className="p-6">
+              <ModalField label="Phone ID" disabled value={editingPhone ? formData.phoneId : getNextPhoneId()} theme={theme} isDarkMode={isDarkMode} hint={!editingPhone ? '(Auto-generated)' : undefined} />
+              <ModalField label="Phone Model *" value={formData.phoneModel} onChange={(v) => setFormData({...formData, phoneModel: v})} required placeholder="e.g., Samsung Galaxy A14" theme={theme} isDarkMode={isDarkMode} />
+
+              <div className="mb-5">
+                <label style={{ color: theme.accent.primary }} className="block mb-2 text-xs font-bold uppercase">Phone Type *</label>
+                <select
+                  value={formData.phoneType}
+                  onChange={(e) => setFormData({...formData, phoneType: e.target.value})}
+                  required
                   style={{
-                    width: '100%',
-                    padding: '12px',
-                    border: '2px solid rgba(255,212,28,0.2)',
-                    borderRadius: '8px',
-                    background: 'rgba(100,100,100,0.2)',
-                    color: 'rgba(251,251,251,0.5)',
-                    fontSize: '14px',
-                    boxSizing: 'border-box',
-                    cursor: 'not-allowed'
+                    background: isDarkMode ? 'rgba(251,251,251,0.05)' : 'rgba(0,0,0,0.03)',
+                    borderColor: theme.border.primary,
+                    color: theme.text.primary
                   }}
-                />
-              </div>
-
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', fontWeight: 700, color: '#FFD41C', textTransform: 'uppercase' }}>Phone Model *</label>
-                <input type="text" value={formData.phoneModel} onChange={(e) => setFormData({...formData, phoneModel: e.target.value})} required style={{
-                  width: '100%',
-                  padding: '12px',
-                  border: '2px solid rgba(255,212,28,0.3)',
-                  borderRadius: '8px',
-                  background: 'rgba(251,251,251,0.05)',
-                  color: 'rgba(251,251,251,0.9)',
-                  fontSize: '14px',
-                  boxSizing: 'border-box'
-                }} placeholder="e.g., Samsung Galaxy A14" />
-              </div>
-
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', fontWeight: 700, color: '#FFD41C', textTransform: 'uppercase' }}>Phone Type *</label>
-                <select value={formData.phoneType} onChange={(e) => setFormData({...formData, phoneType: e.target.value})} required style={{
-                  width: '100%',
-                  padding: '12px',
-                  border: '2px solid rgba(255,212,28,0.3)',
-                  borderRadius: '8px',
-                  background: 'rgba(251,251,251,0.05)',
-                  color: 'rgba(251,251,251,0.9)',
-                  fontSize: '14px',
-                  boxSizing: 'border-box',
-                  cursor: 'pointer'
-                }}>
+                  className="w-full py-3 px-4 border-2 rounded-lg text-sm cursor-pointer box-border"
+                >
                   <option value="Android">Android</option>
                   <option value="iOS">iOS</option>
                   <option value="Other">Other</option>
                 </select>
               </div>
 
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', fontWeight: 700, color: '#FFD41C', textTransform: 'uppercase' }}>Assign to Merchant</label>
-                <select value={formData.assignedMerchantId} onChange={(e) => handleMerchantChange(e.target.value)} style={{
-                  width: '100%',
-                  padding: '12px',
-                  border: '2px solid rgba(255,212,28,0.3)',
-                  borderRadius: '8px',
-                  background: 'rgba(251,251,251,0.05)',
-                  color: 'rgba(251,251,251,0.9)',
-                  fontSize: '14px',
-                  boxSizing: 'border-box',
-                  cursor: 'pointer'
-                }}>
+              <div className="mb-5">
+                <label style={{ color: theme.accent.primary }} className="block mb-2 text-xs font-bold uppercase">Assign to Merchant</label>
+                <select
+                  value={formData.assignedMerchantId}
+                  onChange={(e) => handleMerchantChange(e.target.value)}
+                  style={{
+                    background: isDarkMode ? 'rgba(251,251,251,0.05)' : 'rgba(0,0,0,0.03)',
+                    borderColor: theme.border.primary,
+                    color: theme.text.primary
+                  }}
+                  className="w-full py-3 px-4 border-2 rounded-lg text-sm cursor-pointer box-border"
+                >
                   <option value="">Unassigned</option>
                   {merchants.map(merchant => (
                     <option key={merchant.merchantId} value={merchant.merchantId}>
@@ -584,47 +472,41 @@ export default function MerchantPhonesList() {
                 </select>
               </div>
 
-              <div style={{ marginBottom: '24px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', fontWeight: 700, color: '#FFD41C', textTransform: 'uppercase' }}>Notes</label>
-                <textarea value={formData.notes} onChange={(e) => setFormData({...formData, notes: e.target.value})} rows="3" style={{
-                  width: '100%',
-                  padding: '12px',
-                  border: '2px solid rgba(255,212,28,0.3)',
-                  borderRadius: '8px',
-                  background: 'rgba(251,251,251,0.05)',
-                  color: 'rgba(251,251,251,0.9)',
-                  fontSize: '14px',
-                  boxSizing: 'border-box',
-                  fontFamily: 'inherit',
-                  resize: 'vertical'
-                }} placeholder="Any additional notes about this device" />
+              <div className="mb-6">
+                <label style={{ color: theme.accent.primary }} className="block mb-2 text-xs font-bold uppercase">Notes</label>
+                <textarea
+                  value={formData.notes}
+                  onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                  rows="3"
+                  placeholder="Any additional notes about this device"
+                  style={{
+                    background: isDarkMode ? 'rgba(251,251,251,0.05)' : 'rgba(0,0,0,0.03)',
+                    borderColor: theme.border.primary,
+                    color: theme.text.primary
+                  }}
+                  className="w-full py-3 px-4 border-2 rounded-lg text-sm box-border font-[inherit] resize-y"
+                />
               </div>
 
               {/* Modal Footer */}
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', paddingTop: '20px', borderTop: '2px solid rgba(255,212,28,0.2)' }}>
-                <button type="button" onClick={() => setShowModal(false)} style={{
-                  padding: '12px 24px',
-                  background: 'rgba(251,251,251,0.1)',
-                  color: 'rgba(251,251,251,0.7)',
-                  border: '1px solid rgba(251,251,251,0.2)',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}>
+              <div style={{ borderColor: theme.border.primary }} className="flex gap-2.5 justify-end pt-5 border-t-2">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  style={{
+                    background: isDarkMode ? 'rgba(251,251,251,0.1)' : 'rgba(0,0,0,0.05)',
+                    color: theme.text.secondary,
+                    borderColor: theme.border.primary
+                  }}
+                  className="py-3 px-6 border rounded-lg text-sm font-semibold cursor-pointer"
+                >
                   Cancel
                 </button>
-                <button type="submit" style={{
-                  padding: '12px 24px',
-                  background: '#FFD41C',
-                  color: '#181D40',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(255,212,28,0.4)'
-                }}>
+                <button
+                  type="submit"
+                  style={{ background: theme.accent.primary, color: isDarkMode ? '#181D40' : '#FFF' }}
+                  className="py-3 px-6 border-none rounded-lg text-sm font-bold cursor-pointer shadow-lg"
+                >
                   {editingPhone ? 'Update Phone' : 'Create Phone'}
                 </button>
               </div>
@@ -632,24 +514,33 @@ export default function MerchantPhonesList() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
 
-      {/* CSS Animations */}
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes slideIn {
-          from {
-            opacity: 0;
-            transform: translateY(-20px) scale(0.95);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
-      `}</style>
+function ModalField({ label, value, onChange, disabled, required, placeholder, hint, theme, isDarkMode }) {
+  return (
+    <div className="mb-5">
+      <label style={{ color: theme.accent.primary }} className="block mb-2 text-xs font-bold uppercase">
+        {label} {hint && <span style={{ color: theme.text.tertiary }} className="text-[11px] font-normal">{hint}</span>}
+      </label>
+      <input
+        type="text"
+        value={value}
+        onChange={onChange ? (e) => onChange(e.target.value) : undefined}
+        disabled={disabled}
+        required={required}
+        placeholder={placeholder}
+        style={{
+          background: disabled
+            ? 'rgba(100,100,100,0.2)'
+            : (isDarkMode ? 'rgba(251,251,251,0.05)' : 'rgba(0,0,0,0.03)'),
+          borderColor: theme.border.primary,
+          color: disabled ? theme.text.tertiary : theme.text.primary,
+          cursor: disabled ? 'not-allowed' : 'text'
+        }}
+        className="w-full py-3 px-4 border-2 rounded-lg text-sm box-border outline-none"
+      />
     </div>
   );
 }

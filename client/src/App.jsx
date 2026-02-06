@@ -35,6 +35,7 @@ import MotorpoolConfigurationsPage from './pages/admin/Motorpool/Configurations'
 import MerchantDashboard from './pages/admin/Merchant/Dashboard';
 import MerchantsPage from './pages/admin/Merchant/Merchants';
 import MerchantPhonesPage from './pages/admin/Merchant/Phones';
+import MerchantTransactionsPage from './pages/admin/Merchant/Transactions';
 import MerchantConcernsPage from './pages/admin/Merchant/Concerns';
 import MerchantConfigurationsPage from './pages/admin/Merchant/Configurations';
 
@@ -503,6 +504,14 @@ function AppContent() {
         element={
           <MerchantProtectedRoute>
             <MerchantsPage />
+          </MerchantProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/merchant/transactions"
+        element={
+          <MerchantProtectedRoute>
+            <MerchantTransactionsPage />
           </MerchantProtectedRoute>
         }
       />
