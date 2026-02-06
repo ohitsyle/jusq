@@ -61,7 +61,7 @@ export default function Dashboard() {
       </div>
 
       {/* Stats Grid - 4 cards */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-3 gap-4 mb-6">
         <StatCard
           icon="🏪"
           label="TOTAL MERCHANTS"
@@ -76,14 +76,6 @@ export default function Dashboard() {
           value={merchantStats?.activeMerchants || 0}
           subtitle="currently active"
           color="#10B981"
-          theme={theme}
-        />
-        <StatCard
-          icon="💳"
-          label="TODAY'S TRANSACTIONS"
-          value={merchantStats?.todayTransactions || 0}
-          subtitle="payments today"
-          color="#3B82F6"
           theme={theme}
         />
         <StatCard
