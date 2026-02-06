@@ -1,5 +1,6 @@
 // nucash-server/routes/userdashboard.js
 // API routes for user dashboard (students/employees)
+// UPDATED: Simplified deactivation - immediate account freeze, no reason required, force logout
 
 import express from 'express';
 const router = express.Router();
@@ -43,6 +44,15 @@ router.post('/auth/login', async (req, res) => {
       });
     }
 
+    // Check if account is deactivated
+    if (!user.isActive) {
+      console.log('⚠️  Account is deactivated:', email);
+      return res.status(403).json({
+        error: 'Your account has been deactivated. Please visit ITSO to reactivate your account.',
+        deactivated: true
+      });
+    }
+
     // Verify PIN
     let isValidPin = false;
     if (user.pin.startsWith('$2b$') || user.pin.startsWith('$2a$')) {
@@ -57,19 +67,6 @@ router.post('/auth/login', async (req, res) => {
       console.log('❌ Invalid PIN for user:', email);
       return res.status(401).json({
         error: 'Invalid email or PIN'
-      });
-    }
-
-    // Check if user needs activation (first login with temporary PIN)
-    if (!user.isActive) {
-      console.log('⚠️  User account needs activation:', email);
-      return res.status(403).json({
-        requiresActivation: true,
-        accountId: user._id.toString(),
-        accountType: 'user',
-        email: user.email,
-        fullName: user.fullName || `${user.firstName} ${user.lastName}`,
-        message: 'Account activation required. Please change your temporary PIN.'
       });
     }
 
@@ -222,20 +219,6 @@ router.get('/transactions', verifyUserToken, async (req, res) => {
 
     // ✅ Format transactions for frontend with ALL needed fields
     const formattedTransactions = transactions.map(tx => {
-      // 🐛 DEBUG: Log first transaction to see what fields exist
-      if (transactions.indexOf(tx) === 0) {
-        console.log('📊 Sample transaction from DB:', {
-          transactionId: tx.transactionId,
-          shuttleId: tx.shuttleId,
-          plateNumber: tx.shuttleId ? shuttleMap[tx.shuttleId] : null,
-          merchantId: tx.merchantId,
-          merchantName: tx.merchantName,
-          businessName: tx.businessName,
-          status: tx.status,
-          transactionType: tx.transactionType
-        });
-      }
-
       return {
         _id: tx._id.toString(),
         id: tx.transactionId || tx._id.toString(),
@@ -249,7 +232,7 @@ router.get('/transactions', verifyUserToken, async (req, res) => {
         status: tx.status,
         balance: tx.balance,
         shuttleId: tx.shuttleId,
-        plateNumber: tx.shuttleId ? shuttleMap[tx.shuttleId] : null, // ✅ Add plateNumber from lookup
+        plateNumber: tx.shuttleId ? shuttleMap[tx.shuttleId] : null,
         merchantId: tx.merchantId,
         merchantName: tx.merchantName,
         businessName: tx.businessName,
@@ -323,32 +306,6 @@ router.get('/profile', verifyUserToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching profile:', error);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-/**
- * GET /api/user/merchants
- * Get list of active merchants for concern dropdown
- */
-router.get('/merchants', verifyUserToken, async (req, res) => {
-  try {
-    const Merchant = (await import('../models/Merchant.js')).default;
-
-    const merchants = await Merchant.find({ isActive: true })
-      .select('merchantId businessName')
-      .sort({ businessName: 1 })
-      .lean();
-
-    return res.json({
-      success: true,
-      merchants: merchants.map(m => ({
-        value: m.businessName,
-        label: m.businessName
-      }))
-    });
-  } catch (error) {
-    console.error('Error fetching merchants:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -445,8 +402,8 @@ router.post('/concerns', verifyUserToken, async (req, res) => {
 
     // Build the reportTo field based on department
     let reportTo = department;
-    if (department === 'merchants') {
-      reportTo = 'Merchant Office';
+    if (department === 'merchants' && merchant) {
+      reportTo = merchant;
     }
 
     const concern = await UserConcern.create({
@@ -524,11 +481,38 @@ router.post('/feedback', verifyUserToken, async (req, res) => {
   }
 });
 
+/**
+ * GET /api/user/merchants
+ * Get list of active merchants for concern dropdown
+ */
+router.get('/merchants', verifyUserToken, async (req, res) => {
+  try {
+    const Merchant = (await import('../models/Merchant.js')).default;
+
+    const merchants = await Merchant.find({ isActive: true })
+      .select('merchantId businessName')
+      .sort({ businessName: 1 })
+      .lean();
+
+    return res.json({
+      success: true,
+      merchants: merchants.map(m => ({
+        value: m.businessName,
+        label: m.businessName
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching merchants:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // ============================================================
 // USER PROFILE & SECURITY ENDPOINTS
 // ============================================================
 
-// OTP storage for deactivation (in production, use Redis)
+// OTP storage for PIN change and deactivation (in production, use Redis)
+const pinChangeOtpStore = new Map();
 const deactivationOtpStore = new Map();
 
 /**
@@ -558,10 +542,10 @@ router.put('/profile', verifyUserToken, async (req, res) => {
 });
 
 /**
- * POST /api/user/change-pin
- * Change user PIN
+ * POST /api/user/send-pin-change-otp
+ * Send OTP for PIN change verification
  */
-router.post('/change-pin', verifyUserToken, async (req, res) => {
+router.post('/send-pin-change-otp', verifyUserToken, async (req, res) => {
   try {
     const user = req.user;
     const { currentPin, newPin } = req.body;
@@ -571,7 +555,7 @@ router.post('/change-pin', verifyUserToken, async (req, res) => {
     }
 
     if (!/^\d{6}$/.test(newPin)) {
-      return res.status(400).json({ error: 'PIN must be exactly 6 digits' });
+      return res.status(400).json({ error: 'New PIN must be exactly 6 digits' });
     }
 
     // Verify current PIN
@@ -586,10 +570,80 @@ router.post('/change-pin', verifyUserToken, async (req, res) => {
       return res.status(401).json({ error: 'Current PIN is incorrect' });
     }
 
-    // Hash and save new PIN
+    if (currentPin === newPin) {
+      return res.status(400).json({ error: 'New PIN must be different from current PIN' });
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Store OTP with expiry (10 minutes) and the new PIN
+    pinChangeOtpStore.set(user.email, {
+      otp,
+      newPin,
+      expiresAt: Date.now() + 10 * 60 * 1000
+    });
+
+    // Send email with OTP
+    const { sendPinChangeOtpEmail } = await import('../services/emailService.js');
+
+    try {
+      await sendPinChangeOtpEmail(user.email, user.firstName || 'User', otp);
+      console.log(`📧 PIN change OTP sent to ${user.email}`);
+    } catch (emailError) {
+      console.error('Failed to send PIN change OTP email:', emailError);
+      // In development, log the OTP
+      console.log(`📝 Development OTP for ${user.email}: ${otp}`);
+    }
+
+    return res.json({
+      success: true,
+      message: 'Verification code sent to your email'
+    });
+  } catch (error) {
+    console.error('Error sending PIN change OTP:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+/**
+ * POST /api/user/change-pin
+ * Change user PIN with OTP verification
+ */
+router.post('/change-pin', verifyUserToken, async (req, res) => {
+  try {
+    const user = req.user;
+    const { otp } = req.body;
+
+    if (!otp) {
+      return res.status(400).json({ error: 'Verification code is required' });
+    }
+
+    // Verify OTP
+    const storedData = pinChangeOtpStore.get(user.email);
+
+    if (!storedData) {
+      return res.status(400).json({ error: 'No verification code found. Please request a new code.' });
+    }
+
+    if (Date.now() > storedData.expiresAt) {
+      pinChangeOtpStore.delete(user.email);
+      return res.status(400).json({ error: 'Verification code has expired. Please request a new code.' });
+    }
+
+    if (storedData.otp !== otp) {
+      return res.status(401).json({ error: 'Invalid verification code' });
+    }
+
+    // OTP is valid, change the PIN
     const salt = await bcrypt.genSalt(10);
-    user.pin = await bcrypt.hash(newPin, salt);
+    user.pin = await bcrypt.hash(storedData.newPin, salt);
     await user.save();
+
+    // Clear OTP
+    pinChangeOtpStore.delete(user.email);
+
+    console.log(`✅ PIN changed successfully for ${user.email}`);
 
     return res.json({
       success: true,
@@ -601,6 +655,10 @@ router.post('/change-pin', verifyUserToken, async (req, res) => {
   }
 });
 
+// ============================================================
+// DEACTIVATION ENDPOINTS - SIMPLIFIED (NO REASON REQUIRED)
+// ============================================================
+
 /**
  * POST /api/user/send-deactivation-otp
  * Send OTP for account deactivation verification
@@ -608,11 +666,6 @@ router.post('/change-pin', verifyUserToken, async (req, res) => {
 router.post('/send-deactivation-otp', verifyUserToken, async (req, res) => {
   try {
     const user = req.user;
-    const { reason } = req.body;
-
-    if (!reason || !reason.trim()) {
-      return res.status(400).json({ error: 'Deactivation reason is required' });
-    }
 
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -620,7 +673,6 @@ router.post('/send-deactivation-otp', verifyUserToken, async (req, res) => {
     // Store OTP with expiry (10 minutes)
     deactivationOtpStore.set(user.email, {
       otp,
-      reason: reason.trim(),
       expiresAt: Date.now() + 10 * 60 * 1000
     });
 
@@ -647,16 +699,19 @@ router.post('/send-deactivation-otp', verifyUserToken, async (req, res) => {
 });
 
 /**
- * POST /api/user/request-deactivation
- * Submit deactivation request with OTP verification
+ * POST /api/user/deactivate-account
+ * Immediately deactivate account after OTP verification
+ * 🔥 NO UserConcern creation, NO admin approval needed
+ * ✅ Sets isActive = false (account freeze)
+ * ✅ Preserves ALL user data (balance, transactions, etc.)
  */
-router.post('/request-deactivation', verifyUserToken, async (req, res) => {
+router.post('/deactivate-account', verifyUserToken, async (req, res) => {
   try {
     const user = req.user;
-    const { reason, otp } = req.body;
+    const { otp } = req.body;
 
-    if (!reason || !otp) {
-      return res.status(400).json({ error: 'Reason and verification code are required' });
+    if (!otp) {
+      return res.status(400).json({ error: 'Verification code is required' });
     }
 
     // Verify OTP
@@ -678,38 +733,46 @@ router.post('/request-deactivation', verifyUserToken, async (req, res) => {
     // Clear OTP
     deactivationOtpStore.delete(user.email);
 
-    // Create deactivation request as a concern
-    await UserConcern.create({
-      userId: user._id,
-      userName: user.fullName || `${user.firstName} ${user.lastName}`,
-      userEmail: user.email,
-      submissionType: 'assistance',
-      reportTo: 'sysad',
-      subject: 'Account Deactivation Request',
-      feedbackText: `User has requested account deactivation.\n\nReason: ${reason.trim()}\n\nCurrent Balance: ₱${user.balance.toFixed(2)}\nSchool ID: ${user.schoolUId}`,
-      selectedConcerns: ['Account Deactivation'],
-      status: 'pending',
-      priority: 'high'
-    });
+    // 🔥 FREEZE ACCOUNT - Set isActive to false (preserves all data)
+    user.isActive = false;
+    await user.save();
 
-    // Log the request
+    // Log the deactivation for admin audit trail
     const { logUserAction } = await import('../utils/logger.js');
     await logUserAction({
       userId: user._id,
       userName: user.fullName || `${user.firstName} ${user.lastName}`,
-      action: 'Deactivation Request',
-      description: 'submitted an account deactivation request',
-      details: { reason: reason.trim() }
+      action: 'Account Deactivated',
+      description: 'User deactivated their account',
+      details: { 
+        balance: user.balance,
+        schoolUId: user.schoolUId,
+        email: user.email,
+        deactivatedAt: new Date().toISOString()
+      }
     });
 
-    console.log(`⚠️ Deactivation request from ${user.email}`);
+    // Send confirmation email
+    const { sendAccountDeactivatedEmail } = await import('../services/emailService.js');
+    
+    try {
+      await sendAccountDeactivatedEmail(
+        user.email, 
+        user.firstName || 'User',
+        user.balance
+      );
+    } catch (emailError) {
+      console.error('Failed to send deactivation confirmation email:', emailError);
+    }
+
+    console.log(`⚠️  Account deactivated: ${user.email} (Balance: ₱${user.balance.toFixed(2)})`);
 
     return res.json({
       success: true,
-      message: 'Deactivation request submitted successfully'
+      message: 'Account deactivated successfully'
     });
   } catch (error) {
-    console.error('Error submitting deactivation request:', error);
+    console.error('Error deactivating account:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

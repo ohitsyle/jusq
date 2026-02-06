@@ -1,5 +1,5 @@
 // nucash-server/services/emailService.js
-// FIXED: Added sendRefundReceipt function for refund emails
+// FIXED: Added sendPinChangeOtpEmail function for PIN change with OTP
 
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
@@ -544,6 +544,95 @@ export const sendTemporaryPIN = async (email, pin, fullName, schoolUId) => {
 };
 
 /**
+ * Send PIN change OTP email
+ */
+export const sendPinChangeOtpEmail = async (email, userName, otp) => {
+  if (!email) {
+    console.log('⚠️ No email provided, skipping PIN change OTP');
+    return false;
+  }
+
+  const emailContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    .header { text-align: center; background: #181D40; border-radius: 10px 10px 0 0; margin: -30px -30px 30px -30px; padding: 30px; }
+    .header h1 { color: #FFD41C; margin: 0; }
+    .header p { color: rgba(255,255,255,0.7); margin: 8px 0 0 0; }
+    .otp-box { background: #181D40; padding: 30px; text-align: center; border-radius: 10px; margin: 20px 0; }
+    .otp-code { font-size: 48px; font-weight: bold; letter-spacing: 12px; color: #FFD41C; margin: 15px 0; font-family: monospace; }
+    .otp-label { color: rgba(255,255,255,0.8); font-size: 14px; font-weight: 600; margin: 0; }
+    .otp-expiry { color: rgba(255,255,255,0.6); font-size: 13px; margin: 10px 0 0 0; }
+    .info-box { background: #F0F9FF; padding: 15px; border-left: 4px solid #3B82F6; margin: 20px 0; }
+    .info-box strong { color: #1D4ED8; }
+    .warning-box { background: #FEF3C7; padding: 15px; border-left: 4px solid #F59E0B; margin: 20px 0; }
+    .warning-box strong { color: #D97706; }
+    .footer { text-align: center; color: #999; font-size: 12px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🔐 PIN Change Request</h1>
+      <p>NUCash Verification Code</p>
+    </div>
+
+    <p>Hello <strong>${userName}</strong>,</p>
+
+    <p>You have requested to change your NUCash PIN. To proceed with this change, please use the verification code below:</p>
+
+    <div class="otp-box">
+      <p class="otp-label">Your Verification Code</p>
+      <div class="otp-code">${otp}</div>
+      <p class="otp-expiry">Valid for 10 minutes</p>
+    </div>
+
+    <div class="info-box">
+      <strong>🔒 Security Reminder:</strong>
+      <ul style="margin: 10px 0 0 0; padding-left: 20px;">
+        <li>This code is valid for <strong>10 minutes</strong></li>
+        <li>Never share this code with anyone</li>
+        <li>NUCash staff will never ask for this code</li>
+      </ul>
+    </div>
+
+    <div class="warning-box">
+      <strong>⚠️ If you did not request this:</strong>
+      <p style="margin: 5px 0 0 0;">Please ignore this email and ensure your account is secure. If you suspect unauthorized access, contact us immediately at <a href="mailto:nucashsystem@gmail.com" style="color: #F59E0B; text-decoration: none; font-weight: 600;">nucashsystem@gmail.com</a></p>
+    </div>
+
+    <div class="footer">
+      <p><strong style="color: #181D40;">NUCash System</strong></p>
+      <p>National University - Laguna Campus</p>
+      <p>&copy; 2026 NUCash. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+
+  const mailOptions = {
+    from: `"NUCash System" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: '🔐 NUCash - PIN Change Verification Code',
+    html: emailContent,
+    text: `Your NUCash PIN change verification code is: ${otp}. Valid for 10 minutes. Do not share this code.`
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`✅ PIN change OTP sent to ${email}`);
+    return true;
+  } catch (error) {
+    console.error('❌ PIN change OTP email error:', error.message);
+    throw error;
+  }
+};
+
+/**
  * Send concern status update email (In Progress)
  */
 export const sendConcernInProgressEmail = async (userEmail, userName, concernData) => {
@@ -645,7 +734,6 @@ export const sendConcernInProgressEmail = async (userEmail, userName, concernDat
 
 /**
  * Send concern note email (while in progress)
- * NEW FUNCTION - Add this after sendConcernInProgressEmail
  */
 export const sendConcernNoteEmail = async (userEmail, userName, concernData) => {
   if (!userEmail) {
@@ -1088,6 +1176,7 @@ export default {
   sendEmail, 
   sendTemporaryPIN, 
   sendActivationOTP,
+  sendPinChangeOtpEmail,
   sendConcernInProgressEmail, 
   sendConcernNoteEmail,
   sendConcernResolvedEmail, 

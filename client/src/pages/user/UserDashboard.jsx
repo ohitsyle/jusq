@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../utils/api';
-import { Eye, EyeOff, Download, Calendar, FileText, ChevronRight, X, ChevronLeft, Check } from 'lucide-react';
+import { Eye, EyeOff, Calendar, FileText, ChevronRight, X, ChevronLeft, Check } from 'lucide-react';
 
 export default function UserDashboard() {
   const { theme, isDarkMode } = useTheme();
@@ -368,20 +368,15 @@ export default function UserDashboard() {
       {/* Right Column - Transactions */}
       <div
         style={{ background: theme.bg.card, borderColor: theme.border.primary }}
-        className="flex-1 lg:max-w-[1000px] rounded-2xl border overflow-hidden flex flex-col"
+        className="w-full lg:flex-1 lg:max-w-[1000px] rounded-2xl border overflow-hidden flex flex-col max-h-[450px] lg:max-h-[600px]"
       >
         {/* Header */}
-        <div style={{ borderColor: theme.border.primary }} className="p-4 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-          <div>
+        <div style={{ borderColor: theme.border.primary }} className="p-4 border-b flex-shrink-0">
+          <div className="flex items-center justify-between gap-3 mb-2">
             <h3 style={{ color: theme.accent.primary }} className="text-base font-bold flex items-center gap-2">
               <FileText className="w-4 h-4" /> Recent Transactions
             </h3>
-            <p style={{ color: theme.text.secondary }} className="text-xs mt-1">
-              {transactions.length} transaction{transactions.length !== 1 ? 's' : ''} found
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
+            
             {/* Filter Buttons */}
             <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: theme.border.primary }}>
               {[
@@ -396,27 +391,17 @@ export default function UserDashboard() {
                     background: filter === f.key ? theme.accent.primary : 'transparent',
                     color: filter === f.key ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.secondary
                   }}
-                  className="px-3 py-1.5 text-xs font-semibold transition-all"
+                  className="px-2 sm:px-3 py-1.5 text-xs font-semibold transition-all"
                 >
                   {f.label}
                 </button>
               ))}
             </div>
-
-            {/* Export Button */}
-            <button
-              onClick={handleExport}
-              style={{
-                background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-                color: theme.text.primary
-              }}
-              className="p-2 rounded-lg hover:opacity-80 transition flex items-center gap-1"
-              title="Export to PDF"
-            >
-              <Download className="w-4 h-4" />
-              <span className="hidden sm:inline text-xs">Export</span>
-            </button>
           </div>
+          
+          <p style={{ color: theme.text.secondary }} className="text-xs">
+            {transactions.length} transaction{transactions.length !== 1 ? 's' : ''} found
+          </p>
         </div>
 
         {/* Transaction List */}
@@ -431,6 +416,8 @@ export default function UserDashboard() {
             <div className="divide-y" style={{ borderColor: theme.border.primary }}>
               {transactions.map((tx, idx) => {
                 const txType = tx.transactionType || tx.type;
+                const isRefund = tx.status === 'Refunded';
+                
                 return (
                   <div
                     key={tx._id || tx.id || idx}
@@ -438,9 +425,9 @@ export default function UserDashboard() {
                   >
                     <div className="flex items-center gap-3">
                       <div style={{
-                        background: txType === 'credit' ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'
+                        background: isRefund ? 'rgba(59,130,246,0.2)' : (txType === 'credit' ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)')
                       }} className="w-10 h-10 rounded-full flex items-center justify-center text-lg">
-                        {txType === 'credit' ? '💵' : tx.shuttleId ? '🚐' : '🛒'}
+                        {isRefund ? '↩️' : (txType === 'credit' ? '💵' : tx.shuttleId ? '🚐' : '🛒')}
                       </div>
                       <div>
                         <p style={{ color: theme.text.primary }} className="font-semibold text-sm">
@@ -452,8 +439,8 @@ export default function UserDashboard() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p style={{ color: txType === 'credit' ? '#10B981' : '#EF4444' }} className="font-bold text-sm">
-                        {txType === 'credit' ? '+' : '-'}₱{Math.abs(tx.amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                      <p style={{ color: isRefund ? '#3B82F6' : (txType === 'credit' ? '#10B981' : '#EF4444') }} className="font-bold text-sm">
+                        {isRefund ? '+' : (txType === 'credit' ? '+' : '-')}₱{Math.abs(tx.amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                       </p>
                     </div>
                   </div>
@@ -513,18 +500,12 @@ function ConcernModal({ onClose, theme, isDarkMode }) {
   const fetchMerchants = async () => {
     setLoadingMerchants(true);
     try {
-      console.log('Fetching merchants...');
       const response = await api.get('/user/merchants');
-      console.log('Merchants response:', response);
       if (response.success) {
-        console.log('Merchants data:', response.merchants);
         setMerchants(response.merchants);
-      } else {
-        console.error('API returned success=false:', response);
-        setMerchants([]);
       }
     } catch (error) {
-      console.error('Failed to fetch merchants:', error);
+      console.error('Failed to fetch merchants');
       setMerchants([]);
     } finally {
       setLoadingMerchants(false);
@@ -539,8 +520,6 @@ function ConcernModal({ onClose, theme, isDarkMode }) {
         setStep(3);
       }
     } else if (step === 2 && merchant) {
-      // Auto-set subject to merchant name when merchant is selected
-      setSubject(merchant);
       setStep(3);
     } else if (step === 3 && subject && details) {
       setStep(4);
@@ -551,11 +530,9 @@ function ConcernModal({ onClose, theme, isDarkMode }) {
     if (step === 2) {
       setStep(1);
       setMerchant('');
-      setSubject(''); // Clear subject when going back from merchant selection
     } else if (step === 3) {
       if (department === 'merchants') {
         setStep(2);
-        setSubject(''); // Clear subject when going back to merchant selection
       } else {
         setStep(1);
       }
@@ -610,12 +587,18 @@ function ConcernModal({ onClose, theme, isDarkMode }) {
           background: isDarkMode
             ? 'linear-gradient(135deg, #1E2347 0%, #181D40 100%)'
             : 'linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%)',
+          border: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}`
+        }}
+        className="relative rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden"
+        style={{
+          background: isDarkMode
+            ? 'linear-gradient(135deg, #1E2347 0%, #181D40 100%)'
+            : 'linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%)',
           border: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}`,
           boxShadow: isDarkMode
             ? '0 25px 50px rgba(0,0,0,0.5)'
             : '0 25px 50px rgba(0,0,0,0.15)'
         }}
-        className="relative rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden"
       >
         {/* Header */}
         <div
@@ -755,31 +738,10 @@ function ConcernModal({ onClose, theme, isDarkMode }) {
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
                   placeholder="Brief description of your concern"
-                  style={{
-                    ...inputStyle,
-                    backgroundColor: department === 'merchants' 
-                      ? (isDarkMode ? 'rgba(15,18,39,0.3)' : '#F3F4F6')
-                      : inputStyle.backgroundColor,
-                    cursor: department === 'merchants' ? 'not-allowed' : 'text'
-                  }}
-                  onFocus={(e) => {
-                    if (department !== 'merchants') {
-                      e.target.style.borderColor = '#F59E0B';
-                    }
-                  }}
-                  onBlur={(e) => {
-                    if (department !== 'merchants') {
-                      e.target.style.borderColor = isDarkMode ? 'rgba(255,212,28,0.2)' : 'rgba(59,130,246,0.2)';
-                    }
-                  }}
-                  readOnly={department === 'merchants'}
-                  disabled={department === 'merchants'}
+                  style={inputStyle}
+                  onFocus={(e) => e.target.style.borderColor = '#F59E0B'}
+                  onBlur={(e) => e.target.style.borderColor = isDarkMode ? 'rgba(255,212,28,0.2)' : 'rgba(59,130,246,0.2)'}
                 />
-                {department === 'merchants' && (
-                  <p style={{ color: theme.text.secondary, fontSize: '12px', marginTop: '4px' }}>
-                    Subject is automatically set to the selected merchant name
-                  </p>
-                )}
               </div>
               <div>
                 <label style={{ color: theme.text.primary }} className="block font-semibold mb-2">

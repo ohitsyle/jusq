@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../utils/api';
 import { toast } from 'react-toastify';
-import { Mail, Search, Filter, Calendar, X, CheckCircle } from 'lucide-react';
+import { Mail, Search, Filter, Calendar, X, CheckCircle, Eye } from 'lucide-react';
 
 export default function TransactionHistory() {
   const { theme, isDarkMode } = useTheme();
@@ -18,6 +18,7 @@ export default function TransactionHistory() {
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [requesting, setRequesting] = useState(false);
   const [requestSuccess, setRequestSuccess] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
   const intervalRef = useRef(null);
 
   // Helper function to get transaction description
@@ -25,33 +26,24 @@ export default function TransactionHistory() {
     const txType = tx.transactionType || tx.type;
     const txStatus = tx.status;
 
-    // 🐛 DEBUG: Log the entire transaction to see what we have
-    if (tx.shuttleId) {
-      console.log('🚐 Shuttle Transaction Debug:', {
-        shuttleId: tx.shuttleId,
-        plateNumber: tx.plateNumber,
-        fullTx: tx
-      });
-    }
-
     // Handle REFUNDED transactions FIRST (before checking type)
     if (txStatus === 'Refunded') {
       // Check if it's a shuttle refund
       if (tx.shuttleId) {
         const plateNumber = tx.plateNumber || tx.shuttle?.plateNumber;
         return plateNumber
-          ? `Refund from NU Shuttle Service (${plateNumber})`
-          : 'Refund from NU Shuttle Service';
+          ? `Refund: NU Shuttle Service (${plateNumber})`
+          : 'Refund: NU Shuttle Service';
       }
       
       // Check if it's a merchant refund (was originally a debit/payment)
       if (tx.merchantName || tx.businessName) {
         const merchantInfo = tx.businessName || tx.merchantName || 'Merchant';
-        return `Refund from ${merchantInfo}`;
+        return `Refund: ${merchantInfo}`;
       }
       
       // Otherwise it's a cash-in refund from Treasury
-      return 'Refund from Treasury Office';
+      return 'Refund: Treasury Office';
     }
 
     // Handle DEBIT transactions (payments) - non-refunded
@@ -113,7 +105,7 @@ export default function TransactionHistory() {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [typeFilter, searchTerm, startDate, endDate, pagination.page]);
+  }, [typeFilter, pagination.page]);
 
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= pagination.totalPages) {
@@ -142,8 +134,35 @@ export default function TransactionHistory() {
     }
   };
 
-  // Filter transactions locally for search
+  // Filter transactions locally for search, type, and date range
   const filteredTransactions = transactions.filter(tx => {
+    // Type filter
+    if (typeFilter !== 'all') {
+      const txType = tx.transactionType || tx.type;
+      const isRefund = tx.status === 'Refunded';
+      
+      // Refunds should be treated as credit (cash-in) regardless of original type
+      const effectiveType = isRefund ? 'credit' : txType;
+      
+      if (effectiveType !== typeFilter) return false;
+    }
+    
+    // Date range filter
+    if (startDate || endDate) {
+      const txDate = new Date(tx.createdAt || tx.date);
+      if (startDate) {
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        if (txDate < start) return false;
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        if (txDate > end) return false;
+      }
+    }
+    
+    // Search filter
     if (!searchTerm) return true;
     const query = searchTerm.toLowerCase();
     return (
@@ -216,15 +235,15 @@ export default function TransactionHistory() {
               className="w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/30 cursor-pointer"
             >
               <option value="all">All Types</option>
-              <option value="credit">Cash-In</option>
-              <option value="debit">Purchases</option>
+              <option value="credit">Credit</option>
+              <option value="debit">Debit</option>
             </select>
           </div>
 
           {/* Date Range */}
           <div className="flex gap-2 items-end">
             <div>
-              <label style={{ color: theme.text.secondary }} className="block text-[11px] font-bold uppercase tracking-wide mb-2">
+              <label style={{ color: theme.text.secondary }} className="hidden sm:block text-[11px] font-bold uppercase tracking-wide mb-2">
                 From
               </label>
               <input
@@ -236,7 +255,7 @@ export default function TransactionHistory() {
               />
             </div>
             <div>
-              <label style={{ color: theme.text.secondary }} className="block text-[11px] font-bold uppercase tracking-wide mb-2">
+              <label style={{ color: theme.text.secondary }} className="hidden sm:block text-[11px] font-bold uppercase tracking-wide mb-2">
                 To
               </label>
               <input
@@ -260,7 +279,7 @@ export default function TransactionHistory() {
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl border-2 font-semibold text-sm hover:opacity-80 transition whitespace-nowrap"
           >
             <Mail className="w-4 h-4" />
-            Request History
+            <span className="hidden sm:inline">Request History</span>
           </button>
         </div>
       </div>
@@ -275,50 +294,67 @@ export default function TransactionHistory() {
           </div>
         ) : (
           <div style={{ background: theme.bg.card, borderColor: theme.border.primary }} className="rounded-2xl border overflow-hidden">
-            <table className="w-full border-collapse text-[13px]">
+            <div className="max-h-[500px] lg:max-h-[70vh] overflow-y-auto">
+              <table className="w-full border-collapse text-[13px]">
               <thead>
-                <tr style={{ background: isDarkMode ? 'rgba(255,212,28,0.1)' : 'rgba(59,130,246,0.1)' }}>
+                <tr className="sticky top-0 z-10 backdrop-blur-md" style={{ 
+                  background: isDarkMode 
+                    ? 'rgba(255,212,28,0.15)' 
+                    : 'rgba(59,130,246,0.15)',
+                  backdropFilter: 'blur(12px)',
+                  WebkitBackdropFilter: 'blur(12px)'
+                }}>
                   <th style={{ borderColor: isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)', color: theme.accent.primary }}
-                      className="text-left pl-20 pr-4 py-4 text-[11px] font-extrabold uppercase border-b-2 w-[25%]">Date & Time</th>
+                      className="text-left pl-4 sm:pl-8 md:pl-12 lg:pl-20 pr-2 sm:pr-4 py-3 sm:py-4 text-[11px] font-extrabold uppercase border-b-2 w-[25%]">Date</th>
                   <th style={{ borderColor: isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)', color: theme.accent.primary }}
-                      className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2 w-[25%]">Description</th>
+                      className="text-left px-2 sm:p-4 py-3 sm:py-4 text-[11px] font-extrabold uppercase border-b-2 w-[25%]">Description</th>
                   <th style={{ borderColor: isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)', color: theme.accent.primary }}
-                      className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2 w-[25%]">Amount</th>
+                      className="text-left px-2 sm:p-4 py-3 sm:py-4 text-[11px] font-extrabold uppercase border-b-2 w-[25%]">Amount</th>
                   <th style={{ borderColor: isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)', color: theme.accent.primary }}
-                      className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2 w-[25%]">Transaction ID</th>
+                      className="hidden lg:table-cell text-left p-4 text-[11px] font-extrabold uppercase border-b-2 w-[25%]">Transaction ID</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredTransactions.map((tx, idx) => {
                   const txType = tx.transactionType || tx.type;
+                  const description = getTransactionDescription(tx);
+                  const isRefund = tx.status === 'Refunded';
                   return (
                     <tr
                       key={tx._id || tx.id || idx}
-                      className="hover:bg-white/5 transition"
+                      onClick={() => setSelectedTransaction(tx)}
+                      className="hover:bg-white/5 transition cursor-pointer"
                       style={{ borderBottom: `1px solid ${theme.border.primary}` }}
                     >
-                      <td style={{ color: theme.text.primary }} className="pl-20 pr-4 py-4 w-[15%]">
-                        <div className="font-semibold">{tx.date || new Date(tx.createdAt).toLocaleDateString()}</div>
-                        <div style={{ color: theme.text.muted }} className="text-xs">{tx.time || new Date(tx.createdAt).toLocaleTimeString()}</div>
+                      <td style={{ color: theme.text.primary }} className="pl-4 sm:pl-8 md:pl-12 lg:pl-20 pr-2 sm:pr-4 py-3 sm:py-4 w-[15%]">
+                        <div className="font-semibold text-xs sm:text-sm">{tx.date || new Date(tx.createdAt).toLocaleDateString()}</div>
+                        <div style={{ color: theme.text.muted }} className="text-xs hidden lg:block">{tx.time || new Date(tx.createdAt).toLocaleTimeString()}</div>
                       </td>
-                      <td style={{ color: theme.text.primary }} className="p-4 w-[35%]">
-                        <div className="flex items-center gap-3">
+                      <td style={{ color: theme.text.primary }} className="px-2 sm:p-4 py-3 sm:py-4 w-[35%]">
+                        <div className="flex items-center gap-2 sm:gap-3">
                           <div style={{
-                            background: txType === 'credit' ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'
-                          }} className="w-8 h-8 rounded-full flex items-center justify-center text-sm flex-shrink-0">
-                            {txType === 'credit' ? '💵' : tx.shuttleId ? '🚐' : '🛒'}
+                            background: isRefund ? 'rgba(59,130,246,0.2)' : (txType === 'credit' ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)')
+                          }} className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm flex-shrink-0">
+                            {isRefund ? '↩️' : (txType === 'credit' ? '💵' : tx.shuttleId ? '🚐' : '🛒')}
                           </div>
-                          <div>
-                            <div className="font-semibold">{getTransactionDescription(tx)}</div>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-semibold text-xs sm:text-sm truncate lg:whitespace-normal" title={description}>
+                              <span className="lg:hidden">
+                                {description.length > 20 ? `${description.substring(0, 20)}...` : description}
+                              </span>
+                              <span className="hidden lg:inline">
+                                {description}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </td>
-                      <td className="p-4 w-[20%]">
-                        <span style={{ color: txType === 'credit' ? '#10B981' : '#EF4444' }} className="font-bold text-base">
-                          {txType === 'credit' ? '+' : '-'}₱{Math.abs(tx.amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                      <td className="px-2 sm:p-4 py-3 sm:py-4 w-[20%]">
+                        <span style={{ color: isRefund ? '#3B82F6' : (txType === 'credit' ? '#10B981' : '#EF4444') }} className="font-bold text-xs sm:text-base whitespace-nowrap">
+                          {isRefund ? '+' : (txType === 'credit' ? '+' : '-')}₱{Math.abs(tx.amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                         </span>
                       </td>
-                      <td style={{ color: theme.text.primary }} className="p-4 w-[25%]">
+                      <td style={{ color: theme.text.primary }} className="hidden lg:table-cell p-4 w-[25%]">
                         <code style={{ 
                           background: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
                           padding: '4px 8px',
@@ -334,11 +370,12 @@ export default function TransactionHistory() {
                 })}
               </tbody>
             </table>
+            </div>
 
             {/* Pagination */}
             {pagination.totalPages > 1 && (
-              <div style={{ borderColor: theme.border.primary }} className="p-4 border-t flex items-center justify-between">
-                <p style={{ color: theme.text.muted }} className="text-sm">
+              <div style={{ borderColor: theme.border.primary }} className="p-4 border-t flex items-center justify-between flex-wrap gap-3">
+                <p style={{ color: theme.text.muted }} className="text-xs sm:text-sm">
                   Page {pagination.page} of {pagination.totalPages} ({pagination.total} total)
                 </p>
                 <div className="flex gap-2">
@@ -350,9 +387,9 @@ export default function TransactionHistory() {
                       color: pagination.page === 1 ? theme.text.muted : theme.accent.primary,
                       borderColor: pagination.page === 1 ? 'transparent' : theme.accent.primary
                     }}
-                    className="px-4 py-2 rounded-lg text-sm border-2 font-semibold disabled:cursor-not-allowed transition hover:opacity-80"
+                    className="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm border-2 font-semibold disabled:cursor-not-allowed transition hover:opacity-80"
                   >
-                    ← Previous
+                    ← <span className="hidden sm:inline">Previous</span><span className="sm:hidden">Prev</span>
                   </button>
                   <button
                     onClick={() => handlePageChange(pagination.page + 1)}
@@ -362,9 +399,9 @@ export default function TransactionHistory() {
                       color: pagination.page === pagination.totalPages ? theme.text.muted : theme.accent.primary,
                       borderColor: pagination.page === pagination.totalPages ? 'transparent' : theme.accent.primary
                     }}
-                    className="px-4 py-2 rounded-lg text-sm border-2 font-semibold disabled:cursor-not-allowed transition hover:opacity-80"
+                    className="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm border-2 font-semibold disabled:cursor-not-allowed transition hover:opacity-80"
                   >
-                    Next →
+                    <span className="hidden sm:inline">Next</span><span className="sm:hidden">Next</span> →
                   </button>
                 </div>
               </div>
@@ -372,6 +409,17 @@ export default function TransactionHistory() {
           </div>
         )}
       </div>
+
+      {/* Transaction Detail Modal - Only shows on mobile */}
+      {selectedTransaction && (
+        <TransactionDetailModal
+          transaction={selectedTransaction}
+          onClose={() => setSelectedTransaction(null)}
+          theme={theme}
+          isDarkMode={isDarkMode}
+          getTransactionDescription={getTransactionDescription}
+        />
+      )}
 
       {/* Request Transaction History Modal */}
       {showRequestModal && (
@@ -496,6 +544,162 @@ export default function TransactionHistory() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Transaction Detail Modal Component - Only visible on mobile (lg:hidden)
+function TransactionDetailModal({ transaction, onClose, theme, isDarkMode, getTransactionDescription }) {
+  const txType = transaction.transactionType || transaction.type;
+  const isRefund = transaction.status === 'Refunded';
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 lg:hidden">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+
+      <div
+        style={{
+          background: isDarkMode
+            ? 'linear-gradient(135deg, #1E2347 0%, #181D40 100%)'
+            : 'linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%)',
+          border: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}`,
+          boxShadow: isDarkMode
+            ? '0 25px 50px rgba(0,0,0,0.5)'
+            : '0 25px 50px rgba(0,0,0,0.15)'
+        }}
+        className="relative rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div
+          style={{
+            background: isDarkMode
+              ? `linear-gradient(135deg, ${isRefund ? 'rgba(59,130,246,0.2)' : (txType === 'credit' ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)')} 0%, ${isRefund ? 'rgba(59,130,246,0.05)' : (txType === 'credit' ? 'rgba(16,185,129,0.05)' : 'rgba(239,68,68,0.05)')} 100%)`
+              : `linear-gradient(135deg, ${isRefund ? 'rgba(59,130,246,0.15)' : (txType === 'credit' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)')} 0%, ${isRefund ? 'rgba(59,130,246,0.05)' : (txType === 'credit' ? 'rgba(16,185,129,0.05)' : 'rgba(239,68,68,0.05)')} 100%)`,
+            borderBottom: `2px solid ${isRefund ? 'rgba(59,130,246,0.3)' : (txType === 'credit' ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)')}`
+          }}
+          className="px-6 py-5 flex items-center justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <div
+              style={{
+                background: isRefund ? 'rgba(59,130,246,0.2)' : (txType === 'credit' ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)')
+              }}
+              className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
+            >
+              {isRefund ? '↩️' : (txType === 'credit' ? '💵' : transaction.shuttleId ? '🚐' : '🛒')}
+            </div>
+            <div>
+              <h2 style={{ color: isRefund ? '#3B82F6' : (txType === 'credit' ? '#10B981' : '#EF4444') }} className="text-xl font-bold">
+                Transaction Details
+              </h2>
+              <p style={{ color: theme.text.secondary }} className="text-sm">
+                {transaction.date || new Date(transaction.createdAt).toLocaleDateString()}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{ color: theme.text.secondary }}
+            className="p-2 hover:opacity-70 transition"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 max-h-[60vh] overflow-y-auto">
+          {/* Amount - Highlighted */}
+          <div
+            style={{
+              background: isDarkMode ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.03)',
+              border: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`
+            }}
+            className="rounded-xl p-5 mb-5 text-center"
+          >
+            <p style={{ color: theme.text.secondary }} className="text-xs uppercase tracking-wide mb-2 font-bold">
+              Amount
+            </p>
+            <p
+              style={{ color: isRefund ? '#3B82F6' : (txType === 'credit' ? '#10B981' : '#EF4444') }}
+              className="text-4xl font-bold"
+            >
+              {isRefund ? '+' : (txType === 'credit' ? '+' : '-')}₱{Math.abs(transaction.amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+            </p>
+          </div>
+
+          {/* Details Grid */}
+          <div className="space-y-4">
+            {/* Description */}
+            <div>
+              <p style={{ color: theme.text.secondary }} className="text-xs uppercase tracking-wide mb-1 font-bold">
+                Description
+              </p>
+              <p style={{ color: theme.text.primary }} className="font-semibold">
+                {getTransactionDescription(transaction)}
+              </p>
+            </div>
+
+            {/* Date & Time */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p style={{ color: theme.text.secondary }} className="text-xs uppercase tracking-wide mb-1 font-bold">
+                  Date
+                </p>
+                <p style={{ color: theme.text.primary }} className="font-semibold">
+                  {transaction.date || new Date(transaction.createdAt).toLocaleDateString()}
+                </p>
+              </div>
+              <div>
+                <p style={{ color: theme.text.secondary }} className="text-xs uppercase tracking-wide mb-1 font-bold">
+                  Time
+                </p>
+                <p style={{ color: theme.text.primary }} className="font-semibold">
+                  {transaction.time || new Date(transaction.createdAt).toLocaleTimeString()}
+                </p>
+              </div>
+            </div>
+
+            {/* Transaction ID */}
+            <div>
+              <p style={{ color: theme.text.secondary }} className="text-xs uppercase tracking-wide mb-2 font-bold">
+                Transaction ID
+              </p>
+              <code
+                style={{
+                  background: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+                  color: theme.text.primary,
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  fontFamily: 'monospace',
+                  display: 'block',
+                  wordBreak: 'break-all'
+                }}
+              >
+                {transaction.transactionId || transaction.id || 'N/A'}
+              </code>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div
+          style={{ borderTop: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}` }}
+          className="px-6 py-4"
+        >
+          <button
+            onClick={onClose}
+            style={{
+              background: isRefund ? '#3B82F6' : (txType === 'credit' ? '#10B981' : '#EF4444'),
+              color: '#FFFFFF'
+            }}
+            className="w-full py-3 rounded-xl font-bold transition-all hover:opacity-90"
+          >
+            Close
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
