@@ -583,12 +583,6 @@ function ConcernModal({ onClose, theme, isDarkMode }) {
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
 
       <div
-        style={{
-          background: isDarkMode
-            ? 'linear-gradient(135deg, #1E2347 0%, #181D40 100%)'
-            : 'linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%)',
-          border: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}`
-        }}
         className="relative rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden"
         style={{
           background: isDarkMode

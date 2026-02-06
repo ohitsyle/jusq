@@ -422,8 +422,8 @@ export default function ConcernsPage() {
             <table className="w-full border-collapse text-[13px]">
               <thead>
                 <tr style={{ background: isDarkMode ? 'rgba(255,212,28,0.1)' : 'rgba(59,130,246,0.1)' }}>
-                  <th style={{ color: theme.accent.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2"
-                      style={{ borderColor: isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)', color: theme.accent.primary }}>ID</th>
+                  <th style={{ borderColor: isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)', color: theme.accent.primary }}
+                      className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2">ID</th>
                   <th style={{ borderColor: isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)', color: theme.accent.primary }}
                       className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2">User</th>
                   <th style={{ borderColor: isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)', color: theme.accent.primary }}
