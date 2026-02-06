@@ -1,10 +1,12 @@
 // src/screens/MerchantScreen.js
 // REDESIGNED: Modern design matching shuttle screens + new features
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, Modal, Animated } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import NFCService from '../services/NFCService';
 import PaymentService from '../services/PaymentService';
+import api from '../services/api';
 
 // ========== OPTIMIZED COMPONENTS ==========
 const NumberButton = React.memo(({ value, onPress, disabled }) => (
@@ -50,6 +52,22 @@ export default function MerchantScreen({ navigation, route }) {
   const merchantId = route.params?.merchantId || '';
   const contactPerson = route.params?.contactPerson || '';
 
+  // Fetch merchant stats from server on mount
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const res = await api.get('/merchant/dashboard');
+        if (res.data) {
+          setTodayTransactions(res.data.todayTransactions || 0);
+          setTodayRevenue(res.data.todayRevenue || 0);
+        }
+      } catch (error) {
+        console.log('Could not fetch merchant stats:', error.message);
+      }
+    };
+    if (merchantId) fetchStats();
+  }, [merchantId]);
+
   // Clock and pulse animation
   useEffect(() => {
     const interval = setInterval(() => {
@@ -90,16 +108,22 @@ export default function MerchantScreen({ navigation, route }) {
     }
   }, [isWaitingForCard]);
 
+  // Keep a ref to handlePinSubmit for auto-submit
+  const handlePinSubmitRef = useRef(null);
+
+  // Auto-submit when PIN reaches 6 digits
+  useEffect(() => {
+    if (pin.length === 6 && isWaitingForPin && !isProcessing) {
+      handlePinSubmitRef.current?.(pin);
+    }
+  }, [pin, isWaitingForPin, isProcessing]);
+
   // ========== OPTIMIZED HANDLERS ==========
   const handleNumberPress = useCallback((num) => {
     if (isWaitingForPin) {
       setPin(prev => {
         if (prev.length >= 6) return prev;
-        const newPin = prev + num;
-        if (newPin.length === 6) {
-          setTimeout(() => handlePinSubmit(newPin), 50);
-        }
-        return newPin;
+        return prev + num;
       });
     } else {
       setAmount(prev => {
@@ -258,6 +282,9 @@ export default function MerchantScreen({ navigation, route }) {
     }
   };
 
+  // Keep ref in sync
+  handlePinSubmitRef.current = handlePinSubmit;
+
   const handleCancelPin = useCallback(() => {
     setIsWaitingForPin(false);
     setIsWaitingForCard(false);
@@ -291,6 +318,7 @@ export default function MerchantScreen({ navigation, route }) {
   ], []);
 
   return (
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
     <View style={styles.container}>
       {/* ========== HEADER ========== */}
       <View style={styles.header}>
@@ -503,10 +531,15 @@ export default function MerchantScreen({ navigation, route }) {
         </View>
       )}
     </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#1E1E1E',
+  },
   container: {
     flex: 1,
     backgroundColor: '#181D40',

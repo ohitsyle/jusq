@@ -1,7 +1,7 @@
 // src/screens/UserDashboardScreen.js
 // User dashboard matching shuttle/merchant interface design
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,11 +12,15 @@ import {
   Modal,
   TextInput,
   Alert,
-  ActivityIndicator
+  ActivityIndicator,
+  FlatList
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import api from '../services/api';
 import ChangePinModal from './ChangePinModal';
 import DeactivateAccountModal from './DeactivateAccountModal';
+
+const AUTO_REFRESH_INTERVAL = 30000; // 30 seconds
 
 export default function UserDashboardScreen({ navigation, route }) {
   const [user, setUser] = useState(null);
@@ -39,22 +43,27 @@ export default function UserDashboardScreen({ navigation, route }) {
   const userId = route.params?.userId;
   const userEmail = route.params?.userEmail;
 
+  const initialLoadDone = useRef(false);
+  const [allTransactions, setAllTransactions] = useState([]);
+  const [showAllTransactions, setShowAllTransactions] = useState(false);
+
   useEffect(() => {
     if (userId) {
-      fetchDashboardData();
+      fetchDashboardData(true);
 
-      // Auto-refresh every 2 seconds
       const interval = setInterval(() => {
-        fetchDashboardData();
-      }, 2000);
+        fetchDashboardData(false);
+      }, AUTO_REFRESH_INTERVAL);
 
       return () => clearInterval(interval);
     }
   }, [userId]);
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (showLoadingSpinner = false) => {
     try {
-      setLoading(true);
+      if (showLoadingSpinner && !initialLoadDone.current) {
+        setLoading(true);
+      }
 
       // Fetch user info and balance
       const userRes = await api.get(`/user/${userId}`);
@@ -68,11 +77,25 @@ export default function UserDashboardScreen({ navigation, route }) {
       // Fetch user concerns
       const concernsRes = await api.get(`/user/${userId}/concerns`);
       setConcerns(concernsRes.data || []);
+
+      initialLoadDone.current = true;
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
-      Alert.alert('Error', 'Failed to load dashboard data');
+      if (!initialLoadDone.current) {
+        Alert.alert('Error', 'Failed to load dashboard data');
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAllTransactions = async () => {
+    try {
+      const txRes = await api.get(`/user/${userId}/transactions?limit=100`);
+      setAllTransactions(txRes.data || []);
+      setShowAllTransactions(true);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to load transaction history');
     }
   };
 
@@ -145,14 +168,17 @@ export default function UserDashboardScreen({ navigation, route }) {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#FFD41C" />
-        <Text style={styles.loadingText}>Loading dashboard...</Text>
-      </View>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#FFD41C" />
+          <Text style={styles.loadingText}>Loading dashboard...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
@@ -243,7 +269,7 @@ export default function UserDashboardScreen({ navigation, route }) {
 
           <TouchableOpacity
             style={styles.actionCard}
-            onPress={() => Alert.alert('History', 'Full transaction history coming soon!')}
+            onPress={fetchAllTransactions}
           >
             <View style={styles.actionIconCircle}>
               <Text style={styles.actionEmoji}>📊</Text>
@@ -257,7 +283,7 @@ export default function UserDashboardScreen({ navigation, route }) {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Recent Transactions</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={fetchAllTransactions}>
               <Text style={styles.seeAllText}>See All →</Text>
             </TouchableOpacity>
           </View>
@@ -512,11 +538,86 @@ export default function UserDashboardScreen({ navigation, route }) {
         userEmail={userEmail}
         userId={userId}
       />
+
+      {/* Transaction History Modal */}
+      <Modal
+        visible={showAllTransactions}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowAllTransactions(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowAllTransactions(false)}
+        >
+          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Transaction History</Text>
+              <TouchableOpacity onPress={() => setShowAllTransactions(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {allTransactions.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateEmoji}>📝</Text>
+                <Text style={styles.emptyStateText}>No transactions found</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={allTransactions}
+                keyExtractor={(item, index) => item._id || index.toString()}
+                renderItem={({ item: tx }) => (
+                  <View style={styles.transactionCard}>
+                    <View style={styles.transactionIcon}>
+                      <Text style={styles.transactionEmoji}>
+                        {tx.transactionType === 'debit' ? '💸' : '💰'}
+                      </Text>
+                    </View>
+                    <View style={styles.transactionDetails}>
+                      <Text style={styles.transactionTitle}>
+                        {tx.transactionType === 'debit' ? 'Payment' : 'Load'}
+                      </Text>
+                      <Text style={styles.transactionDate}>
+                        {formatDate(tx.createdAt || tx.timestamp)}
+                      </Text>
+                    </View>
+                    <View style={styles.transactionAmount}>
+                      <Text style={[
+                        styles.transactionAmountText,
+                        tx.transactionType === 'debit' && styles.debitAmount
+                      ]}>
+                        {tx.transactionType === 'debit' ? '-' : '+'}₱{tx.amount.toFixed(2)}
+                      </Text>
+                      <View style={[
+                        styles.statusPill,
+                        tx.status === 'Completed' && styles.statusCompleted,
+                        tx.status === 'Pending' && styles.statusPending,
+                        tx.status === 'Failed' && styles.statusFailed
+                      ]}>
+                        <Text style={styles.statusPillText}>{tx.status}</Text>
+                      </View>
+                    </View>
+                  </View>
+                )}
+                showsVerticalScrollIndicator={false}
+                style={{ maxHeight: 400 }}
+              />
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#1E1E1E',
+  },
   container: {
     flex: 1,
     backgroundColor: '#181D40',
@@ -537,7 +638,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 60,
+    paddingTop: 15,
     paddingBottom: 20,
     backgroundColor: '#1E1E1E',
     borderBottomWidth: 2,

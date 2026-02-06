@@ -594,8 +594,6 @@ export default function RouteTrackingScreen({ navigation, route }) {
   }
 
   // Main map view
-  console.log('🗺️ Rendering map...');
-
   return (
     <View style={styles.container}>
       <MapView

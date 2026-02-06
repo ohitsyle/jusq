@@ -5,13 +5,11 @@
 // 3. Added api import for refund functionality
 
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Alert, ScrollView } from 'react-native';
 import NFCService from '../services/NFCService';
 import PaymentService from '../services/PaymentService';
 import api from '../services/api';
 import useOfflineMode from '../hooks/useOfflineMode';
-
-// ✅ NEW IMPORT
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function PaymentScreen({ navigation, route }) {
@@ -21,6 +19,8 @@ export default function PaymentScreen({ navigation, route }) {
   const [isScanning, setIsScanning] = useState(false);
   const [passengersBoarded, setPassengersBoarded] = useState([]);
   const [pulseAnim] = useState(new Animated.Value(1));
+  const [activeTab, setActiveTab] = useState('scan'); // 'scan' or 'passengers'
+  const [refundingId, setRefundingId] = useState(null); // rfidUId being refunded
 
   // Use the new offline mode hook
   const { 
@@ -110,15 +110,6 @@ export default function PaymentScreen({ navigation, route }) {
     setIsReady(enabled);
   };
 
-  const checkOnlineStatus = async () => {
-    // This is now handled by the useOfflineMode hook
-    // No need for this function anymore
-  };
-
-  const updateQueueCount = async () => {
-    // This is now handled by the useOfflineMode hook
-    // No need for this function anymore
-  };
 
   const handleScan = async () => {
     if (!isReady) {
@@ -195,8 +186,6 @@ export default function PaymentScreen({ navigation, route }) {
           return newList;
         });
       }
-
-      await updateQueueCount();
 
       if (paymentResult.success) {
         const data = paymentResult.data;
@@ -366,8 +355,50 @@ export default function PaymentScreen({ navigation, route }) {
     }
   };
 
-  // Calculate total fare using route's fare
-  const totalFareCollected = passengersBoarded.length * routeFare;
+  // Refund a specific passenger
+  const handleRefundPassenger = (passenger) => {
+    Alert.alert(
+      'Refund Passenger?',
+      `Refund ₱${passenger.fareAmount.toFixed(2)} to ${passenger.studentName || passenger.name}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Refund',
+          style: 'destructive',
+          onPress: async () => {
+            setRefundingId(passenger.rfidUId);
+            try {
+              const refundResult = await PaymentService.processRefund(
+                passenger.rfidUId,
+                driverId,
+                shuttleId,
+                routeId,
+                passenger.tripId,
+                passenger.fareAmount,
+                'Refunded by driver before route start'
+              );
+
+              if (refundResult.success) {
+                // Remove passenger from list
+                setPassengersBoarded(prev => prev.filter(p => p.rfidUId !== passenger.rfidUId));
+                Alert.alert('Refunded', `₱${passenger.fareAmount.toFixed(2)} refunded to ${passenger.studentName || passenger.name}`);
+              } else {
+                Alert.alert('Refund Failed', refundResult.error?.message || refundResult.error?.error || 'Could not process refund');
+              }
+            } catch (error) {
+              console.error('Refund error:', error);
+              Alert.alert('Error', 'Failed to process refund. Please try again.');
+            } finally {
+              setRefundingId(null);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // Calculate total fare using actual amounts paid
+  const totalFareCollected = passengersBoarded.reduce((sum, p) => sum + (p.fareAmount || routeFare), 0);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -417,57 +448,140 @@ export default function PaymentScreen({ navigation, route }) {
           </View>
         </View>
 
-        {/* Main Content */}
-        <View style={styles.mainContent}>
-          {/* Passenger Count */}
-          <View style={styles.passengerSection}>
-            <Text style={styles.passengerLabel}>Passengers Boarded</Text>
-            <Text style={styles.passengerCount}>{passengersBoarded.length}</Text>
-            {passengersBoarded.length === 0 && (
-              <Text style={{ color: '#FFD41C', fontSize: 14, marginTop: 8, textAlign: 'center', fontStyle: 'italic' }}>
-                👆 Tap "Scan Card" below to collect fares
-              </Text>
-            )}
-            <View style={styles.fareBox}>
-              <Text style={styles.fareLabel}>Total Fare Collected:</Text>
-              {/* FIXED: Use actual route fare */}
-              <Text style={styles.fareAmount}>₱{totalFareCollected.toFixed(2)}</Text>
+        {/* Tab Switcher */}
+        <View style={styles.tabContainer}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'scan' && styles.tabActive]}
+            onPress={() => setActiveTab('scan')}
+          >
+            <Text style={[styles.tabText, activeTab === 'scan' && styles.tabTextActive]}>
+              Scan
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'passengers' && styles.tabActive]}
+            onPress={() => setActiveTab('passengers')}
+          >
+            <Text style={[styles.tabText, activeTab === 'passengers' && styles.tabTextActive]}>
+              Passengers ({passengersBoarded.length})
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* SCAN TAB */}
+        {activeTab === 'scan' && (
+          <View style={styles.mainContent}>
+            {/* Passenger Count */}
+            <View style={styles.passengerSection}>
+              <Text style={styles.passengerLabel}>Passengers Boarded</Text>
+              <Text style={styles.passengerCount}>{passengersBoarded.length}</Text>
+              {passengersBoarded.length === 0 && (
+                <Text style={styles.scanHint}>
+                  Tap "Scan Card" below to collect fares
+                </Text>
+              )}
+              <View style={styles.fareBox}>
+                <Text style={styles.fareLabel}>Total Fare Collected:</Text>
+                <Text style={styles.fareAmount}>₱{totalFareCollected.toFixed(2)}</Text>
+              </View>
+            </View>
+
+            {/* Time & Date */}
+            <View style={styles.timeSection}>
+              <Text style={styles.time}>{currentTime}</Text>
+              <Text style={styles.date}>{currentDate}</Text>
+            </View>
+
+            {/* Scan Button */}
+            <View style={styles.scanSection}>
+              <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+                <TouchableOpacity
+                  style={[
+                    styles.scanButton,
+                    isScanning && styles.scanButtonActive,
+                    !isReady && styles.scanButtonDisabled
+                  ]}
+                  onPress={handleScan}
+                  disabled={!isReady}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.scanIcon}>📱</Text>
+                  <Text style={styles.scanText}>
+                    {isScanning ? 'TAP TO STOP' : 'TAP TO SCAN'}
+                  </Text>
+                  <View style={styles.nfcStatus}>
+                    <View style={[styles.nfcDot, isReady && styles.nfcDotActive]} />
+                    <Text style={styles.nfcStatusText}>
+                      {isReady ? 'NFC Ready' : 'NFC Disabled'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </Animated.View>
             </View>
           </View>
+        )}
 
-          {/* Time & Date */}
-          <View style={styles.timeSection}>
-            <Text style={styles.time}>{currentTime}</Text>
-            <Text style={styles.date}>{currentDate}</Text>
-          </View>
+        {/* PASSENGERS TAB */}
+        {activeTab === 'passengers' && (
+          <View style={styles.passengersTab}>
+            <View style={styles.passengersTabHeader}>
+              <Text style={styles.passengersTabTitle}>Scanned Passengers</Text>
+              <Text style={styles.passengersTabSubtitle}>
+                Tap a passenger to refund their fare
+              </Text>
+            </View>
 
-          {/* Scan Button */}
-          <View style={styles.scanSection}>
-            <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-              <TouchableOpacity
-                style={[
-                  styles.scanButton,
-                  isScanning && styles.scanButtonActive,
-                  !isReady && styles.scanButtonDisabled
-                ]}
-                onPress={handleScan}
-                disabled={!isReady}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.scanIcon}>📱</Text>
-                <Text style={styles.scanText}>
-                  {isScanning ? 'TAP TO STOP' : 'TAP TO SCAN'}
-                </Text>
-                <View style={styles.nfcStatus}>
-                  <View style={[styles.nfcDot, isReady && styles.nfcDotActive]} />
-                  <Text style={styles.nfcStatusText}>
-                    {isReady ? 'NFC Ready' : 'NFC Disabled'}
-                  </Text>
+            {passengersBoarded.length === 0 ? (
+              <View style={styles.emptyPassengers}>
+                <Text style={styles.emptyPassengersIcon}>👥</Text>
+                <Text style={styles.emptyPassengersText}>No passengers scanned yet</Text>
+                <TouchableOpacity
+                  style={styles.goToScanBtn}
+                  onPress={() => setActiveTab('scan')}
+                >
+                  <Text style={styles.goToScanBtnText}>Go to Scan</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <ScrollView style={styles.passengersList} showsVerticalScrollIndicator={false}>
+                {passengersBoarded.map((passenger, index) => (
+                  <View key={passenger.rfidUId} style={styles.passengerCard}>
+                    <View style={styles.passengerCardLeft}>
+                      <View style={styles.passengerNumber}>
+                        <Text style={styles.passengerNumberText}>{index + 1}</Text>
+                      </View>
+                      <View style={styles.passengerInfo}>
+                        <Text style={styles.passengerName} numberOfLines={1}>
+                          {passenger.studentName || passenger.name}
+                        </Text>
+                        <Text style={styles.passengerMeta}>
+                          ₱{(passenger.fareAmount || routeFare).toFixed(2)} • {new Date(passenger.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                        </Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity
+                      style={[styles.refundBtn, refundingId === passenger.rfidUId && styles.refundBtnDisabled]}
+                      onPress={() => handleRefundPassenger(passenger)}
+                      disabled={refundingId === passenger.rfidUId}
+                    >
+                      <Text style={styles.refundBtnText}>
+                        {refundingId === passenger.rfidUId ? '...' : 'Refund'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+
+                <View style={styles.passengersSummary}>
+                  <View style={styles.fareBox}>
+                    <Text style={styles.fareLabel}>Total Collected:</Text>
+                    <Text style={styles.fareAmount}>₱{totalFareCollected.toFixed(2)}</Text>
+                  </View>
                 </View>
-              </TouchableOpacity>
-            </Animated.View>
+                <View style={{ height: 30 }} />
+              </ScrollView>
+            )}
           </View>
-        </View>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -743,5 +857,154 @@ const styles = StyleSheet.create({
     fontSize: 22,
     color: '#10B981',
     fontWeight: '700',
+  },
+  scanHint: {
+    color: '#FFD41C',
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  // Tab styles
+  tabContainer: {
+    flexDirection: 'row',
+    marginHorizontal: 20,
+    marginBottom: 15,
+    backgroundColor: '#1E1E1E',
+    borderRadius: 12,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: '#35408E',
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 10,
+  },
+  tabActive: {
+    backgroundColor: '#35408E',
+  },
+  tabText: {
+    fontSize: 14,
+    color: '#FBFBFB',
+    opacity: 0.6,
+    fontWeight: '600',
+  },
+  tabTextActive: {
+    opacity: 1,
+    color: '#FFD41C',
+  },
+  // Passengers tab styles
+  passengersTab: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  passengersTabHeader: {
+    marginBottom: 15,
+  },
+  passengersTabTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FBFBFB',
+    marginBottom: 4,
+  },
+  passengersTabSubtitle: {
+    fontSize: 13,
+    color: '#FBFBFB',
+    opacity: 0.6,
+  },
+  emptyPassengers: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyPassengersIcon: {
+    fontSize: 60,
+    marginBottom: 15,
+  },
+  emptyPassengersText: {
+    fontSize: 16,
+    color: '#FBFBFB',
+    opacity: 0.6,
+    marginBottom: 20,
+  },
+  goToScanBtn: {
+    backgroundColor: '#FFD41C',
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  goToScanBtnText: {
+    color: '#181D40',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  passengersList: {
+    flex: 1,
+  },
+  passengerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#1E1E1E',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#35408E',
+  },
+  passengerCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  passengerNumber: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#35408E',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  passengerNumberText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFD41C',
+  },
+  passengerInfo: {
+    flex: 1,
+  },
+  passengerName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FBFBFB',
+    marginBottom: 3,
+  },
+  passengerMeta: {
+    fontSize: 12,
+    color: '#FBFBFB',
+    opacity: 0.6,
+  },
+  refundBtn: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#EF4444',
+    marginLeft: 10,
+  },
+  refundBtnDisabled: {
+    opacity: 0.4,
+  },
+  refundBtnText: {
+    color: '#EF4444',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  passengersSummary: {
+    marginTop: 10,
   },
 });

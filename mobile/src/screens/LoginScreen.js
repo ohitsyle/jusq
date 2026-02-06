@@ -51,12 +51,8 @@ export default function LoginScreen({ navigation }) {
     }).start();
   }, [fadeAnim]);
 
-  // Auto-submit when PIN is complete
-  useEffect(() => {
-    if (pin.length === PIN_LENGTH && step === 'pin' && !isLoading) {
-      handlePinSubmit();
-    }
-  }, [pin, step, isLoading, handlePinSubmit]);
+  // Auto-submit when PIN is complete (defined after handlePinSubmit via ref)
+  const handlePinSubmitRef = useRef(null);
 
   const shakeError = useCallback(() => {
     // Safe vibration - wrapped in try/catch to prevent crashes
@@ -220,6 +216,16 @@ export default function LoginScreen({ navigation }) {
       setIsLoading(false);
     }
   }, [email, pin, shakeError, navigation]);
+
+  // Keep ref in sync with latest handlePinSubmit
+  handlePinSubmitRef.current = handlePinSubmit;
+
+  // Auto-submit when PIN is complete
+  useEffect(() => {
+    if (pin.length === PIN_LENGTH && step === 'pin' && !isLoading) {
+      handlePinSubmitRef.current();
+    }
+  }, [pin, step, isLoading]);
 
   const handlePinPress = (digit) => {
     if (pin.length < PIN_LENGTH && !isLoading) {

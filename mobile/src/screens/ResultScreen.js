@@ -1,5 +1,5 @@
 // src/screens/ResultScreen.js
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 
 // ✅ NEW IMPORT
@@ -20,7 +20,7 @@ export default function ResultScreen({ navigation, route }) {
     transactionType = 'payment'
   } = route.params || {};
 
-  const scaleValue = new Animated.Value(0);
+  const scaleValue = useRef(new Animated.Value(0)).current;
 
   // Determine screen type based on balance
   const getScreenType = () => {

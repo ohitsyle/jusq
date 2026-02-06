@@ -77,20 +77,8 @@ export default function ShuttleSelectionScreen({ navigation, route }) {
       console.log('✅ Shuttles loaded:', sortedShuttles.length, isOnline ? '(online)' : '(offline)');
     } catch (error) {
       console.error('❌ Failed to load shuttles:', error);
-      // Fallback for initial load
       if (showLoading && shuttles.length === 0) {
-        const testShuttles = [
-          {
-            shuttleId: 'SHUTTLE_01',
-            vehicleType: 'Isuzu',
-            vehicleModel: 'Traviz',
-            plateNumber: 'ABC 1234',
-            capacity: 15,
-            status: 'available',
-            currentDriver: null
-          }
-        ];
-        setShuttles(testShuttles);
+        Alert.alert('Error', 'Could not load shuttles. Pull down to retry.');
       }
     } finally {
       setLoading(false);
@@ -228,27 +216,15 @@ export default function ShuttleSelectionScreen({ navigation, route }) {
               });
             } catch (error) {
               console.error('❌ Failed to assign shuttle:', error);
-              
-              // Check if error is because shuttle is already taken
-              if (error.response?.status === 400) {
-                Alert.alert(
-                  'Shuttle Unavailable',
-                  error.response?.data?.error || 'This shuttle is no longer available.',
-                  [{ text: 'OK' }]
-                );
-                setSelectedShuttle(null);
-                fetchShuttles(false);
-              } else {
-                // Proceed anyway for testing
-                console.log('ℹ️ Proceeding without assignment confirmation');
-                stopAutoRefresh();
-                navigation.replace('RouteSelection', {
-                  name: driverName,
-                  driverId: driverId,
-                  shuttleId: selectedShuttle.shuttleId,
-                  vehicleInfo: `${selectedShuttle.vehicleType} ${selectedShuttle.vehicleModel}`
-                });
-              }
+
+              const errorMsg = error.response?.data?.error || 'Failed to assign shuttle. Please try again.';
+              Alert.alert(
+                'Assignment Failed',
+                errorMsg,
+                [{ text: 'OK' }]
+              );
+              setSelectedShuttle(null);
+              fetchShuttles(false);
             }
           }
         }
