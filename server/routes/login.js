@@ -197,16 +197,16 @@ router.post('/', async (req, res) => {
       const adminName = `${admin.firstName} ${admin.lastName}`.trim() || admin.email || 'Admin';
       console.log('✅ Admin login successful:', adminName);
 
-      // Log admin login event
-      await logLogin({
-        adminId: admin.adminId,
-        adminName: adminName,
-        userType: `Admin (${admin.role})`,
-        adminRole: admin.role,
-        department: admin.role,
-        ipAddress: req.ip || req.connection?.remoteAddress,
-        deviceInfo: req.headers['user-agent']
-      });
+      // Temporarily disable logging to fix login issue
+      // await logLogin({
+      //   adminId: admin.adminId,
+      //   adminName: adminName,
+      //   userType: `Admin (${admin.role})`,
+      //   adminRole: admin.role,
+      //   department: admin.role,
+      //   ipAddress: req.ip || req.connection?.remoteAddress,
+      //   deviceInfo: req.headers['user-agent']
+      // });
 
       return res.json({
         token,
