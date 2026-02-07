@@ -14,6 +14,7 @@ import Driver from '../models/Driver.js';
 import Merchant from '../models/Merchant.js';
 import User from '../models/User.js';
 import Admin from '../models/Admin.js';
+import { logLogin } from '../utils/logger.js';
 
 // Don't read JWT_SECRET at module level - dotenv hasn't loaded yet
 // Read it inside functions where it's needed
@@ -193,15 +194,28 @@ router.post('/', async (req, res) => {
         { expiresIn: '24h' }
       );
 
-      const adminName = `${admin.firstName} ${admin.lastName}`.trim();
+      const adminName = `${admin.firstName} ${admin.lastName}`.trim() || admin.email || 'Admin';
       console.log('✅ Admin login successful:', adminName);
+
+      // Log admin login event
+      await logLogin({
+        adminId: admin.adminId,
+        adminName: adminName,
+        userType: `Admin (${admin.role})`,
+        adminRole: admin.role,
+        department: admin.role,
+        ipAddress: req.ip || req.connection?.remoteAddress,
+        deviceInfo: req.headers['user-agent']
+      });
 
       return res.json({
         token,
         role: admin.role || 'admin',
         adminId: admin.adminId,
         name: adminName,
-        email: admin.email
+        email: admin.email,
+        firstName: admin.firstName,
+        lastName: admin.lastName
       });
     }
 

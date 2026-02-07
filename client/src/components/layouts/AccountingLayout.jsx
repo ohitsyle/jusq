@@ -7,6 +7,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import AccountingHeader from './AccountingHeader';
 import Footer from './Footer';
+import api from '../../utils/api';
 
 export default function AccountingLayout({ children }) {
   const navigate = useNavigate();
@@ -17,7 +18,12 @@ export default function AccountingLayout({ children }) {
     return data ? JSON.parse(data) : null;
   });
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await api.post('/admin/auth/logout');
+    } catch (e) {
+      // Continue with logout even if logging fails
+    }
     localStorage.clear();
     navigate('/login');
   };

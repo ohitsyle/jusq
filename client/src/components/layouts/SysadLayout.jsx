@@ -6,6 +6,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import SysadHeader from './SysadHeader';
 import Footer from './Footer';
+import api from '../../utils/api';
 
 export default function SysadLayout({ children }) {
   const navigate = useNavigate();
@@ -20,7 +21,12 @@ export default function SysadLayout({ children }) {
   const accentColor = theme.accent.primary;
   const accentBg = isDarkMode ? 'rgba(255,212,28,0.15)' : 'rgba(59,130,246,0.15)';
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await api.post('/admin/auth/logout');
+    } catch (e) {
+      // Continue with logout even if logging fails
+    }
     localStorage.clear();
     navigate('/login');
   };
