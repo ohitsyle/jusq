@@ -54,7 +54,9 @@ export default function LogsList() {
       Description: log.description || log.message || '-',
       Status: log.status || 'success'
     }));
-    exportToCSV(exportData, `${adminData?.role || 'system'}-logs`);
+    const fileName = `${adminData?.role || 'system'}-logs`;
+    exportToCSV(exportData, fileName);
+    api.post('/admin/log-tab-export', { tabName: 'Logs', recordCount: filteredLogs.length, fileName: `${fileName}.csv` }).catch(() => {});
   };
 
   // Filter logs based on admin department

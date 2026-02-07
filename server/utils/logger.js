@@ -163,13 +163,14 @@ export async function logDriverAssignment(data) {
  * Log an admin action
  */
 export async function logAdminAction(data) {
+  const actorName = data.adminName && data.adminName !== 'undefined undefined' ? data.adminName : (data.adminId || 'Unknown');
   return await logEvent({
     eventType: data.crudOperation || 'admin_action',
     title: data.action,
-    description: `Admin ${data.adminName || data.adminId} ${data.description}`,
+    description: `${actorName} ${data.description}`,
     severity: data.severity || 'info',
     adminId: data.adminId,
-    adminName: data.adminName,
+    adminName: actorName,
     department: data.department || data.adminRole,
     targetEntity: data.targetEntity || 'admin',
     metadata: {
@@ -387,7 +388,7 @@ export async function logCashIn(data) {
   return await logEvent({
     eventType: 'cash_in',
     title: 'Cash-In Processed',
-    description: `Treasury Admin ${data.adminName} processed cash-in of ₱${data.amount} for user ${data.userName || data.userId}`,
+    description: `${data.adminName || data.adminId || 'Treasury Admin'} processed cash-in of ₱${data.amount} for user ${data.userName || data.userId}`,
     severity: 'info',
     adminId: data.adminId,
     adminName: data.adminName,
@@ -409,10 +410,11 @@ export async function logCashIn(data) {
  * Log auto export configuration change
  */
 export async function logAutoExportConfigChange(data) {
+  const actorName = data.adminName && data.adminName !== 'undefined undefined' ? data.adminName : (data.adminId || 'Unknown');
   return await logEvent({
     eventType: 'auto_export_config_change',
     title: 'Auto Export Configuration Changed',
-    description: `${data.adminRole} Admin ${data.adminName} changed auto export configuration for ${data.department} department`,
+    description: `${actorName} (${data.adminRole || 'admin'}) changed auto export configuration for ${data.department} department`,
     severity: 'info',
     adminId: data.adminId,
     adminName: data.adminName,
@@ -431,10 +433,11 @@ export async function logAutoExportConfigChange(data) {
  * Log manual export by admin
  */
 export async function logManualExport(data) {
+  const actorName = data.adminName && data.adminName !== 'undefined undefined' ? data.adminName : (data.adminId || 'Unknown');
   return await logEvent({
     eventType: 'manual_export',
     title: 'Manual Export Performed',
-    description: `${data.adminRole} Admin ${data.adminName} performed manual export for ${data.department} department`,
+    description: `${actorName} (${data.adminRole || 'admin'}) performed manual export for ${data.department} department`,
     severity: 'info',
     adminId: data.adminId,
     adminName: data.adminName,
@@ -456,7 +459,7 @@ export async function logMaintenanceMode(data) {
   return await logEvent({
     eventType: 'maintenance_mode',
     title: data.enabled ? 'Maintenance Mode Enabled' : 'Maintenance Mode Disabled',
-    description: `System Admin ${data.adminName} ${data.enabled ? 'enabled' : 'disabled'} maintenance mode`,
+    description: `${data.adminName || data.adminId || 'System Admin'} ${data.enabled ? 'enabled' : 'disabled'} maintenance mode`,
     severity: 'warning',
     adminId: data.adminId,
     adminName: data.adminName,
@@ -478,7 +481,7 @@ export async function logStudentDeactivation(data) {
   return await logEvent({
     eventType: 'student_deactivation',
     title: data.enabled ? 'Student Deactivation Enabled' : 'Student Deactivation Disabled',
-    description: `System Admin ${data.adminName} ${data.enabled ? 'enabled' : 'disabled'} student deactivation feature`,
+    description: `${data.adminName || data.adminId || 'System Admin'} ${data.enabled ? 'enabled' : 'disabled'} student deactivation feature`,
     severity: 'warning',
     adminId: data.adminId,
     adminName: data.adminName,

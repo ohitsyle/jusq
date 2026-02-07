@@ -521,7 +521,9 @@ export default function RoutesList() {
     const exportData = prepareDataForExport(routes, [
       'routeId', 'routeName', 'fromName', 'toName', 'fare', 'isActive'
     ]);
-    exportToCSV(exportData, `routes_${new Date().toISOString().split('T')[0]}.csv`);
+    const fileName = `routes_${new Date().toISOString().split('T')[0]}.csv`;
+    exportToCSV(exportData, fileName);
+    api.post('/admin/log-tab-export', { tabName: 'Routes', recordCount: routes.length, fileName }).catch(() => {});
   };
 
   const filteredRoutes = routes.filter(route =>

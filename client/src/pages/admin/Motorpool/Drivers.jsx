@@ -232,6 +232,7 @@ export default function DriversList() {
   const handleExport = () => {
     const dataToExport = prepareDataForExport(filteredDrivers);
     exportToCSV(dataToExport, 'drivers');
+    api.post('/admin/log-tab-export', { tabName: 'Drivers', recordCount: filteredDrivers.length, fileName: 'drivers.csv' }).catch(() => {});
   };
 
   // Filter drivers based on search query

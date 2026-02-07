@@ -66,6 +66,7 @@ export default function TransactionsList() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    api.post('/admin/log-tab-export', { tabName: 'Merchant Transactions', recordCount: filteredTransactions.length, fileName: `transactions_${new Date().toISOString().split('T')[0]}.csv` }).catch(() => {});
   };
 
   const filteredTransactions = transactions.filter(tx => {

@@ -123,6 +123,7 @@ export default function ShuttlesList() {
   const handleExport = () => {
     const dataToExport = prepareDataForExport(filteredShuttles);
     exportToCSV(dataToExport, 'shuttles');
+    api.post('/admin/log-tab-export', { tabName: 'Shuttles', recordCount: filteredShuttles.length, fileName: 'shuttles.csv' }).catch(() => {});
   };
 
   const filteredShuttles = shuttles.filter(shuttle => {

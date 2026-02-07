@@ -74,6 +74,7 @@ export default function TransactionsPage() {
       'Transaction ID': tx.transactionId || tx._id || ''
     }));
     exportToCSV(dataToExport, 'transactions');
+    api.post('/admin/log-tab-export', { tabName: 'Treasury Transactions', recordCount: filteredTransactions.length, fileName: 'transactions.csv' }).catch(() => {});
   };
 
   // Filter transactions locally for search

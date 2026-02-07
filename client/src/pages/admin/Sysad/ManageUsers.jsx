@@ -205,6 +205,7 @@ export default function ManageUsers() {
       'Created': new Date(user.createdAt).toLocaleDateString()
     }));
     exportToCSV(exportData, `users-export-${sortBy}`);
+    api.post('/admin/log-tab-export', { tabName: 'Manage Users', recordCount: users.length, fileName: `users-export-${sortBy}.csv` }).catch(() => {});
     showNotification('success', 'Export Complete', 'Users have been exported to CSV successfully.');
   };
 

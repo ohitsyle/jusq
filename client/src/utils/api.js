@@ -21,10 +21,11 @@ api.interceptors.request.use((config) => {
   if (adminData) {
     try {
       const admin = JSON.parse(adminData);
-      config.headers['X-Admin-Id'] = admin.adminId;
-      config.headers['X-Admin-Name'] = `${admin.firstName} ${admin.lastName}`;
-      config.headers['X-Admin-Role'] = admin.role;
-      config.headers['X-Admin-Department'] = admin.role;
+      config.headers['X-Admin-Id'] = admin.adminId || admin.schoolUId || '';
+      const adminName = [admin.firstName, admin.lastName].filter(Boolean).join(' ') || admin.email || 'Admin';
+      config.headers['X-Admin-Name'] = adminName;
+      config.headers['X-Admin-Role'] = admin.role || '';
+      config.headers['X-Admin-Department'] = admin.role || '';
     } catch (e) {
       console.warn('Failed to parse adminData:', e);
     }

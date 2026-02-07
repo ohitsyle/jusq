@@ -816,6 +816,36 @@ router.post('/event-logs', async (req, res) => {
   }
 });
 
+/**
+ * POST /admin/log-tab-export
+ * Log when an admin exports data from a tab (Drivers, Shuttles, Routes, Transactions, Users, etc.)
+ */
+router.post('/log-tab-export', async (req, res) => {
+  try {
+    const { tabName, recordCount, fileName } = req.body;
+    const adminName = req.adminName && req.adminName !== 'undefined undefined' ? req.adminName : (req.adminId || 'Admin');
+
+    await logAdminAction({
+      adminId: req.adminId || 'system',
+      adminName: adminName,
+      adminRole: req.adminRole || 'unknown',
+      department: req.department || req.adminRole || 'system',
+      action: `${tabName} Tab Export`,
+      description: `exported ${tabName} data (${recordCount || 0} records) to ${fileName || 'CSV'}`,
+      targetEntity: 'config',
+      targetId: `tab-export-${(tabName || '').toLowerCase().replace(/\s+/g, '-')}`,
+      crudOperation: 'export_manual',
+      changes: { tabName, recordCount, fileName },
+      ipAddress: req.ip
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('❌ Error logging tab export:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ============================================================
 // USER CONCERNS
 // ============================================================
