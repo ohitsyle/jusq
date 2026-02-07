@@ -7,7 +7,7 @@ import Transaction from '../models/Transaction.js';
 import User from '../models/User.js';
 import Merchant from '../models/Merchant.js';
 import UserConcern from '../models/UserConcern.js';
-import { logAdminAction } from '../utils/logger.js';
+import { logAdminAction, logCashIn, logAutoExportConfigChange, logManualExport } from '../utils/logger.js';
 import { sendTemporaryPIN, sendConcernInProgressEmail, sendConcernResolvedEmail } from '../services/emailService.js';
 import { convertRfidToHexLittleEndian, validateRfidFormat } from '../utils/rfidConverter.js';
 import { extractAdminInfo } from '../middlewares/extractAdminInfo.js';
@@ -686,20 +686,17 @@ router.post('/cash-in', async (req, res) => {
     user.balance += parseFloat(amount);
     await user.save();
 
-    // Log admin action
-    logAdminAction({
-      action: 'Cash-In Processed',
-      description: `processed cash-in of ₱${amount} for user ${user.schoolUId}`,
-      adminId: req.adminId || adminId || 'treasury',
-      adminName: req.adminName || 'Treasury Admin',
-      adminRole: req.adminRole || 'treasury',
-      department: req.department || 'treasury',
-      targetEntity: 'transaction',
-      targetId: transactionId,
-      crudOperation: 'cash_in',
-      changes: { amount, newBalance: user.balance },
-      ipAddress: req.ip
-    }).catch(() => {});
+    // Log cash-in transaction with proper department tracking
+    await logCashIn({
+      adminId: req.adminInfo?.adminId || adminId || 'treasury',
+      adminName: req.adminInfo?.adminName || 'Treasury Admin',
+      amount: parseFloat(amount),
+      userId: user._id,
+      userName: `${user.firstName} ${user.lastName}`,
+      paymentMethod: 'cash',
+      transactionId: transaction.transactionId,
+      timestamp: new Date()
+    });
 
     // TODO: Send receipt email to user
     let receiptSent = false;

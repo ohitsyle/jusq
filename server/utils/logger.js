@@ -263,6 +263,236 @@ export async function logSystem(data) {
   });
 }
 
+/**
+ * Log driver mobile app login
+ */
+export async function logDriverLogin(data) {
+  return await logEvent({
+    eventType: 'driver_login',
+    title: 'Driver Mobile App Login',
+    description: `Driver ${data.driverName || data.driverId} logged into mobile app`,
+    severity: 'info',
+    driverId: data.driverId,
+    metadata: {
+      driverName: data.driverName,
+      deviceInfo: data.deviceInfo,
+      ipAddress: data.ipAddress,
+      loginTime: data.timestamp
+    }
+  });
+}
+
+/**
+ * Log driver mobile app logout
+ */
+export async function logDriverLogout(data) {
+  return await logEvent({
+    eventType: 'driver_logout',
+    title: 'Driver Mobile App Logout',
+    description: `Driver ${data.driverName || data.driverId} logged out of mobile app`,
+    severity: 'info',
+    driverId: data.driverId,
+    metadata: {
+      driverName: data.driverName,
+      sessionDuration: data.sessionDuration,
+      logoutTime: data.timestamp
+    }
+  });
+}
+
+/**
+ * Log driver shuttle and route selection
+ */
+export async function logDriverShuttleSelection(data) {
+  return await logEvent({
+    eventType: 'shuttle_selection',
+    title: 'Driver Selected Shuttle and Route',
+    description: `Driver ${data.driverName || data.driverId} selected shuttle ${data.shuttleId} for route ${data.routeId}`,
+    severity: 'info',
+    driverId: data.driverId,
+    shuttleId: data.shuttleId,
+    routeId: data.routeId,
+    metadata: {
+      driverName: data.driverName,
+      shuttlePlateNumber: data.shuttlePlateNumber,
+      routeName: data.routeName,
+      selectionTime: data.timestamp
+    }
+  });
+}
+
+/**
+ * Log driver route change and refund
+ */
+export async function logDriverRouteChange(data) {
+  return await logEvent({
+    eventType: 'route_change',
+    title: 'Driver Changed Route',
+    description: `Driver ${data.driverName || data.driverId} changed from route ${data.oldRouteId} to ${data.newRouteId}`,
+    severity: 'info',
+    driverId: data.driverId,
+    shuttleId: data.shuttleId,
+    metadata: {
+      driverName: data.driverName,
+      oldRouteId: data.oldRouteId,
+      newRouteId: data.newRouteId,
+      refundAmount: data.refundAmount,
+      refundReason: data.refundReason,
+      changeTime: data.timestamp
+    }
+  });
+}
+
+/**
+ * Log merchant mobile app login
+ */
+export async function logMerchantLogin(data) {
+  return await logEvent({
+    eventType: 'merchant_login',
+    title: 'Merchant Mobile App Login',
+    description: `Merchant ${data.merchantName || data.merchantId} logged into mobile app`,
+    severity: 'info',
+    metadata: {
+      merchantId: data.merchantId,
+      merchantName: data.merchantName,
+      deviceInfo: data.deviceInfo,
+      ipAddress: data.ipAddress,
+      loginTime: data.timestamp
+    }
+  });
+}
+
+/**
+ * Log merchant mobile app logout
+ */
+export async function logMerchantLogout(data) {
+  return await logEvent({
+    eventType: 'merchant_logout',
+    title: 'Merchant Mobile App Logout',
+    description: `Merchant ${data.merchantName || data.merchantId} logged out of mobile app`,
+    severity: 'info',
+    metadata: {
+      merchantId: data.merchantId,
+      merchantName: data.merchantName,
+      sessionDuration: data.sessionDuration,
+      logoutTime: data.timestamp
+    }
+  });
+}
+
+/**
+ * Log cash-in transaction by treasury admin
+ */
+export async function logCashIn(data) {
+  return await logEvent({
+    eventType: 'cash_in',
+    title: 'Cash-In Processed',
+    description: `Treasury Admin ${data.adminName} processed cash-in of ₱${data.amount} for user ${data.userName || data.userId}`,
+    severity: 'info',
+    adminId: data.adminId,
+    adminName: data.adminName,
+    department: 'treasury',
+    userId: data.userId,
+    metadata: {
+      adminRole: 'treasury',
+      amount: data.amount,
+      userId: data.userId,
+      userName: data.userName,
+      paymentMethod: data.paymentMethod,
+      transactionId: data.transactionId,
+      cashInTime: data.timestamp
+    }
+  });
+}
+
+/**
+ * Log auto export configuration change
+ */
+export async function logAutoExportConfigChange(data) {
+  return await logEvent({
+    eventType: 'auto_export_config_change',
+    title: 'Auto Export Configuration Changed',
+    description: `${data.adminRole} Admin ${data.adminName} changed auto export configuration for ${data.department} department`,
+    severity: 'info',
+    adminId: data.adminId,
+    adminName: data.adminName,
+    department: data.department,
+    metadata: {
+      adminRole: data.adminRole,
+      configChanges: data.configChanges,
+      oldConfig: data.oldConfig,
+      newConfig: data.newConfig,
+      changeTime: data.timestamp
+    }
+  });
+}
+
+/**
+ * Log manual export by admin
+ */
+export async function logManualExport(data) {
+  return await logEvent({
+    eventType: 'manual_export',
+    title: 'Manual Export Performed',
+    description: `${data.adminRole} Admin ${data.adminName} performed manual export for ${data.department} department`,
+    severity: 'info',
+    adminId: data.adminId,
+    adminName: data.adminName,
+    department: data.department,
+    metadata: {
+      adminRole: data.adminRole,
+      exportType: data.exportType,
+      dateRange: data.dateRange,
+      recordCount: data.recordCount,
+      exportTime: data.timestamp
+    }
+  });
+}
+
+/**
+ * Log maintenance mode toggle by system admin
+ */
+export async function logMaintenanceMode(data) {
+  return await logEvent({
+    eventType: 'maintenance_mode',
+    title: data.enabled ? 'Maintenance Mode Enabled' : 'Maintenance Mode Disabled',
+    description: `System Admin ${data.adminName} ${data.enabled ? 'enabled' : 'disabled'} maintenance mode`,
+    severity: 'warning',
+    adminId: data.adminId,
+    adminName: data.adminName,
+    department: 'sysad',
+    metadata: {
+      adminRole: 'sysad',
+      enabled: data.enabled,
+      reason: data.reason,
+      estimatedDuration: data.estimatedDuration,
+      toggleTime: data.timestamp
+    }
+  });
+}
+
+/**
+ * Log student deactivation changes by system admin
+ */
+export async function logStudentDeactivation(data) {
+  return await logEvent({
+    eventType: 'student_deactivation',
+    title: data.enabled ? 'Student Deactivation Enabled' : 'Student Deactivation Disabled',
+    description: `System Admin ${data.adminName} ${data.enabled ? 'enabled' : 'disabled'} student deactivation feature`,
+    severity: 'warning',
+    adminId: data.adminId,
+    adminName: data.adminName,
+    department: 'sysad',
+    metadata: {
+      adminRole: 'sysad',
+      enabled: data.enabled,
+      reason: data.reason,
+      affectedStudents: data.affectedStudents,
+      changeTime: data.timestamp
+    }
+  });
+}
+
 export default {
   logEvent,
   logPayment,
@@ -275,5 +505,16 @@ export default {
   logUserAction,
   logError,
   logSecurity,
-  logSystem
+  logSystem,
+  logDriverLogin,
+  logDriverLogout,
+  logDriverShuttleSelection,
+  logDriverRouteChange,
+  logMerchantLogin,
+  logMerchantLogout,
+  logCashIn,
+  logAutoExportConfigChange,
+  logManualExport,
+  logMaintenanceMode,
+  logStudentDeactivation
 };

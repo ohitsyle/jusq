@@ -3,6 +3,7 @@
 
 import express from 'express';
 const router = express.Router();
+import { logMerchantLogin, logMerchantLogout } from '../utils/logger.js';
 
 // POST /merchant/auth/login
 router.post('/login', async (req, res) => {
@@ -37,6 +38,15 @@ router.post('/login', async (req, res) => {
       process.env.JWT_SECRET || 'your-secret-key',
       { expiresIn: '7d' }
     );
+
+    // Log merchant login with proper department tracking
+    await logMerchantLogin({
+      merchantId: merchant._id,
+      merchantName: merchant.businessName,
+      deviceInfo: req.headers['user-agent'],
+      ipAddress: req.ip,
+      timestamp: new Date()
+    });
 
     res.json({
       token,
@@ -93,6 +103,43 @@ router.post('/change-password', async (req, res) => {
   } catch (error) {
     console.error('Change password error:', error);
     res.status(500).json({ error: 'Failed to change password' });
+  }
+});
+
+// POST /merchant/auth/logout
+router.post('/logout', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+
+    if (!token) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Verify token to get merchant info
+    const jwt = await import('jsonwebtoken');
+    const decoded = jwt.default.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+
+    // Import Merchant model
+    const { default: Merchant } = await import('../models/Merchant.js');
+
+    const merchant = await Merchant.findById(decoded.merchantId);
+
+    if (!merchant) {
+      return res.status(404).json({ error: 'Merchant not found' });
+    }
+
+    // Log merchant logout with proper department tracking
+    await logMerchantLogout({
+      merchantId: merchant._id,
+      merchantName: merchant.businessName,
+      sessionDuration: req.body.sessionDuration || null,
+      timestamp: new Date()
+    });
+
+    res.json({ message: 'Logout successful' });
+  } catch (error) {
+    console.error('Merchant logout error:', error);
+    res.status(500).json({ error: 'Failed to logout' });
   }
 });
 

@@ -6,6 +6,11 @@ const router = express.Router();
 import Transaction from '../models/Transaction.js';
 import User from '../models/User.js';
 import Merchant from '../models/Merchant.js';
+import { logAdminAction, logAutoExportConfigChange, logManualExport } from '../utils/logger.js';
+import { extractAdminInfo } from '../middlewares/extractAdminInfo.js';
+
+// Apply admin info extraction middleware to all accounting routes
+router.use(extractAdminInfo);
 
 // ============================================================
 // DASHBOARD / ANALYTICS ENDPOINT

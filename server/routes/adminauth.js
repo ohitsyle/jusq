@@ -117,7 +117,7 @@ router.post('/login', async (req, res) => {
       { expiresIn: '24h' }
     );
 
-    // Log the login event
+    // Log the login event with proper department tracking
     await logLogin({
       adminId: admin.adminId,
       adminName: `${admin.firstName} ${admin.lastName}`,
@@ -164,7 +164,7 @@ router.post('/logout', authenticateAdmin, async (req, res) => {
   try {
     const admin = req.admin;
 
-    // Log the logout event
+    // Log the logout event with proper department tracking
     await logLogout({
       adminId: admin.adminId,
       adminName: `${admin.firstName} ${admin.lastName}`,

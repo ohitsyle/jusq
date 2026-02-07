@@ -12,7 +12,7 @@ import User from '../models/User.js';
 import EventLog from '../models/EventLog.js';
 import UserConcern from '../models/UserConcern.js';
 import Trip from '../models/Trip.js';
-import { logAdminAction, logError } from '../utils/logger.js';
+import { logAdminAction, logError, logDriverLogin, logDriverLogout, logDriverShuttleSelection, logDriverRouteChange, logMerchantLogin, logMerchantLogout, logCashIn, logAutoExportConfigChange, logManualExport, logMaintenanceMode, logStudentDeactivation } from '../utils/logger.js';
 import { extractAdminInfo } from '../middlewares/extractAdminInfo.js';
 import { broadcastChanges, forceMobileRefresh } from '../middlewares/realtimeMiddleware.js';
 
@@ -660,13 +660,14 @@ router.get('/event-logs', async (req, res) => {
           { department: 'motorpool' },
           // New format: targetEntity
           { targetEntity: { $in: ['driver', 'shuttle', 'route', 'trip', 'phone'] } },
-          // Driver-related event types
+          // Driver-related event types (new specific types)
           { eventType: { $in: [
             'driver_login', 'driver_logout', 'trip_start', 'trip_end', 
-            'route_change', 'refund', 'phone_assigned', 'phone_unassigned'
+            'route_change', 'refund', 'phone_assigned', 'phone_unassigned',
+            'shuttle_selection'
           ]}},
           // Old format: admin actions by motorpool
-          { eventType: 'admin_action', 'metadata.adminId': 'motorpool' },
+          { eventType: 'admin_action', 'metadata.adminRole': 'motorpool' },
           // Any logs with driverId (motorpool related)
           { driverId: { $exists: true, $ne: null } },
           // New format: CRUD operations by motorpool admins
@@ -683,14 +684,16 @@ router.get('/event-logs', async (req, res) => {
           { department: 'treasury' },
           // New format: targetEntity
           { targetEntity: { $in: ['user', 'transaction'] } },
-          // Treasury-specific event types
+          // Treasury-specific event types (new specific types)
           { eventType: { $in: ['cash_in', 'registration'] } },
           // Old format: admin actions by treasury
-          { eventType: 'admin_action', 'metadata.adminId': 'treasury' },
+          { eventType: 'admin_action', 'metadata.adminRole': 'treasury' },
           // Old format: cash-in processed by treasury
           { eventType: 'admin_action', title: /Cash-In/i },
           // New format: CRUD operations by treasury admins
-          { eventType: { $in: ['crud_create', 'crud_update', 'crud_delete'] }, 'metadata.adminRole': 'treasury' }
+          { eventType: { $in: ['crud_create', 'crud_update', 'crud_delete'] }, 'metadata.adminRole': 'treasury' },
+          // Auto export and manual export by treasury
+          { eventType: { $in: ['auto_export_config_change', 'manual_export'] }, 'metadata.adminRole': 'treasury' }
         ]
       };
     } else if (department === 'merchant') {
@@ -703,12 +706,14 @@ router.get('/event-logs', async (req, res) => {
           { department: 'merchant' },
           // New format: targetEntity
           { targetEntity: 'merchant' },
-          // Merchant-specific event types
+          // Merchant-specific event types (new specific types)
           { eventType: { $in: ['merchant_login', 'merchant_logout'] } },
           // Old format: admin actions by merchant
-          { eventType: 'admin_action', 'metadata.adminId': 'merchant' },
+          { eventType: 'admin_action', 'metadata.adminRole': 'merchant' },
           // New format: CRUD operations by merchant admins
-          { eventType: { $in: ['crud_create', 'crud_update', 'crud_delete'] }, 'metadata.adminRole': 'merchant' }
+          { eventType: { $in: ['crud_create', 'crud_update', 'crud_delete'] }, 'metadata.adminRole': 'merchant' },
+          // Auto export and manual export by merchant
+          { eventType: { $in: ['auto_export_config_change', 'manual_export'] }, 'metadata.adminRole': 'merchant' }
         ]
       };
     } else if (department === 'accounting') {
@@ -720,9 +725,11 @@ router.get('/event-logs', async (req, res) => {
           // New format: department field
           { department: 'accounting' },
           // Old format: admin actions by accounting
-          { eventType: 'admin_action', 'metadata.adminId': 'accounting' },
+          { eventType: 'admin_action', 'metadata.adminRole': 'accounting' },
           // New format: CRUD operations by accounting admins
-          { eventType: { $in: ['crud_create', 'crud_update', 'crud_delete'] }, 'metadata.adminRole': 'accounting' }
+          { eventType: { $in: ['crud_create', 'crud_update', 'crud_delete'] }, 'metadata.adminRole': 'accounting' },
+          // Auto export and manual export by accounting
+          { eventType: { $in: ['auto_export_config_change', 'manual_export'] }, 'metadata.adminRole': 'accounting' }
         ]
       };
     }

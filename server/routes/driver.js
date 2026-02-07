@@ -37,22 +37,15 @@ router.post('/login', async (req, res) => {
       { expiresIn: '24h' }
     );
 
-    // Log driver login
-    const { logEvent } = await import('../utils/logger.js');
-    logEvent({
-      eventType: 'driver_login',
-      title: 'Driver Login',
-      description: `Driver ${driver.name} (${driver.driverId}) logged in`,
-      severity: 'info',
+    // Log driver login with proper department tracking
+    const { logDriverLogin } = await import('../utils/logger.js');
+    await logDriverLogin({
       driverId: driver.driverId,
-      department: 'motorpool',
-      targetEntity: 'driver',
-      metadata: {
-        driverName: driver.name,
-        shuttleId: driver.shuttleId,
-        username: driver.username
-      }
-    }).catch(() => {});
+      driverName: driver.name,
+      deviceInfo: req.headers['user-agent'],
+      ipAddress: req.ip,
+      timestamp: new Date()
+    });
 
     return res.json({
       success: true,
@@ -103,6 +96,34 @@ router.get('/profile', verifyToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Profile error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Driver logout endpoint
+router.post('/logout', verifyToken, async (req, res) => {
+  try {
+    const driver = await Driver.findOne({ driverId: req.user.driverId });
+    
+    if (!driver) {
+      return res.status(404).json({ error: 'Driver not found' });
+    }
+
+    // Log driver logout with proper department tracking
+    const { logDriverLogout } = await import('../utils/logger.js');
+    await logDriverLogout({
+      driverId: driver.driverId,
+      driverName: driver.name,
+      sessionDuration: req.body.sessionDuration || null,
+      timestamp: new Date()
+    });
+
+    return res.json({
+      success: true,
+      message: 'Logout successful'
+    });
+  } catch (error) {
+    console.error('Logout error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

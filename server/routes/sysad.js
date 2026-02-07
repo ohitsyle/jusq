@@ -14,7 +14,7 @@ import UserConcern from '../models/UserConcern.js';
 import bcrypt from 'bcrypt';
 import { sendTemporaryPIN } from '../services/emailService.js';
 import { checkMaintenanceMode, getMaintenanceStatus, setMaintenanceMode } from '../middlewares/maintenanceMode.js';
-import { logAdminAction } from '../utils/logger.js';
+import { logAdminAction, logMaintenanceMode, logStudentDeactivation, logAutoExportConfigChange, logManualExport } from '../utils/logger.js';
 
 // ============================================================
 // DASHBOARD ENDPOINTS
@@ -1015,26 +1015,15 @@ router.post('/maintenance-mode', async (req, res) => {
     // Update middleware maintenance mode state
     setMaintenanceMode(enabled, message || 'System is under maintenance. Please try again later.');
 
-    // Log action
-    await SystemLog.create({
-      eventType: 'maintenance_mode_changed',
-      description: `Maintenance mode ${enabled ? 'enabled' : 'disabled'} by SysAd`,
-      severity: enabled ? 'warning' : 'info',
-      metadata: { enabled, message, adminAction: true }
+    // Log maintenance mode change with proper department tracking
+    await logMaintenanceMode({
+      adminId: req.adminInfo?.adminId || 'sysad',
+      adminName: req.adminInfo?.adminName || 'System Admin',
+      enabled: enabled,
+      reason: message || 'System maintenance',
+      estimatedDuration: null,
+      timestamp: new Date()
     });
-    logAdminAction({
-      adminId: req.adminId || 'sysad',
-      adminRole: 'sysad',
-      department: 'system',
-      action: `Maintenance Mode ${enabled ? 'Enabled' : 'Disabled'}`,
-      description: `${enabled ? 'enabled' : 'disabled'} maintenance mode`,
-      targetEntity: 'config',
-      targetId: 'maintenance-mode',
-      crudOperation: 'maintenance_mode',
-      severity: enabled ? 'warning' : 'info',
-      changes: { enabled, message },
-      ipAddress: req.ip
-    }).catch(() => {});
 
     console.log(`🔧 Maintenance mode ${enabled ? 'ENABLED' : 'DISABLED'} by SysAd`);
 
@@ -1237,25 +1226,15 @@ router.post('/deactivation-scheduler', async (req, res) => {
       time: time || systemConfig.deactivationScheduler.time
     };
 
-    // Log action
-    await SystemLog.create({
-      eventType: 'deactivation_scheduler_configured',
-      description: `Deactivation scheduler ${systemConfig.deactivationScheduler.enabled ? 'enabled' : 'disabled'}`,
-      severity: 'info',
-      metadata: { config: systemConfig.deactivationScheduler, adminAction: true }
+    // Log student deactivation scheduler change with proper department tracking
+    await logStudentDeactivation({
+      adminId: req.adminInfo?.adminId || 'sysad',
+      adminName: req.adminInfo?.adminName || 'System Admin',
+      enabled: systemConfig.deactivationScheduler.enabled,
+      reason: `Scheduled for ${date} ${time}`,
+      affectedStudents: enabled ? 'All students' : null,
+      timestamp: new Date()
     });
-    logAdminAction({
-      adminId: req.adminId || 'sysad',
-      adminRole: 'sysad',
-      department: 'system',
-      action: 'Deactivation Scheduler Configured',
-      description: `${systemConfig.deactivationScheduler.enabled ? 'enabled' : 'disabled'} student deactivation scheduler`,
-      targetEntity: 'config',
-      targetId: 'deactivation-scheduler',
-      crudOperation: 'student_deactivation',
-      changes: systemConfig.deactivationScheduler,
-      ipAddress: req.ip
-    }).catch(() => {});
 
     res.json({
       success: true,
