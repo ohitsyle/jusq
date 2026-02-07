@@ -11,7 +11,7 @@ import StatusFilter from '../../../components/shared/StatusFilter';
 import DateRangeFilter from '../../../components/shared/DateRangeFilter';
 import ExportButton from '../../../components/shared/ExportButton';
 import { exportToCSV } from '../../../utils/csvExport';
-import { X, Loader2, Send, CheckCircle, MessageCircle, FileText } from 'lucide-react';
+import { X, Loader2, Send, CheckCircle, MessageCircle, FileText, Clock, AlertCircle } from 'lucide-react';
 
 export default function SysadConcernsPage() {
   const { theme, isDarkMode } = useTheme();
@@ -231,6 +231,46 @@ export default function SysadConcernsPage() {
     }
   };
 
+  // Aging system - matches Treasury admin style
+  const calculateAging = (concern) => {
+    // Only calculate aging for assistance requests that are not resolved
+    if (concern.submissionType !== 'assistance' || concern.status === 'resolved') {
+      return null;
+    }
+
+    const now = new Date();
+    const createdDate = new Date(concern.createdAt);
+    const ageInDays = Math.floor((now - createdDate) / (1000 * 60 * 60 * 24));
+
+    let color = 'transparent';
+    let badgeText = '';
+    let badgeColor = '';
+
+    if (ageInDays < 1) {
+      color = 'transparent';
+      badgeText = 'New';
+      badgeColor = '#10B981';
+    } else if (ageInDays >= 1 && ageInDays < 3) {
+      color = 'rgba(251, 191, 36, 0.1)';
+      badgeText = `${ageInDays}d old`;
+      badgeColor = '#FBBF24';
+    } else if (ageInDays >= 3 && ageInDays < 5) {
+      color = 'rgba(249, 115, 22, 0.15)';
+      badgeText = `${ageInDays}d old`;
+      badgeColor = '#F97316';
+    } else if (ageInDays >= 5 && ageInDays < 7) {
+      color = 'rgba(234, 88, 12, 0.2)';
+      badgeText = `${ageInDays}d old`;
+      badgeColor = '#EA580C';
+    } else {
+      color = 'rgba(239, 68, 68, 0.25)';
+      badgeText = `${ageInDays}d old`;
+      badgeColor = '#EF4444';
+    }
+
+    return { ageInDays, backgroundColor: color, badgeText, badgeColor };
+  };
+
   if (loading) {
     return (
       <div style={{ color: theme.accent.primary }} className="text-center py-20">
@@ -254,6 +294,75 @@ export default function SysadConcernsPage() {
               : `All user reports and feedbacks about the NUCash system • Total: ${concerns.length}`
             }
           </p>
+        </div>
+
+        {/* Metrics Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+          {/* Pending Card */}
+          <div
+            style={{
+              background: theme.bg.card,
+              borderColor: 'rgba(251, 191, 36, 0.3)'
+            }}
+            className="p-4 rounded-xl border flex items-center gap-4 transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
+          >
+            <div
+              style={{ background: 'rgba(251, 191, 36, 0.2)' }}
+              className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+            >
+              <Clock style={{ color: '#FBBF24' }} className="w-6 h-6" />
+            </div>
+            <div>
+              <p style={{ color: theme.text.secondary }} className="text-[10px] font-semibold uppercase tracking-wide">Pending</p>
+              <p style={{ color: '#FBBF24' }} className="text-2xl font-bold">
+                {concerns.filter(c => c.status === 'pending' && c.submissionType !== 'feedback').length}
+              </p>
+            </div>
+          </div>
+
+          {/* In Progress Card */}
+          <div
+            style={{
+              background: theme.bg.card,
+              borderColor: 'rgba(59, 130, 246, 0.3)'
+            }}
+            className="p-4 rounded-xl border flex items-center gap-4 transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
+          >
+            <div
+              style={{ background: 'rgba(59, 130, 246, 0.2)' }}
+              className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+            >
+              <Loader2 style={{ color: '#3B82F6' }} className="w-6 h-6 animate-spin" />
+            </div>
+            <div>
+              <p style={{ color: theme.text.secondary }} className="text-[10px] font-semibold uppercase tracking-wide">In Progress</p>
+              <p style={{ color: '#3B82F6' }} className="text-2xl font-bold">
+                {concerns.filter(c => c.status === 'in_progress').length}
+              </p>
+            </div>
+          </div>
+
+          {/* Resolved Card */}
+          <div
+            style={{
+              background: theme.bg.card,
+              borderColor: 'rgba(16, 185, 129, 0.3)'
+            }}
+            className="p-4 rounded-xl border flex items-center gap-4 transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
+          >
+            <div
+              style={{ background: 'rgba(16, 185, 129, 0.2)' }}
+              className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+            >
+              <CheckCircle style={{ color: '#10B981' }} className="w-6 h-6" />
+            </div>
+            <div>
+              <p style={{ color: theme.text.secondary }} className="text-[10px] font-semibold uppercase tracking-wide">Resolved</p>
+              <p style={{ color: '#10B981' }} className="text-2xl font-bold">
+                {concerns.filter(c => c.status === 'resolved').length}
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -373,10 +482,29 @@ export default function SysadConcernsPage() {
                 </tr>
               </thead>
               <tbody>
-                {currentItems.map((concern) => (
-                  <tr key={concern._id} style={{ borderBottom: `1px solid ${theme.border.primary}` }} className="hover:bg-white/5 transition">
+                {currentItems.map((concern) => {
+                  const aging = calculateAging(concern);
+                  return (
+                  <tr key={concern._id} style={{ borderBottom: `1px solid ${theme.border.primary}`, background: aging ? aging.backgroundColor : 'transparent' }} className="hover:bg-white/5 transition">
                     <td style={{ color: theme.text.primary }} className="p-4 font-mono text-xs">
                       {concern._id?.slice(-8)}
+                      {aging && aging.badgeText && (
+                        <span
+                          style={{
+                            background: aging.badgeColor,
+                            color: '#FFFFFF',
+                            fontSize: '9px',
+                            fontWeight: 700,
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            textTransform: 'uppercase',
+                            whiteSpace: 'nowrap',
+                            marginLeft: '8px'
+                          }}
+                        >
+                          {aging.badgeText}
+                        </span>
+                      )}
                     </td>
                     <td style={{ color: theme.text.primary }} className="p-4">
                       {concern.user?.firstName || concern.userName} {concern.user?.lastName || ''}
@@ -454,7 +582,8 @@ export default function SysadConcernsPage() {
                       </button>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
 

@@ -163,24 +163,42 @@ router.get('/users', async (req, res) => {
     const sort = {};
     sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
 
-    // Fetch users
+    // Fetch users and admins
     let users = [];
     let admins = [];
     let userTotal = 0;
     let adminTotal = 0;
 
-    // Only include regular users - exclude admins for transfer card
-    // Admins don't have RFID cards, so they shouldn't appear in transfer card list
-    [users, userTotal] = await Promise.all([
-      User.find(userFilter)
-        .select('-password -pin')
-        .sort(sort)
-        .lean(),
-      User.countDocuments(userFilter)
-    ]);
+    // Always fetch regular users (students/employees)
+    // Only skip users if role filter is specifically 'admin'
+    const fetchUsers = role !== 'admin';
 
-    // No admins included for transfer card functionality
-    const combinedResults = users.map(u => ({ ...u, _type: 'user' }));
+    if (fetchUsers) {
+      [users, userTotal] = await Promise.all([
+        User.find(userFilter)
+          .select('-password -pin')
+          .sort(sort)
+          .lean(),
+        User.countDocuments(userFilter)
+      ]);
+    }
+
+    // Include admins when role filter is 'all', 'admin', or not specified
+    if (includeAdmins) {
+      [admins, adminTotal] = await Promise.all([
+        Admin.find(adminFilter)
+          .select('-pin')
+          .sort(sort)
+          .lean(),
+        Admin.countDocuments(adminFilter)
+      ]);
+    }
+
+    // Combine results - mark each record's type for client-side differentiation
+    const combinedResults = [
+      ...users.map(u => ({ ...u, _type: 'user' })),
+      ...admins.map(a => ({ ...a, _type: 'admin', role: a.role || 'admin' }))
+    ];
 
     // Sort combined results
     combinedResults.sort((a, b) => {
@@ -193,7 +211,7 @@ router.get('/users', async (req, res) => {
     });
 
     // Apply pagination to combined results
-    const total = userTotal;
+    const total = userTotal + adminTotal;
     const paginatedResults = combinedResults.slice(skip, skip + parseInt(limit));
 
     res.json({
@@ -218,19 +236,28 @@ router.get('/users', async (req, res) => {
  */
 router.get('/users/metrics', async (req, res) => {
   try {
-    // User model uses isActive (boolean) not status (string)
-    const [total, active, inactive, students, employees, admins] = await Promise.all([
+    // Count users and admins separately then combine
+    const [userTotal, userActive, userInactive, students, employees, adminTotal, adminActive, adminInactive] = await Promise.all([
       User.countDocuments(),
       User.countDocuments({ isActive: true }),
       User.countDocuments({ isActive: { $ne: true } }),
       User.countDocuments({ role: 'student' }),
       User.countDocuments({ role: 'employee' }),
-      Admin.countDocuments({ isActive: true })
+      Admin.countDocuments(),
+      Admin.countDocuments({ isActive: true }),
+      Admin.countDocuments({ isActive: { $ne: true } })
     ]);
 
     res.json({
       success: true,
-      metrics: { total, active, inactive, students, employees, admins }
+      metrics: {
+        total: userTotal + adminTotal,
+        active: userActive + adminActive,
+        inactive: userInactive + adminInactive,
+        students,
+        employees,
+        admins: adminTotal
+      }
     });
   } catch (error) {
     console.error('❌ User metrics error:', error);
