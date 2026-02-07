@@ -718,24 +718,22 @@ export default function SysadConcernsPage() {
               >
                 📋 Details
               </button>
-              {selectedConcern.submissionType !== 'feedback' && (
-                <button
-                  onClick={() => setModalTab('notes')}
-                  style={{
-                    padding: '12px 20px',
-                    background: 'transparent',
-                    border: 'none',
-                    borderBottom: `3px solid ${modalTab === 'notes' ? theme.accent.primary : 'transparent'}`,
-                    color: modalTab === 'notes' ? theme.accent.primary : theme.text.secondary,
-                    fontSize: '14px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  📝 Notes History {selectedConcern.notes?.length > 0 && `(${selectedConcern.notes.length})`}
-                </button>
-              )}
+              <button
+                onClick={() => setModalTab('notes')}
+                style={{
+                  padding: '12px 20px',
+                  background: 'transparent',
+                  border: 'none',
+                  borderBottom: `3px solid ${modalTab === 'notes' ? theme.accent.primary : 'transparent'}`,
+                  color: modalTab === 'notes' ? theme.accent.primary : theme.text.secondary,
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                📝 Notes History {selectedConcern.notes?.length > 0 && `(${selectedConcern.notes.length})`}
+              </button>
             </div>
 
             {/* Tab Content */}
