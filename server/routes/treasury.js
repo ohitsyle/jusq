@@ -10,6 +10,10 @@ import UserConcern from '../models/UserConcern.js';
 import { logAdminAction } from '../utils/logger.js';
 import { sendTemporaryPIN, sendConcernInProgressEmail, sendConcernResolvedEmail } from '../services/emailService.js';
 import { convertRfidToHexLittleEndian, validateRfidFormat } from '../utils/rfidConverter.js';
+import { extractAdminInfo } from '../middlewares/extractAdminInfo.js';
+
+// Apply admin info extraction middleware to all treasury routes
+router.use(extractAdminInfo);
 
 // ============================================================
 // DASHBOARD ENDPOINT
@@ -476,18 +480,23 @@ router.post('/transactions/:transactionId/refund', async (req, res) => {
     await user.save();
 
     // Log the refund
-    await logAdminAction({
+    logAdminAction({
       action: 'Transaction Refunded',
       description: `refunded transaction ${transactionId} for ${user.schoolUId}`,
-      adminId: adminId || 'treasury',
+      adminId: req.adminId || adminId || 'treasury',
+      adminName: req.adminName || 'Treasury Admin',
+      adminRole: req.adminRole || 'treasury',
+      department: req.department || 'treasury',
       targetEntity: 'transaction',
       targetId: transactionId,
+      crudOperation: 'refund',
       changes: {
         reason,
         refundAmount: originalTx.amount,
         newUserBalance: user.balance
-      }
-    });
+      },
+      ipAddress: req.ip
+    }).catch(() => {});
 
     console.log(`✅ Transaction ${transactionId} refunded successfully`);
 
@@ -678,14 +687,19 @@ router.post('/cash-in', async (req, res) => {
     await user.save();
 
     // Log admin action
-    await logAdminAction({
+    logAdminAction({
       action: 'Cash-In Processed',
       description: `processed cash-in of ₱${amount} for user ${user.schoolUId}`,
-      adminId: adminId || 'treasury',
+      adminId: req.adminId || adminId || 'treasury',
+      adminName: req.adminName || 'Treasury Admin',
+      adminRole: req.adminRole || 'treasury',
+      department: req.department || 'treasury',
       targetEntity: 'transaction',
       targetId: transactionId,
-      changes: { amount, newBalance: user.balance }
-    });
+      crudOperation: 'cash_in',
+      changes: { amount, newBalance: user.balance },
+      ipAddress: req.ip
+    }).catch(() => {});
 
     // TODO: Send receipt email to user
     let receiptSent = false;
@@ -817,14 +831,19 @@ router.post('/register', async (req, res) => {
     await user.save();
 
     // Log admin action
-    await logAdminAction({
+    logAdminAction({
       action: 'User Registered',
       description: `Registered new user: ${firstName} ${lastName} (${schoolUId})`,
-      adminId: 'treasury',
+      adminId: req.adminId || 'treasury',
+      adminName: req.adminName || 'Treasury Admin',
+      adminRole: req.adminRole || 'treasury',
+      department: req.department || 'treasury',
       targetEntity: 'user',
       targetId: user._id.toString(),
-      changes: { schoolUId, rfidUId: convertedRfidUId, firstName, lastName, email, role }
-    });
+      crudOperation: 'registration',
+      changes: { schoolUId, rfidUId: convertedRfidUId, firstName, lastName, email, role },
+      ipAddress: req.ip
+    }).catch(() => {});
 
     // Send email with temporary PIN
     let emailSent = false;
@@ -1029,14 +1048,19 @@ router.post('/users/register', async (req, res) => {
     await user.save();
 
     // Log admin action
-    await logAdminAction({
+    logAdminAction({
       action: 'User Registered',
       description: `registered new user ${user.schoolUId} (${firstName} ${lastName})`,
-      adminId: adminId || 'treasury',
+      adminId: req.adminId || adminId || 'treasury',
+      adminName: req.adminName || 'Treasury Admin',
+      adminRole: req.adminRole || 'treasury',
+      department: req.department || 'treasury',
       targetEntity: 'user',
       targetId: user.userId.toString(),
-      changes: { schoolUId, rfidUId: convertedRfidUId, firstName, lastName, email, role }
-    });
+      crudOperation: 'registration',
+      changes: { schoolUId, rfidUId: convertedRfidUId, firstName, lastName, email, role },
+      ipAddress: req.ip
+    }).catch(() => {});
 
     // Send email with temporary PIN
     let emailSent = false;
@@ -1557,14 +1581,19 @@ router.patch('/merchants/:merchantId/status', async (req, res) => {
     }
 
     // Log admin action
-    await logAdminAction({
+    logAdminAction({
       action: 'Merchant Status Updated',
       description: `updated merchant ${merchant.merchantId} status to ${isActive ? 'active' : 'inactive'}`,
       adminId: req.adminId || 'treasury',
+      adminName: req.adminName || 'Treasury Admin',
+      adminRole: req.adminRole || 'treasury',
+      department: req.department || 'treasury',
       targetEntity: 'merchant',
       targetId: merchant.merchantId,
-      changes: { isActive }
-    });
+      crudOperation: 'crud_update',
+      changes: { isActive },
+      ipAddress: req.ip
+    }).catch(() => {});
 
     res.json({
       success: true,
@@ -1759,8 +1788,9 @@ router.post('/concerns/:id/note', async (req, res) => {
     // Log the note action
     logAdminAction({
       adminId: req.adminId || 'treasury',
-      adminRole: 'treasury',
-      department: 'treasury',
+      adminName: req.adminName || adminName || 'Treasury Admin',
+      adminRole: req.adminRole || 'treasury',
+      department: req.department || 'treasury',
       action: 'Concern Note Added',
       description: `added note to concern ${savedConcern.concernId}`,
       targetEntity: 'concern',
@@ -1887,14 +1917,19 @@ router.patch('/concerns/:id/status', async (req, res) => {
     }
 
     // Log admin action
-    await logAdminAction({
+    logAdminAction({
       action: 'Concern Status Updated',
       description: `updated concern ${concern.concernId} status from ${oldStatus} to ${status}`,
       adminId: req.adminId || 'treasury',
+      adminName: req.adminName || adminName || 'Treasury Admin',
+      adminRole: req.adminRole || 'treasury',
+      department: req.department || 'treasury',
       targetEntity: 'concern',
       targetId: concern.concernId,
-      changes: { oldStatus, newStatus: status, reply: reply || null }
-    });
+      crudOperation: status === 'resolved' ? 'concern_resolved' : 'crud_update',
+      changes: { oldStatus, newStatus: status, reply: reply || null },
+      ipAddress: req.ip
+    }).catch(() => {});
 
     res.json({
       success: true,
@@ -1954,14 +1989,19 @@ router.put('/config', async (req, res) => {
     // In a real implementation, this would save to a Config model
 
     // Log admin action
-    await logAdminAction({
+    logAdminAction({
       action: 'Treasury Config Updated',
       description: 'updated treasury configuration settings',
       adminId: req.adminId || 'treasury',
+      adminName: req.adminName || 'Treasury Admin',
+      adminRole: req.adminRole || 'treasury',
+      department: req.department || 'treasury',
       targetEntity: 'config',
       targetId: 'treasury-config',
-      changes: { minCashIn, maxCashIn, dailyCashInLimit, autoLogoutMinutes }
-    });
+      crudOperation: 'config_updated',
+      changes: { minCashIn, maxCashIn, dailyCashInLimit, autoLogoutMinutes },
+      ipAddress: req.ip
+    }).catch(() => {});
 
     res.json({
       success: true,

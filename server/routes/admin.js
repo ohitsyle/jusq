@@ -836,14 +836,19 @@ router.patch('/user-concerns/:id/status', async (req, res) => {
     if (!concern) return res.status(404).json({ error: 'Concern not found' });
 
     // Log admin action
-    await logAdminAction({
+    logAdminAction({
       action: 'Concern Status Updated',
       description: `updated concern ${concern.concernId} status to ${status}`,
       adminId: req.adminId || 'system',
+      adminName: req.adminName || adminName || 'Admin',
+      adminRole: req.adminRole || 'motorpool',
+      department: req.department || 'motorpool',
       targetEntity: 'concern',
       targetId: concern.concernId,
-      changes: { status, resolution }
-    });
+      crudOperation: status === 'resolved' ? 'concern_resolved' : 'crud_update',
+      changes: { status, resolution },
+      ipAddress: req.ip
+    }).catch(() => {});
 
     // Send email notification when concern status changes
     if (status === 'in_progress' && concern.userEmail) {
@@ -940,13 +945,19 @@ router.post('/trips/:id/notes', async (req, res) => {
     await trip.save();
 
     // Log admin action
-    await logAdminAction({
-      adminId: adminId || 'unknown',
-      action: 'add_trip_note',
-      entityType: 'trip',
-      entityId: trip._id.toString(),
-      details: { content: content.trim() }
-    });
+    logAdminAction({
+      adminId: req.adminId || adminId || 'unknown',
+      adminName: req.adminName || adminName || 'Admin',
+      adminRole: req.adminRole || 'motorpool',
+      department: req.department || 'motorpool',
+      action: 'Trip Note Added',
+      description: `added note to trip ${trip._id}`,
+      targetEntity: 'trip',
+      targetId: trip._id.toString(),
+      crudOperation: 'note_added',
+      changes: { content: content.trim() },
+      ipAddress: req.ip
+    }).catch(() => {});
 
     console.log(`✅ Note added to trip ${trip._id} by ${adminName}`);
 
@@ -1013,13 +1024,19 @@ router.put('/settings', async (req, res) => {
     console.log(`⚙️ Setting updated: ${section}.${key} = ${value} by ${adminName}`);
 
     // Log the settings change
-    await logAdminAction({
-      adminId: adminId || 'unknown',
-      action: 'update_setting',
-      entityType: 'settings',
-      entityId: `${section}.${key}`,
-      details: { section, key, value, previousValue: null }
-    });
+    logAdminAction({
+      adminId: req.adminId || adminId || 'unknown',
+      adminName: req.adminName || adminName || 'Admin',
+      adminRole: req.adminRole || 'motorpool',
+      department: req.department || 'motorpool',
+      action: 'Setting Updated',
+      description: `updated setting ${section}.${key}`,
+      targetEntity: 'config',
+      targetId: `${section}.${key}`,
+      crudOperation: 'config_updated',
+      changes: { section, key, value, previousValue: null },
+      ipAddress: req.ip
+    }).catch(() => {});
 
     res.json({
       success: true,

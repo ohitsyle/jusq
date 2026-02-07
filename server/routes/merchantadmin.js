@@ -3,6 +3,10 @@
 
 import express from 'express';
 const router = express.Router();
+import { extractAdminInfo } from '../middlewares/extractAdminInfo.js';
+
+// Apply admin info extraction middleware to all merchant admin routes
+router.use(extractAdminInfo);
 
 const JWT_SECRET = process.env.JWT_SECRET || 'nucash-secret-key';
 console.log('🔑 Merchant admin JWT_SECRET:', JWT_SECRET);
@@ -208,14 +212,19 @@ router.post('/merchants', verifyMerchantToken, async (req, res) => {
     await merchant.save();
 
     // Log admin action
-    await logAdminAction({
+    logAdminAction({
       action: 'Merchant Created',
       description: `created new merchant: ${businessName} (${merchantId})`,
-      adminId: req.merchantId || 'merchant-admin',
+      adminId: req.adminId || req.merchantId || 'merchant-admin',
+      adminName: req.adminName || 'Merchant Admin',
+      adminRole: req.adminRole || 'merchant',
+      department: req.department || 'merchant',
       targetEntity: 'merchant',
       targetId: merchantId,
-      changes: { businessName, firstName, lastName, email }
-    });
+      crudOperation: 'crud_create',
+      changes: { businessName, firstName, lastName, email },
+      ipAddress: req.ip
+    }).catch(() => {});
 
     res.status(201).json({
       message: 'Merchant created successfully',
@@ -790,14 +799,19 @@ router.patch('/concerns/:id/status', verifyMerchantToken, async (req, res) => {
     }
 
     // Log admin action
-    await logAdminAction({
+    logAdminAction({
       action: 'Concern Status Updated',
       description: `updated concern ${concern.concernId} status from ${oldStatus} to ${status}`,
-      adminId: req.merchantId || 'merchant-admin',
+      adminId: req.adminId || req.merchantId || 'merchant-admin',
+      adminName: req.adminName || 'Merchant Admin',
+      adminRole: req.adminRole || 'merchant',
+      department: req.department || 'merchant',
       targetEntity: 'concern',
       targetId: concern.concernId,
-      changes: { oldStatus, newStatus: status, reply: reply || null }
-    });
+      crudOperation: status === 'resolved' ? 'concern_resolved' : 'crud_update',
+      changes: { oldStatus, newStatus: status, reply: reply || null },
+      ipAddress: req.ip
+    }).catch(() => {});
 
     res.json({
       success: true,

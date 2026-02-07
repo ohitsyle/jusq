@@ -11,6 +11,10 @@ import Driver from '../models/Driver.js';
 import { exportByType } from '../utils/csvExporter.js';
 import { sendEmail } from '../services/emailService.js';
 import { logAdminAction } from '../utils/logger.js';
+import { extractAdminInfo } from '../middlewares/extractAdminInfo.js';
+
+// Apply admin info extraction middleware to all configuration routes
+router.use(extractAdminInfo);
 
 // ============================================================
 // CONFIGURATION MANAGEMENT
@@ -117,8 +121,9 @@ router.put('/', async (req, res) => {
     // Log config update
     logAdminAction({
       adminId: req.adminId || 'system',
-      adminRole: req.adminRole || 'unknown',
-      department: req.adminRole || 'system',
+      adminName: req.adminName || 'Admin',
+      adminRole: req.adminRole || role || 'unknown',
+      department: req.department || req.adminRole || 'system',
       action: 'Configuration Updated',
       description: `updated configurations for role: ${role}`,
       targetEntity: 'config',
@@ -152,8 +157,9 @@ router.put('/auto-export', async (req, res) => {
     );
     logAdminAction({
       adminId: req.adminId || 'system',
-      adminRole: role,
-      department: role === 'global' ? 'system' : role,
+      adminName: req.adminName || 'Admin',
+      adminRole: req.adminRole || role,
+      department: req.department || (role === 'global' ? 'system' : role),
       action: 'Auto-Export Config Updated',
       description: `updated auto-export configuration for role: ${role}`,
       targetEntity: 'config',
@@ -228,8 +234,9 @@ router.put('/excuse-slips', async (req, res) => {
     );
     logAdminAction({
       adminId: req.adminId || 'system',
+      adminName: req.adminName || 'Admin',
       adminRole: req.adminRole || 'unknown',
-      department: req.adminRole || 'system',
+      department: req.department || req.adminRole || 'system',
       action: 'Excuse Slip Config Updated',
       description: `updated excuse slip configuration`,
       targetEntity: 'config',
@@ -290,8 +297,9 @@ router.put('/tab-visibility', async (req, res) => {
     );
     logAdminAction({
       adminId: req.adminId || 'system',
+      adminName: req.adminName || 'Admin',
       adminRole: req.adminRole || 'unknown',
-      department: req.adminRole || 'system',
+      department: req.department || req.adminRole || 'system',
       action: 'Tab Visibility Updated',
       description: `updated tab visibility configuration`,
       targetEntity: 'config',
@@ -338,8 +346,9 @@ router.post('/manual-export', async (req, res) => {
 
     logAdminAction({
       adminId: req.adminId || 'system',
+      adminName: req.adminName || 'Admin',
       adminRole: req.adminRole || 'unknown',
-      department: req.adminRole || 'system',
+      department: req.department || req.adminRole || 'system',
       action: 'Manual Export',
       description: `exported ${exportType} (${count} records)`,
       targetEntity: 'config',
@@ -426,8 +435,9 @@ router.post('/manual-export-all', async (req, res) => {
 
     logAdminAction({
       adminId: req.adminId || 'system',
+      adminName: req.adminName || 'Admin',
       adminRole: req.adminRole || 'unknown',
-      department: req.adminRole || 'system',
+      department: req.department || req.adminRole || 'system',
       action: 'Manual Export All',
       description: `exported all data (${totalRecords} records)`,
       targetEntity: 'config',
@@ -596,8 +606,9 @@ router.post('/manual-export-motorpool', async (req, res) => {
 
     logAdminAction({
       adminId: req.adminId || 'system',
-      adminRole: 'motorpool',
-      department: 'motorpool',
+      adminName: req.adminName || 'Admin',
+      adminRole: req.adminRole || 'motorpool',
+      department: req.department || 'motorpool',
       action: 'Motorpool Export',
       description: `exported motorpool data (${totalRecords} records): ${exportTypes.join(', ')}`,
       targetEntity: 'config',
@@ -666,8 +677,9 @@ router.post('/manual-export-merchant', async (req, res) => {
 
     logAdminAction({
       adminId: req.adminId || 'system',
-      adminRole: 'merchant',
-      department: 'merchant',
+      adminName: req.adminName || 'Admin',
+      adminRole: req.adminRole || 'merchant',
+      department: req.department || 'merchant',
       action: 'Merchant Export',
       description: `exported merchant data (${totalRecords} records): ${exportTypes.join(', ')}`,
       targetEntity: 'config',
@@ -766,8 +778,9 @@ router.post('/manual-export-treasury', async (req, res) => {
 
     logAdminAction({
       adminId: req.adminId || 'system',
-      adminRole: 'treasury',
-      department: 'treasury',
+      adminName: req.adminName || 'Admin',
+      adminRole: req.adminRole || 'treasury',
+      department: req.department || 'treasury',
       action: 'Treasury Export',
       description: `exported treasury data (${totalRecords} records): ${exportTypes.join(', ')}`,
       targetEntity: 'config',
@@ -866,8 +879,9 @@ router.post('/manual-export-sysad', async (req, res) => {
 
     logAdminAction({
       adminId: req.adminId || 'system',
-      adminRole: 'sysad',
-      department: 'system',
+      adminName: req.adminName || 'Admin',
+      adminRole: req.adminRole || 'sysad',
+      department: req.department || 'system',
       action: 'SysAd Export',
       description: `exported sysad data (${totalRecords} records): ${exportTypes.join(', ')}`,
       targetEntity: 'config',
