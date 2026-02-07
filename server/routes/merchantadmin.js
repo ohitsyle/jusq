@@ -255,6 +255,9 @@ router.put('/merchants/:id', verifyMerchantToken, async (req, res) => {
       updateData.pin = password;
     }
 
+    // Get old data for logging
+    const oldMerchant = await Merchant.findById(req.params.id).select('-pin').lean();
+
     const merchant = await Merchant.findByIdAndUpdate(
       req.params.id,
       updateData,
@@ -264,6 +267,21 @@ router.put('/merchants/:id', verifyMerchantToken, async (req, res) => {
     if (!merchant) {
       return res.status(404).json({ error: 'Merchant not found' });
     }
+
+    // Log merchant update
+    const { logAdminAction } = await import('../utils/logger.js');
+    logAdminAction({
+      adminId: req.merchantId || 'merchant-admin',
+      adminRole: 'merchant',
+      department: 'merchant',
+      action: 'Merchant Updated',
+      description: `updated merchant: ${merchant.businessName} (${merchant.merchantId})`,
+      targetEntity: 'merchant',
+      targetId: merchant.merchantId,
+      crudOperation: 'crud_update',
+      changes: { old: oldMerchant, new: updateData },
+      ipAddress: req.ip
+    }).catch(() => {});
 
     res.json({ message: 'Merchant updated successfully', merchant });
   } catch (error) {
@@ -282,6 +300,21 @@ router.delete('/merchants/:id', verifyMerchantToken, async (req, res) => {
     if (!merchant) {
       return res.status(404).json({ error: 'Merchant not found' });
     }
+
+    // Log merchant deletion
+    const { logAdminAction } = await import('../utils/logger.js');
+    logAdminAction({
+      adminId: req.merchantId || 'merchant-admin',
+      adminRole: 'merchant',
+      department: 'merchant',
+      action: 'Merchant Deleted',
+      description: `deleted merchant: ${merchant.businessName} (${merchant.merchantId})`,
+      targetEntity: 'merchant',
+      targetId: merchant.merchantId,
+      crudOperation: 'crud_delete',
+      changes: { deleted: { businessName: merchant.businessName, email: merchant.email } },
+      ipAddress: req.ip
+    }).catch(() => {});
 
     res.json({ message: 'Merchant deleted successfully' });
   } catch (error) {
@@ -476,6 +509,21 @@ router.post('/phones', verifyMerchantToken, async (req, res) => {
       .populate('assignedMerchantId', 'businessName')
       .lean();
 
+    // Log phone creation
+    const { logAdminAction } = await import('../utils/logger.js');
+    logAdminAction({
+      adminId: req.merchantId || 'merchant-admin',
+      adminRole: 'merchant',
+      department: 'merchant',
+      action: 'Phone Created',
+      description: `created new phone: ${newPhoneId}`,
+      targetEntity: 'phone',
+      targetId: newPhoneId,
+      crudOperation: 'crud_create',
+      changes: { phoneId: newPhoneId, ...req.body },
+      ipAddress: req.ip
+    }).catch(() => {});
+
     res.status(201).json(populatedPhone);
   } catch (error) {
     console.error('Create phone error:', error);
@@ -508,6 +556,21 @@ router.put('/phones/:id', verifyMerchantToken, async (req, res) => {
       return res.status(404).json({ error: 'Phone not found' });
     }
 
+    // Log phone update
+    const { logAdminAction } = await import('../utils/logger.js');
+    logAdminAction({
+      adminId: req.merchantId || 'merchant-admin',
+      adminRole: 'merchant',
+      department: 'merchant',
+      action: 'Phone Updated',
+      description: `updated phone: ${phone.phoneId}`,
+      targetEntity: 'phone',
+      targetId: phone.phoneId,
+      crudOperation: 'crud_update',
+      changes: { updates: req.body },
+      ipAddress: req.ip
+    }).catch(() => {});
+
     res.json(phone);
   } catch (error) {
     console.error('Update phone error:', error);
@@ -525,6 +588,21 @@ router.delete('/phones/:id', verifyMerchantToken, async (req, res) => {
     if (!phone) {
       return res.status(404).json({ error: 'Phone not found' });
     }
+
+    // Log phone deletion
+    const { logAdminAction } = await import('../utils/logger.js');
+    logAdminAction({
+      adminId: req.merchantId || 'merchant-admin',
+      adminRole: 'merchant',
+      department: 'merchant',
+      action: 'Phone Deleted',
+      description: `deleted phone: ${phone.phoneId}`,
+      targetEntity: 'phone',
+      targetId: phone.phoneId,
+      crudOperation: 'crud_delete',
+      changes: { deleted: { phoneId: phone.phoneId } },
+      ipAddress: req.ip
+    }).catch(() => {});
 
     res.json({ message: 'Phone deleted successfully' });
   } catch (error) {

@@ -14,6 +14,7 @@ import UserConcern from '../models/UserConcern.js';
 import bcrypt from 'bcrypt';
 import { sendTemporaryPIN } from '../services/emailService.js';
 import { checkMaintenanceMode, getMaintenanceStatus, setMaintenanceMode } from '../middlewares/maintenanceMode.js';
+import { logAdminAction } from '../utils/logger.js';
 
 // ============================================================
 // DASHBOARD ENDPOINTS
@@ -377,6 +378,18 @@ router.post('/users', async (req, res) => {
         severity: 'info',
         metadata: { adminId: admin._id, schoolUId, role, adminAction: true }
       });
+      logAdminAction({
+        adminId: req.adminId || 'sysad',
+        adminRole: 'sysad',
+        department: 'system',
+        action: 'Admin Created',
+        description: `created admin: ${firstName} ${lastName} (${role})`,
+        targetEntity: 'user',
+        targetId: admin._id?.toString(),
+        crudOperation: 'crud_create',
+        changes: { schoolUId, firstName, lastName, email, role },
+        ipAddress: req.ip
+      }).catch(() => {});
 
       // Send email with temporary PIN
       let emailSent = false;
@@ -447,6 +460,18 @@ router.post('/users', async (req, res) => {
         severity: 'info',
         metadata: { userId: user._id, schoolUId, adminAction: true }
       });
+      logAdminAction({
+        adminId: req.adminId || 'sysad',
+        adminRole: 'sysad',
+        department: 'system',
+        action: 'User Created',
+        description: `created user: ${firstName} ${lastName} (${schoolUId})`,
+        targetEntity: 'user',
+        targetId: user._id?.toString(),
+        crudOperation: 'crud_create',
+        changes: { schoolUId, rfidUId, firstName, lastName, email, role: role || 'student' },
+        ipAddress: req.ip
+      }).catch(() => {});
 
       // Send email with temporary PIN
       let emailSent = false;
@@ -533,6 +558,18 @@ router.put('/users/:userId', async (req, res) => {
       severity: 'info',
       metadata: { userId: user._id, adminAction: true }
     });
+    logAdminAction({
+      adminId: req.adminId || 'sysad',
+      adminRole: 'sysad',
+      department: 'system',
+      action: 'User Updated',
+      description: `updated user: ${user.firstName} ${user.lastName}`,
+      targetEntity: 'user',
+      targetId: user._id?.toString(),
+      crudOperation: 'crud_update',
+      changes: { firstName, lastName, email, role, status },
+      ipAddress: req.ip
+    }).catch(() => {});
 
     res.json({
       success: true,
@@ -590,13 +627,26 @@ router.delete('/users/:userId', async (req, res) => {
       eventType: 'user_deleted',
       description: `${isAdmin ? 'Admin' : 'User'} permanently deleted: ${userInfo.name} (${userInfo.email})`,
       severity: 'warning',
-      metadata: { 
-        userId: userInfo.id, 
-        schoolUId: userInfo.schoolUId, 
+      metadata: {
+        userId: userInfo.id,
+        schoolUId: userInfo.schoolUId,
         role: userInfo.role,
-        adminAction: true 
+        adminAction: true
       }
     });
+    logAdminAction({
+      adminId: req.adminId || 'sysad',
+      adminRole: 'sysad',
+      department: 'system',
+      action: `${isAdmin ? 'Admin' : 'User'} Deleted`,
+      description: `permanently deleted ${isAdmin ? 'admin' : 'user'}: ${userInfo.name} (${userInfo.email})`,
+      targetEntity: 'user',
+      targetId: userInfo.id?.toString(),
+      crudOperation: 'crud_delete',
+      severity: 'warning',
+      changes: { deleted: userInfo },
+      ipAddress: req.ip
+    }).catch(() => {});
 
     res.json({ 
       success: true, 
@@ -654,13 +704,25 @@ router.patch('/users/:userId/toggle-status', async (req, res) => {
       eventType: 'user_status_changed',
       description: `${isAdmin ? 'Admin' : 'User'} ${statusText}: ${userName}`,
       severity: 'info',
-      metadata: { 
-        userId: user._id, 
-        isActive: user.isActive, 
+      metadata: {
+        userId: user._id,
+        isActive: user.isActive,
         role: user.role || (isAdmin ? 'admin' : 'user'),
-        adminAction: true 
+        adminAction: true
       }
     });
+    logAdminAction({
+      adminId: req.adminId || 'sysad',
+      adminRole: 'sysad',
+      department: 'system',
+      action: `${isAdmin ? 'Admin' : 'User'} Status Toggled`,
+      description: `${statusText} ${isAdmin ? 'admin' : 'user'}: ${userName}`,
+      targetEntity: 'user',
+      targetId: user._id?.toString(),
+      crudOperation: 'crud_update',
+      changes: { isActive: user.isActive, statusText },
+      ipAddress: req.ip
+    }).catch(() => {});
 
     res.json({
       success: true,
@@ -816,6 +878,18 @@ router.post('/transfer-card', async (req, res) => {
         otpSent: true
       }
     });
+    logAdminAction({
+      adminId: adminId || 'sysad',
+      adminRole: 'sysad',
+      department: 'system',
+      action: 'Card Transferred',
+      description: `transferred RFID for ${user.firstName} ${user.lastName}: ${oldRfid} → ${newCardUid}`,
+      targetEntity: 'user',
+      targetId: user._id?.toString(),
+      crudOperation: 'admin_action',
+      changes: { oldRfidUId: oldRfid, newRfidUId: newCardUid, accountDeactivated: true },
+      ipAddress: req.ip
+    }).catch(() => {});
 
     res.json({
       success: true,
@@ -879,6 +953,18 @@ router.put('/config', async (req, res) => {
       severity: 'info',
       metadata: { changes: Object.keys(updates), adminAction: true }
     });
+    logAdminAction({
+      adminId: req.adminId || 'sysad',
+      adminRole: 'sysad',
+      department: 'system',
+      action: 'Config Updated',
+      description: `updated system configuration: ${Object.keys(updates).join(', ')}`,
+      targetEntity: 'config',
+      targetId: 'system-config',
+      crudOperation: 'config_updated',
+      changes: updates,
+      ipAddress: req.ip
+    }).catch(() => {});
 
     res.json({ success: true, message: 'Configuration updated', config: systemConfig });
   } catch (error) {
@@ -909,6 +995,19 @@ router.post('/maintenance-mode', async (req, res) => {
       severity: enabled ? 'warning' : 'info',
       metadata: { enabled, message, adminAction: true }
     });
+    logAdminAction({
+      adminId: req.adminId || 'sysad',
+      adminRole: 'sysad',
+      department: 'system',
+      action: `Maintenance Mode ${enabled ? 'Enabled' : 'Disabled'}`,
+      description: `${enabled ? 'enabled' : 'disabled'} maintenance mode`,
+      targetEntity: 'config',
+      targetId: 'maintenance-mode',
+      crudOperation: 'maintenance_mode',
+      severity: enabled ? 'warning' : 'info',
+      changes: { enabled, message },
+      ipAddress: req.ip
+    }).catch(() => {});
 
     console.log(`🔧 Maintenance mode ${enabled ? 'ENABLED' : 'DISABLED'} by SysAd`);
 
@@ -964,6 +1063,18 @@ router.post('/auto-export', async (req, res) => {
       severity: 'info',
       metadata: { config: systemConfig.autoExport, adminAction: true }
     });
+    logAdminAction({
+      adminId: req.adminId || 'sysad',
+      adminRole: 'sysad',
+      department: 'system',
+      action: 'Auto Export Configured',
+      description: `${systemConfig.autoExport.enabled ? 'enabled' : 'disabled'} auto export`,
+      targetEntity: 'config',
+      targetId: 'auto-export',
+      crudOperation: 'config_updated',
+      changes: systemConfig.autoExport,
+      ipAddress: req.ip
+    }).catch(() => {});
 
     res.json({
       success: true,
@@ -1016,6 +1127,18 @@ router.post('/manual-export', async (req, res) => {
         severity: 'info',
         metadata: { type, startDate, endDate, recordCount: data.length, adminAction: true }
       });
+      logAdminAction({
+        adminId: req.adminId || 'sysad',
+        adminRole: 'sysad',
+        department: 'system',
+        action: 'Manual Export',
+        description: `exported ${type} data (${data.length} records) from ${startDate} to ${endDate}`,
+        targetEntity: 'config',
+        targetId: 'manual-export',
+        crudOperation: 'export_manual',
+        changes: { type, startDate, endDate, recordCount: data.length },
+        ipAddress: req.ip
+      }).catch(() => {});
 
       res.setHeader('Content-Type', 'text/csv');
       res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
@@ -1048,6 +1171,18 @@ router.post('/manual-export', async (req, res) => {
         severity: 'info',
         metadata: { type, startDate, endDate, recordCount: data.length, adminAction: true }
       });
+      logAdminAction({
+        adminId: req.adminId || 'sysad',
+        adminRole: 'sysad',
+        department: 'system',
+        action: 'Manual Export',
+        description: `exported ${type} data (${data.length} records) from ${startDate} to ${endDate}`,
+        targetEntity: 'config',
+        targetId: 'manual-export',
+        crudOperation: 'export_manual',
+        changes: { type, startDate, endDate, recordCount: data.length },
+        ipAddress: req.ip
+      }).catch(() => {});
 
       res.setHeader('Content-Type', 'text/csv');
       res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
@@ -1082,6 +1217,18 @@ router.post('/deactivation-scheduler', async (req, res) => {
       severity: 'info',
       metadata: { config: systemConfig.deactivationScheduler, adminAction: true }
     });
+    logAdminAction({
+      adminId: req.adminId || 'sysad',
+      adminRole: 'sysad',
+      department: 'system',
+      action: 'Deactivation Scheduler Configured',
+      description: `${systemConfig.deactivationScheduler.enabled ? 'enabled' : 'disabled'} student deactivation scheduler`,
+      targetEntity: 'config',
+      targetId: 'deactivation-scheduler',
+      crudOperation: 'student_deactivation',
+      changes: systemConfig.deactivationScheduler,
+      ipAddress: req.ip
+    }).catch(() => {});
 
     res.json({
       success: true,
@@ -1269,6 +1416,19 @@ router.patch('/concerns/:id/status', async (req, res) => {
       severity: 'info',
       metadata: { concernId: id, status, adminName, adminAction: true }
     });
+    logAdminAction({
+      adminId: req.adminId || 'sysad',
+      adminName: adminName || 'System Admin',
+      adminRole: 'sysad',
+      department: 'system',
+      action: 'Concern Status Updated',
+      description: `updated concern ${concern.concernId} status to ${status}`,
+      targetEntity: 'concern',
+      targetId: concern.concernId,
+      crudOperation: status === 'resolved' ? 'concern_resolved' : 'crud_update',
+      changes: { status, reply },
+      ipAddress: req.ip
+    }).catch(() => {});
 
     res.json({
       success: true,
@@ -1320,6 +1480,19 @@ router.post('/concerns/:id/note', async (req, res) => {
       severity: 'info',
       metadata: { concernId: id, adminName, adminAction: true }
     });
+    logAdminAction({
+      adminId: req.adminId || 'sysad',
+      adminName: adminName || 'System Admin',
+      adminRole: 'sysad',
+      department: 'system',
+      action: 'Concern Note Added',
+      description: `added note to concern ${concern.concernId}`,
+      targetEntity: 'concern',
+      targetId: concern.concernId,
+      crudOperation: 'note_added',
+      changes: { note: note.trim(), adminName: adminName || 'System Admin' },
+      ipAddress: req.ip
+    }).catch(() => {});
 
     res.json({
       success: true,
@@ -1360,6 +1533,19 @@ router.patch('/concerns/:concernId/resolve', async (req, res) => {
       severity: 'info',
       metadata: { concernId, adminId, adminAction: true }
     });
+    logAdminAction({
+      adminId: adminId || 'sysad',
+      adminName: adminName || 'System Admin',
+      adminRole: 'sysad',
+      department: 'system',
+      action: 'Concern Resolved',
+      description: `resolved concern ${concern.concernId}`,
+      targetEntity: 'concern',
+      targetId: concern.concernId,
+      crudOperation: 'concern_resolved',
+      changes: { resolution },
+      ipAddress: req.ip
+    }).catch(() => {});
 
     res.json({
       success: true,

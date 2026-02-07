@@ -484,6 +484,22 @@ router.put('/phones/:id', async (req, res) => {
 
     const phone = await Phone.findByIdAndUpdate(req.params.id, updateData, { new: true });
     if (!phone) return res.status(404).json({ error: 'Phone not found' });
+
+    // Log phone update
+    logAdminAction({
+      adminId: req.adminInfo?.adminId || 'system',
+      adminName: req.adminInfo?.adminName || 'Unknown Admin',
+      adminRole: req.adminInfo?.adminRole || 'unknown',
+      department: req.adminInfo?.department,
+      action: 'Phone Updated',
+      description: `updated phone ${phone.phoneId}`,
+      targetEntity: 'phone',
+      targetId: phone.phoneId,
+      crudOperation: 'crud_update',
+      changes: { updates: req.body },
+      ipAddress: req.ip
+    }).catch(() => {});
+
     res.json(phone);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -494,6 +510,22 @@ router.delete('/phones/:id', async (req, res) => {
   try {
     const phone = await Phone.findByIdAndDelete(req.params.id);
     if (!phone) return res.status(404).json({ error: 'Phone not found' });
+
+    // Log phone deletion
+    logAdminAction({
+      adminId: req.adminInfo?.adminId || 'system',
+      adminName: req.adminInfo?.adminName || 'Unknown Admin',
+      adminRole: req.adminInfo?.adminRole || 'unknown',
+      department: req.adminInfo?.department,
+      action: 'Phone Deleted',
+      description: `deleted phone ${phone.phoneId}`,
+      targetEntity: 'phone',
+      targetId: phone.phoneId,
+      crudOperation: 'crud_delete',
+      severity: 'warning',
+      ipAddress: req.ip
+    }).catch(() => {});
+
     res.json({ message: 'Phone deleted' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -529,6 +561,22 @@ router.post('/routes', broadcastChanges('route'), async (req, res) => {
   try {
     const route = new Route(req.body);
     await route.save();
+
+    // Log route creation
+    logAdminAction({
+      adminId: req.adminInfo?.adminId || 'system',
+      adminName: req.adminInfo?.adminName || 'Unknown Admin',
+      adminRole: req.adminInfo?.adminRole || 'unknown',
+      department: req.adminInfo?.department,
+      action: 'Route Created',
+      description: `created route ${route.routeId || route._id}`,
+      targetEntity: 'route',
+      targetId: route._id,
+      crudOperation: 'crud_create',
+      changes: req.body,
+      ipAddress: req.ip
+    }).catch(() => {});
+
     res.status(201).json(route);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -537,8 +585,25 @@ router.post('/routes', broadcastChanges('route'), async (req, res) => {
 
 router.put('/routes/:id', broadcastChanges('route'), async (req, res) => {
   try {
+    const oldRoute = await Route.findById(req.params.id).lean();
     const route = await Route.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!route) return res.status(404).json({ error: 'Route not found' });
+
+    // Log route update
+    logAdminAction({
+      adminId: req.adminInfo?.adminId || 'system',
+      adminName: req.adminInfo?.adminName || 'Unknown Admin',
+      adminRole: req.adminInfo?.adminRole || 'unknown',
+      department: req.adminInfo?.department,
+      action: 'Route Updated',
+      description: `updated route ${route.routeId || route._id}`,
+      targetEntity: 'route',
+      targetId: route._id,
+      crudOperation: 'crud_update',
+      changes: { old: oldRoute, new: req.body },
+      ipAddress: req.ip
+    }).catch(() => {});
+
     res.json(route);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -549,6 +614,22 @@ router.delete('/routes/:id', async (req, res) => {
   try {
     const route = await Route.findByIdAndDelete(req.params.id);
     if (!route) return res.status(404).json({ error: 'Route not found' });
+
+    // Log route deletion
+    logAdminAction({
+      adminId: req.adminInfo?.adminId || 'system',
+      adminName: req.adminInfo?.adminName || 'Unknown Admin',
+      adminRole: req.adminInfo?.adminRole || 'unknown',
+      department: req.adminInfo?.department,
+      action: 'Route Deleted',
+      description: `deleted route ${route.routeId || route._id}`,
+      targetEntity: 'route',
+      targetId: route._id,
+      crudOperation: 'crud_delete',
+      severity: 'warning',
+      ipAddress: req.ip
+    }).catch(() => {});
+
     res.json({ message: 'Route deleted' });
   } catch (error) {
     res.status(500).json({ error: error.message });

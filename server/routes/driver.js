@@ -37,10 +37,27 @@ router.post('/login', async (req, res) => {
       { expiresIn: '24h' }
     );
 
-    return res.json({ 
+    // Log driver login
+    const { logEvent } = await import('../utils/logger.js');
+    logEvent({
+      eventType: 'driver_login',
+      title: 'Driver Login',
+      description: `Driver ${driver.name} (${driver.driverId}) logged in`,
+      severity: 'info',
+      driverId: driver.driverId,
+      department: 'motorpool',
+      targetEntity: 'driver',
+      metadata: {
+        driverName: driver.name,
+        shuttleId: driver.shuttleId,
+        username: driver.username
+      }
+    }).catch(() => {});
+
+    return res.json({
       success: true,
-      token, 
-      driverId: driver.driverId, 
+      token,
+      driverId: driver.driverId,
       name: driver.name,
       shuttleId: driver.shuttleId,
       role: 'driver'

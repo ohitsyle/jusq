@@ -1756,6 +1756,20 @@ router.post('/concerns/:id/note', async (req, res) => {
     console.log('   Notes in DB:', verification.notes?.length);
     console.log('   Full notes:', JSON.stringify(verification.notes, null, 2));
 
+    // Log the note action
+    logAdminAction({
+      adminId: req.adminId || 'treasury',
+      adminRole: 'treasury',
+      department: 'treasury',
+      action: 'Concern Note Added',
+      description: `added note to concern ${savedConcern.concernId}`,
+      targetEntity: 'concern',
+      targetId: savedConcern.concernId,
+      crudOperation: 'note_added',
+      changes: { note: note.trim(), adminName: adminName || 'Treasury Admin' },
+      ipAddress: req.ip
+    }).catch(() => {});
+
     // Step 9: Prepare response
     const responseData = {
       success: true,

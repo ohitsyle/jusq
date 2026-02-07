@@ -10,6 +10,7 @@ import User from '../models/User.js';
 import Driver from '../models/Driver.js';
 import { exportByType } from '../utils/csvExporter.js';
 import { sendEmail } from '../services/emailService.js';
+import { logAdminAction } from '../utils/logger.js';
 
 // ============================================================
 // CONFIGURATION MANAGEMENT
@@ -113,6 +114,20 @@ router.put('/', async (req, res) => {
       );
     }
 
+    // Log config update
+    logAdminAction({
+      adminId: req.adminId || 'system',
+      adminRole: req.adminRole || 'unknown',
+      department: req.adminRole || 'system',
+      action: 'Configuration Updated',
+      description: `updated configurations for role: ${role}`,
+      targetEntity: 'config',
+      targetId: `config-${role}`,
+      crudOperation: 'config_updated',
+      changes: { autoExport: !!autoExport, excuseSlips: !!excuseSlips, adminRole: role },
+      ipAddress: req.ip
+    }).catch(() => {});
+
     res.json({ message: 'Configurations updated successfully' });
   } catch (error) {
     console.error('Error updating configurations:', error);
@@ -135,6 +150,19 @@ router.put('/auto-export', async (req, res) => {
       { configType: 'autoExport', adminRole: role, autoExport: autoExportData, updatedAt: Date.now() },
       { upsert: true, new: true }
     );
+    logAdminAction({
+      adminId: req.adminId || 'system',
+      adminRole: role,
+      department: role === 'global' ? 'system' : role,
+      action: 'Auto-Export Config Updated',
+      description: `updated auto-export configuration for role: ${role}`,
+      targetEntity: 'config',
+      targetId: `auto-export-${role}`,
+      crudOperation: 'config_updated',
+      changes: autoExportData,
+      ipAddress: req.ip
+    }).catch(() => {});
+
     res.json({ message: 'Auto-export configuration updated successfully' });
   } catch (error) {
     console.error('Error updating auto-export config:', error);
@@ -198,6 +226,19 @@ router.put('/excuse-slips', async (req, res) => {
       { configType: 'excuseSlips', adminRole: 'global', excuseSlips: req.body, updatedAt: Date.now() },
       { upsert: true, new: true }
     );
+    logAdminAction({
+      adminId: req.adminId || 'system',
+      adminRole: req.adminRole || 'unknown',
+      department: req.adminRole || 'system',
+      action: 'Excuse Slip Config Updated',
+      description: `updated excuse slip configuration`,
+      targetEntity: 'config',
+      targetId: 'excuse-slips',
+      crudOperation: 'config_updated',
+      changes: req.body,
+      ipAddress: req.ip
+    }).catch(() => {});
+
     res.json({ message: 'Excuse slip configuration updated successfully' });
   } catch (error) {
     console.error('Error updating excuse slip config:', error);
@@ -247,6 +288,19 @@ router.put('/tab-visibility', async (req, res) => {
       { configType: 'tabVisibility', adminRole: 'global', tabVisibility: req.body, updatedAt: Date.now() },
       { upsert: true, new: true }
     );
+    logAdminAction({
+      adminId: req.adminId || 'system',
+      adminRole: req.adminRole || 'unknown',
+      department: req.adminRole || 'system',
+      action: 'Tab Visibility Updated',
+      description: `updated tab visibility configuration`,
+      targetEntity: 'config',
+      targetId: 'tab-visibility',
+      crudOperation: 'config_updated',
+      changes: req.body,
+      ipAddress: req.ip
+    }).catch(() => {});
+
     res.json({ message: 'Tab visibility configuration updated successfully' });
   } catch (error) {
     console.error('Error updating tab visibility config:', error);
@@ -281,6 +335,19 @@ router.post('/manual-export', async (req, res) => {
       triggeredBy: 'manual',
       status: 'success'
     }).save();
+
+    logAdminAction({
+      adminId: req.adminId || 'system',
+      adminRole: req.adminRole || 'unknown',
+      department: req.adminRole || 'system',
+      action: 'Manual Export',
+      description: `exported ${exportType} (${count} records)`,
+      targetEntity: 'config',
+      targetId: 'manual-export',
+      crudOperation: 'export_manual',
+      changes: { exportType, recordCount: count, fileName },
+      ipAddress: req.ip
+    }).catch(() => {});
 
     // Return CSV data as base64 for download
     const base64Data = Buffer.from(csv).toString('base64');
@@ -356,6 +423,19 @@ router.post('/manual-export-all', async (req, res) => {
       fileData: base64Data, // Store file data for later download
       fileSize: `${(zipBuffer.length / 1024).toFixed(2)} KB`
     }).save();
+
+    logAdminAction({
+      adminId: req.adminId || 'system',
+      adminRole: req.adminRole || 'unknown',
+      department: req.adminRole || 'system',
+      action: 'Manual Export All',
+      description: `exported all data (${totalRecords} records)`,
+      targetEntity: 'config',
+      targetId: 'manual-export-all',
+      crudOperation: 'export_manual',
+      changes: { totalRecords, fileName: zipFileName, dateRange },
+      ipAddress: req.ip
+    }).catch(() => {});
 
     // Return ZIP data as base64 for download
     res.json({
@@ -514,6 +594,19 @@ router.post('/manual-export-motorpool', async (req, res) => {
       fileSize: `${(zipBuffer.length / 1024).toFixed(2)} KB`
     }).save();
 
+    logAdminAction({
+      adminId: req.adminId || 'system',
+      adminRole: 'motorpool',
+      department: 'motorpool',
+      action: 'Motorpool Export',
+      description: `exported motorpool data (${totalRecords} records): ${exportTypes.join(', ')}`,
+      targetEntity: 'config',
+      targetId: 'manual-export-motorpool',
+      crudOperation: 'export_manual',
+      changes: { exportTypes, totalRecords, fileName: zipFileName },
+      ipAddress: req.ip
+    }).catch(() => {});
+
     res.json({
       message: 'Motorpool export successful',
       fileName: zipFileName,
@@ -570,6 +663,19 @@ router.post('/manual-export-merchant', async (req, res) => {
       fileData: base64Data,
       fileSize: `${(zipBuffer.length / 1024).toFixed(2)} KB`
     }).save();
+
+    logAdminAction({
+      adminId: req.adminId || 'system',
+      adminRole: 'merchant',
+      department: 'merchant',
+      action: 'Merchant Export',
+      description: `exported merchant data (${totalRecords} records): ${exportTypes.join(', ')}`,
+      targetEntity: 'config',
+      targetId: 'manual-export-merchant',
+      crudOperation: 'export_manual',
+      changes: { exportTypes, totalRecords, fileName: zipFileName },
+      ipAddress: req.ip
+    }).catch(() => {});
 
     res.json({
       message: 'Merchant export successful',
@@ -658,6 +764,19 @@ router.post('/manual-export-treasury', async (req, res) => {
       fileSize: `${(zipBuffer.length / 1024).toFixed(2)} KB`
     }).save();
 
+    logAdminAction({
+      adminId: req.adminId || 'system',
+      adminRole: 'treasury',
+      department: 'treasury',
+      action: 'Treasury Export',
+      description: `exported treasury data (${totalRecords} records): ${exportTypes.join(', ')}`,
+      targetEntity: 'config',
+      targetId: 'manual-export-treasury',
+      crudOperation: 'export_manual',
+      changes: { exportTypes, totalRecords, fileName: zipFileName, dateRange },
+      ipAddress: req.ip
+    }).catch(() => {});
+
     res.json({
       message: 'Treasury export successful',
       fileName: zipFileName,
@@ -744,6 +863,19 @@ router.post('/manual-export-sysad', async (req, res) => {
       fileData: base64Data,
       fileSize: `${(zipBuffer.length / 1024).toFixed(2)} KB`
     }).save();
+
+    logAdminAction({
+      adminId: req.adminId || 'system',
+      adminRole: 'sysad',
+      department: 'system',
+      action: 'SysAd Export',
+      description: `exported sysad data (${totalRecords} records): ${exportTypes.join(', ')}`,
+      targetEntity: 'config',
+      targetId: 'manual-export-sysad',
+      crudOperation: 'export_manual',
+      changes: { exportTypes, totalRecords, fileName: zipFileName, dateRange },
+      ipAddress: req.ip
+    }).catch(() => {});
 
     res.json({
       message: 'System admin export successful',

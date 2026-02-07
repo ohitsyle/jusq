@@ -318,6 +318,28 @@ router.post('/refund', async (req, res) => {
 
       console.log(`✅ Offline refund processed: ${user.fullName} + ₱${fareAmount} (${balanceBefore} → ${balanceAfter})`);
 
+      // Log the refund
+      const { logEvent } = await import('../utils/logger.js');
+      logEvent({
+        eventType: 'refund',
+        title: 'Shuttle Refund (Offline)',
+        description: `Refund of ₱${fareAmount} to ${user.fullName} (${user.schoolUId})`,
+        severity: 'info',
+        userId: user._id?.toString(),
+        driverId,
+        shuttleId,
+        department: 'motorpool',
+        targetEntity: 'transaction',
+        metadata: {
+          refundAmount: fareAmount,
+          reason: reason || 'Offline refund processed',
+          balanceBefore,
+          balanceAfter,
+          transactionId,
+          offlineMode: true
+        }
+      }).catch(() => {});
+
       // Send email receipt for refund
       if (user.email) {
         sendRefundReceipt({
@@ -443,6 +465,25 @@ router.post('/refund', async (req, res) => {
       }
     }
 
+    // Log bulk refund event
+    if (refundResults.length > 0) {
+      const { logEvent } = await import('../utils/logger.js');
+      logEvent({
+        eventType: 'refund',
+        title: 'Shuttle Refund (Online)',
+        description: `Refunded ${refundResults.length} transaction(s). Reason: ${reason || 'Route cancelled'}`,
+        severity: 'info',
+        department: 'motorpool',
+        targetEntity: 'transaction',
+        metadata: {
+          refundedCount: refundResults.length,
+          failedCount: errors.length,
+          reason: reason || 'Route cancelled by driver',
+          refundResults
+        }
+      }).catch(() => {});
+    }
+
     res.json({
       success: true,
       refunded: refundResults.length,
@@ -505,6 +546,24 @@ router.post('/end-route', async (req, res) => {
         console.warn('⚠️ Trip update failed:', tripErr.message);
       }
     }
+
+    // Log route end
+    const { logEvent } = await import('../utils/logger.js');
+    logEvent({
+      eventType: 'route_end',
+      title: 'Route Ended',
+      description: `Driver ${driverId} ended route on shuttle ${shuttleId}`,
+      severity: 'info',
+      driverId,
+      shuttleId,
+      tripId,
+      department: 'motorpool',
+      targetEntity: 'trip',
+      metadata: {
+        summary,
+        shuttleReleased: true
+      }
+    }).catch(() => {});
 
     res.json({
       success: true,
