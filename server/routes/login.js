@@ -197,16 +197,22 @@ router.post('/', async (req, res) => {
       const adminName = `${admin.firstName} ${admin.lastName}`.trim() || admin.email || 'Admin';
       console.log('✅ Admin login successful:', adminName);
 
-      // Temporarily disable logging to fix login issue
-      // await logLogin({
-      //   adminId: admin.adminId,
-      //   adminName: adminName,
-      //   userType: `Admin (${admin.role})`,
-      //   adminRole: admin.role,
-      //   department: admin.role,
-      //   ipAddress: req.ip || req.connection?.remoteAddress,
-      //   deviceInfo: req.headers['user-agent']
-      // });
+      // Log admin login event with proper error handling
+      try {
+        await logLogin({
+          adminId: admin.adminId,
+          adminName: adminName,
+          userName: adminName,
+          userType: `Admin (${admin.role})`,
+          adminRole: admin.role,
+          department: admin.role,
+          ipAddress: req.ip || req.connection?.remoteAddress,
+          deviceInfo: req.headers['user-agent']
+        });
+      } catch (logError) {
+        console.error('Failed to log admin login:', logError);
+        // Continue with login even if logging fails
+      }
 
       return res.json({
         token,
