@@ -15,6 +15,10 @@ import bcrypt from 'bcrypt';
 import { sendTemporaryPIN } from '../services/emailService.js';
 import { checkMaintenanceMode, getMaintenanceStatus, setMaintenanceMode } from '../middlewares/maintenanceMode.js';
 import { logAdminAction, logMaintenanceMode, logStudentDeactivation, logAutoExportConfigChange, logManualExport } from '../utils/logger.js';
+import { extractAdminInfo } from '../middlewares/extractAdminInfo.js';
+
+// Apply admin info extraction middleware to all sysad routes
+router.use(extractAdminInfo);
 
 // ============================================================
 // DASHBOARD ENDPOINTS

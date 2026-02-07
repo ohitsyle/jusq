@@ -52,11 +52,11 @@ router.post('/login', async (req, res) => {
       token,
       merchant: {
         _id: merchant._id,
+        merchantId: merchant.merchantId,
         businessName: merchant.businessName,
-        contactPerson: merchant.contactPerson,
+        contactPerson: `${merchant.firstName} ${merchant.lastName}`,
         email: merchant.email,
-        phone: merchant.phone,
-        address: merchant.address
+        isActive: merchant.isActive
       }
     });
   } catch (error) {

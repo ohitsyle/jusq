@@ -533,6 +533,25 @@ router.delete('/phones/:id', async (req, res) => {
 });
 
 // ============================================================
+// MERCHANTS (for phone assignment dropdown)
+// ============================================================
+
+router.get('/merchants', async (req, res) => {
+  try {
+    const { default: Merchant } = await import('../models/Merchant.js');
+    
+    // Get active merchants for phone assignment dropdown
+    const merchants = await Merchant.find({ 
+      isActive: true 
+    }).select('merchantId businessName firstName lastName email').sort({ businessName: 1 });
+    
+    res.json(merchants);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================================
 // ROUTES CRUD
 // ============================================================
 
@@ -656,6 +675,8 @@ router.get('/event-logs', async (req, res) => {
         $or: [
           // New format: motorpool admin authentication
           { eventType: { $in: ['login', 'logout'] }, 'metadata.adminRole': 'motorpool' },
+          // Old format: motorpool admin authentication (department field)
+          { eventType: { $in: ['login', 'logout'] }, department: 'motorpool' },
           // New format: department field
           { department: 'motorpool' },
           // New format: targetEntity
@@ -671,7 +692,14 @@ router.get('/event-logs', async (req, res) => {
           // Any logs with driverId (motorpool related)
           { driverId: { $exists: true, $ne: null } },
           // New format: CRUD operations by motorpool admins
-          { eventType: { $in: ['crud_create', 'crud_update', 'crud_delete'] }, 'metadata.adminRole': 'motorpool' }
+          { eventType: { $in: ['crud_create', 'crud_update', 'crud_delete'] }, 'metadata.adminRole': 'motorpool' },
+          // Export operations by motorpool admins
+          { eventType: { $in: ['auto_export_config_change', 'manual_export'] }, 'metadata.adminRole': 'motorpool' }
+        ],
+        // Exclude sysad logs
+        $and: [
+          { $or: [{ 'metadata.adminRole': { $ne: 'sysad' } }, { 'metadata.adminRole': { $exists: false } }] },
+          { $or: [{ department: { $ne: 'sysad' } }, { department: { $exists: false } }] }
         ]
       };
     } else if (department === 'treasury') {
@@ -680,6 +708,8 @@ router.get('/event-logs', async (req, res) => {
         $or: [
           // New format: treasury admin authentication
           { eventType: { $in: ['login', 'logout'] }, 'metadata.adminRole': 'treasury' },
+          // Old format: treasury admin authentication (department field)
+          { eventType: { $in: ['login', 'logout'] }, department: 'treasury' },
           // New format: department field
           { department: 'treasury' },
           // New format: targetEntity
@@ -694,6 +724,11 @@ router.get('/event-logs', async (req, res) => {
           { eventType: { $in: ['crud_create', 'crud_update', 'crud_delete'] }, 'metadata.adminRole': 'treasury' },
           // Auto export and manual export by treasury
           { eventType: { $in: ['auto_export_config_change', 'manual_export'] }, 'metadata.adminRole': 'treasury' }
+        ],
+        // Exclude sysad logs
+        $and: [
+          { $or: [{ 'metadata.adminRole': { $ne: 'sysad' } }, { 'metadata.adminRole': { $exists: false } }] },
+          { $or: [{ department: { $ne: 'sysad' } }, { department: { $exists: false } }] }
         ]
       };
     } else if (department === 'merchant') {
@@ -702,6 +737,8 @@ router.get('/event-logs', async (req, res) => {
         $or: [
           // New format: merchant admin authentication
           { eventType: { $in: ['login', 'logout'] }, 'metadata.adminRole': 'merchant' },
+          // Old format: merchant admin authentication (department field)
+          { eventType: { $in: ['login', 'logout'] }, department: 'merchant' },
           // New format: department field
           { department: 'merchant' },
           // New format: targetEntity
@@ -714,6 +751,11 @@ router.get('/event-logs', async (req, res) => {
           { eventType: { $in: ['crud_create', 'crud_update', 'crud_delete'] }, 'metadata.adminRole': 'merchant' },
           // Auto export and manual export by merchant
           { eventType: { $in: ['auto_export_config_change', 'manual_export'] }, 'metadata.adminRole': 'merchant' }
+        ],
+        // Exclude sysad logs
+        $and: [
+          { $or: [{ 'metadata.adminRole': { $ne: 'sysad' } }, { 'metadata.adminRole': { $exists: false } }] },
+          { $or: [{ department: { $ne: 'sysad' } }, { department: { $exists: false } }] }
         ]
       };
     } else if (department === 'accounting') {
@@ -722,6 +764,8 @@ router.get('/event-logs', async (req, res) => {
         $or: [
           // New format: accounting admin authentication
           { eventType: { $in: ['login', 'logout'] }, 'metadata.adminRole': 'accounting' },
+          // Old format: accounting admin authentication (department field)
+          { eventType: { $in: ['login', 'logout'] }, department: 'accounting' },
           // New format: department field
           { department: 'accounting' },
           // Old format: admin actions by accounting
@@ -730,6 +774,11 @@ router.get('/event-logs', async (req, res) => {
           { eventType: { $in: ['crud_create', 'crud_update', 'crud_delete'] }, 'metadata.adminRole': 'accounting' },
           // Auto export and manual export by accounting
           { eventType: { $in: ['auto_export_config_change', 'manual_export'] }, 'metadata.adminRole': 'accounting' }
+        ],
+        // Exclude sysad logs
+        $and: [
+          { $or: [{ 'metadata.adminRole': { $ne: 'sysad' } }, { 'metadata.adminRole': { $exists: false } }] },
+          { $or: [{ department: { $ne: 'sysad' } }, { department: { $exists: false } }] }
         ]
       };
     }
