@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { toast } from 'react-toastify';
-import { logDataExport, logConfigurationChange } from '../../../services/logsApi';
 
 export default function ConfigPage() {
   const { theme, isDarkMode } = useTheme();
@@ -85,32 +84,13 @@ export default function ConfigPage() {
   const handleSaveAutoExport = async () => {
     setLoading(true);
     try {
-      const previousConfig = JSON.stringify(configurations.autoExport);
       await api.put('/admin/configurations/auto-export', configurations.autoExport);
-
-      try {
-        const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
-        
-        await logConfigurationChange({
-          adminId: adminData._id || adminData.adminId,
-          adminName: `${adminData.firstName || ''} ${adminData.lastName || ''}`.trim(),
-          settingName: 'auto_export_settings',
-          settingCategory: 'accounting_exports',
-          previousValue: previousConfig,
-          newValue: JSON.stringify(configurations.autoExport),
-          description: `Updated auto-export schedule to ${configurations.autoExport.frequency} at ${configurations.autoExport.time}`
-        });
-        
-        console.log('✅ Configuration change logged successfully');
-      } catch (logError) {
-        console.error('Failed to log configuration change:', logError);
-      }
-
       toast.success('Auto-export settings saved successfully!');
       setShowConfigModal(false);
       loadConfigurations();
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Failed to save settings');
+      console.error('Error saving auto-export settings:', error);
+      toast.error('Failed to save auto-export settings');
     } finally {
       setLoading(false);
     }
@@ -131,29 +111,6 @@ export default function ConfigPage() {
         customStartDate,
         customEndDate
       });
-
-      try {
-        const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
-        
-        await logDataExport({
-          adminId: adminData._id || adminData.adminId,
-          adminName: `${adminData.firstName || ''} ${adminData.lastName || ''}`.trim(),
-          exportType: 'accounting_manual_export',
-          dataTypes: configurations.autoExport.exportTypes,
-          dateRange: {
-            type: dateRange,
-            start: customStartDate || null,
-            end: customEndDate || null
-          },
-          format: 'ZIP',
-          recordCount: result.totalRecords || 0,
-          fileName: result.fileName || `accounting_export_${new Date().toISOString().split('T')[0]}.zip`
-        });
-        
-        console.log('✅ Export logged successfully');
-      } catch (logError) {
-        console.error('Failed to log export:', logError);
-      }
 
       toast.success(`Accounting data exported successfully! (${result.totalRecords || 0} total records)`);
 
