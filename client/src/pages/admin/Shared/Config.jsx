@@ -1,20 +1,13 @@
-// client/src/pages/admin/Shared/Config.jsx
-// Shared Configuration page for Treasury and Accounting modules
-import React, { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
-import { useTheme } from "../../../context/ThemeContext";
-import { toast } from "react-toastify";
-import api from "../../../utils/api";
+// src/pages/admin/Accounting/ConfigPage.jsx
+// Accounting Configurations - matches Motorpool design with combined export archives
+import React, { useState, useEffect } from 'react';
+import { useTheme } from '../../../context/ThemeContext';
+import api from '../../../utils/api';
+import { toast } from 'react-toastify';
+import { logDataExport, logConfigurationChange } from '../../../services/logsApi';
 
-import Header from "../../../components/layouts/Header";
-import Footer from "../../../components/layouts/Footer";
-import Navbar from "../../../components/layouts/Navbar";
-
-export default function Config() {
+export default function ConfigPage() {
   const { theme, isDarkMode } = useTheme();
-  const location = useLocation();
-  const isTreasury = location.pathname.startsWith("/treasury");
-
   const [configurations, setConfigurations] = useState({
     autoExport: {
       frequency: 'daily',
@@ -27,21 +20,15 @@ export default function Config() {
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [showManualExportModal, setShowManualExportModal] = useState(false);
   const [exportArchive, setExportArchive] = useState([]);
-  const [archiveFilter, setArchiveFilter] = useState('all');
+  const [archiveFilter, setArchiveFilter] = useState('all'); // 'all', 'auto', 'manual'
   const [searchQuery, setSearchQuery] = useState('');
   const [filterDateRange, setFilterDateRange] = useState({ start: '', end: '' });
   const [dateRange, setDateRange] = useState('all');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
 
-  // Module-specific export types
-  const EXPORT_TYPES = isTreasury ? [
-    { value: 'Transactions', icon: '💳', label: 'Transactions' },
-    { value: 'Cash-Ins', icon: '💵', label: 'Cash-Ins' },
-    { value: 'Balances', icon: '💰', label: 'Balance Summary' },
-    { value: 'Logs', icon: '📋', label: `${isTreasury ? 'Treasury' : 'Accounting'} Logs` },
-    { value: 'Concerns', icon: '💬', label: `${isTreasury ? 'Treasury' : 'Accounting'} Concerns` }
-  ] : [
+  // Accounting-specific export types
+  const ACCOUNTING_EXPORT_TYPES = [
     { value: 'Transactions', icon: '💳', label: 'Transactions' },
     { value: 'Cash-Ins', icon: '💵', label: 'Cash-Ins' },
     { value: 'Balances', icon: '💰', label: 'Balance Summary' },
@@ -66,10 +53,10 @@ export default function Config() {
 
   const loadExportArchive = async () => {
     try {
-      const adminRole = isTreasury ? 'treasury' : 'accounting';
+      // Load both scheduled and manual exports into one archive - filtered by accounting admin role
       const [scheduledData, historyData] = await Promise.all([
-        api.get(`/admin/configurations/scheduled-exports?adminRole=${adminRole}`).catch(() => []),
-        api.get(`/admin/configurations/export-history?adminRole=${adminRole}`).catch(() => [])
+        api.get('/admin/configurations/scheduled-exports?adminRole=accounting').catch(() => []),
+        api.get('/admin/configurations/export-history?adminRole=accounting').catch(() => [])
       ]);
 
       const scheduled = (Array.isArray(scheduledData) ? scheduledData : []).map(exp => ({
@@ -82,6 +69,7 @@ export default function Config() {
         exportSource: 'manual'
       }));
 
+      // Combine and sort by date
       const combined = [...scheduled, ...manual].sort((a, b) => {
         const dateA = new Date(a.exportedAt || a.timestamp || a.createdAt);
         const dateB = new Date(b.exportedAt || b.timestamp || b.createdAt);
@@ -97,7 +85,27 @@ export default function Config() {
   const handleSaveAutoExport = async () => {
     setLoading(true);
     try {
+      const previousConfig = JSON.stringify(configurations.autoExport);
       await api.put('/admin/configurations/auto-export', configurations.autoExport);
+
+      try {
+        const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+        
+        await logConfigurationChange({
+          adminId: adminData._id || adminData.adminId,
+          adminName: `${adminData.firstName || ''} ${adminData.lastName || ''}`.trim(),
+          settingName: 'auto_export_settings',
+          settingCategory: 'accounting_exports',
+          previousValue: previousConfig,
+          newValue: JSON.stringify(configurations.autoExport),
+          description: `Updated auto-export schedule to ${configurations.autoExport.frequency} at ${configurations.autoExport.time}`
+        });
+        
+        console.log('✅ Configuration change logged successfully');
+      } catch (logError) {
+        console.error('Failed to log configuration change:', logError);
+      }
+
       toast.success('Auto-export settings saved successfully!');
       setShowConfigModal(false);
       loadConfigurations();
@@ -117,20 +125,42 @@ export default function Config() {
         return;
       }
 
-      const endpoint = isTreasury ? '/admin/configurations/manual-export-treasury' : '/admin/configurations/manual-export-accounting';
-      const result = await api.post(endpoint, {
+      const result = await api.post('/admin/configurations/manual-export-accounting', {
         exportTypes: configurations.autoExport.exportTypes,
         dateRange,
         customStartDate,
         customEndDate
       });
 
-      toast.success(`Data exported successfully! (${result.totalRecords || 0} total records)`);
+      try {
+        const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+        
+        await logDataExport({
+          adminId: adminData._id || adminData.adminId,
+          adminName: `${adminData.firstName || ''} ${adminData.lastName || ''}`.trim(),
+          exportType: 'accounting_manual_export',
+          dataTypes: configurations.autoExport.exportTypes,
+          dateRange: {
+            type: dateRange,
+            start: customStartDate || null,
+            end: customEndDate || null
+          },
+          format: 'ZIP',
+          recordCount: result.totalRecords || 0,
+          fileName: result.fileName || `accounting_export_${new Date().toISOString().split('T')[0]}.zip`
+        });
+        
+        console.log('✅ Export logged successfully');
+      } catch (logError) {
+        console.error('Failed to log export:', logError);
+      }
+
+      toast.success(`Accounting data exported successfully! (${result.totalRecords || 0} total records)`);
 
       if (result.downloadUrl) {
         const link = document.createElement('a');
         link.href = result.downloadUrl;
-        link.download = result.fileName || `${isTreasury ? 'treasury' : 'accounting'}_export_${new Date().toISOString().split('T')[0]}.zip`;
+        link.download = result.fileName || `accounting_export_${new Date().toISOString().split('T')[0]}.zip`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -164,8 +194,12 @@ export default function Config() {
     }
   };
 
+  // Filter archive based on type, search and date range
   const filteredArchive = exportArchive.filter((exp) => {
+    // Type filter
     if (archiveFilter !== 'all' && exp.exportSource !== archiveFilter) return false;
+
+    // Search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       const matchesSearch = (
@@ -174,341 +208,327 @@ export default function Config() {
       );
       if (!matchesSearch) return false;
     }
+
+    // Date filter
     if (filterDateRange.start || filterDateRange.end) {
       const exportDate = new Date(exp.exportedAt || exp.timestamp || exp.createdAt);
       if (filterDateRange.start && exportDate < new Date(filterDateRange.start)) return false;
       if (filterDateRange.end && exportDate > new Date(filterDateRange.end + 'T23:59:59')) return false;
     }
+
     return true;
   });
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: theme.bg.primary,
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <div style={{ position: "sticky", top: 0, zIndex: 1000 }}>
-        <Header />
+    <div className="h-full flex flex-col">
+      {/* Header */}
+      <div style={{ marginBottom: '24px', borderBottom: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.2)' : 'rgba(59,130,246,0.2)'}`, paddingBottom: '16px' }}>
+        <h2 style={{ color: theme.accent.primary }} className="text-2xl font-bold m-0 mb-2 flex items-center gap-[10px]">
+          <span>⚙️</span> Accounting Settings
+        </h2>
+        <p style={{ color: theme.text.secondary }} className="text-[13px] m-0">
+          Configure automated accounting data exports and system settings
+        </p>
       </div>
 
-      <div style={{ flex: 1, padding: "40px" }}>
-        <Navbar />
-
-        <div className="h-full flex flex-col">
-          {/* Header */}
-          <div style={{ marginBottom: '24px', borderBottom: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.2)' : 'rgba(59,130,246,0.2)'}`, paddingBottom: '16px' }}>
-            <h2 style={{ color: theme.accent.primary }} className="text-2xl font-bold m-0 mb-2 flex items-center gap-[10px]">
-              <span>⚙️</span> {isTreasury ? 'Treasury' : 'Accounting'} Settings
-            </h2>
-            <p style={{ color: theme.text.secondary }} className="text-[13px] m-0">
-              Configure automated data exports and system settings
-            </p>
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-y-auto pr-2">
+        {/* Auto-Export Section */}
+        <div style={{
+          background: theme.bg.card,
+          borderRadius: '16px',
+          border: `1px solid ${theme.border.primary}`,
+          padding: '28px',
+          marginBottom: '24px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
+            <div>
+              <h3 style={{ color: theme.accent.primary, fontSize: '20px', fontWeight: 700, margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span>📊</span> Automated Accounting Export
+              </h3>
+              <p style={{ color: theme.text.secondary, fontSize: '14px', margin: 0, lineHeight: '1.5' }}>
+                System automatically exports accounting data as ZIP files for backup and compliance.
+                <br />Configure the schedule and download reports manually anytime.
+              </p>
+            </div>
+            <button
+              onClick={() => setShowConfigModal(true)}
+              style={{
+                padding: '12px 20px',
+                background: isDarkMode ? 'rgba(255,212,28,0.15)' : 'rgba(59,130,246,0.15)',
+                border: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}`,
+                borderRadius: '10px',
+                color: theme.accent.primary,
+                fontSize: '14px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <span>⚙️</span>
+              <span>Configure Schedule</span>
+            </button>
           </div>
 
-          {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto pr-2">
-            {/* Auto-Export Section */}
-            <div style={{
-              background: theme.bg.card,
-              borderRadius: '16px',
-              border: `1px solid ${theme.border.primary}`,
-              padding: '28px',
-              marginBottom: '24px'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
-                <div>
-                  <h3 style={{ color: theme.accent.primary, fontSize: '20px', fontWeight: 700, margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span>📊</span> Automated Export
-                  </h3>
-                  <p style={{ color: theme.text.secondary, fontSize: '14px', margin: 0, lineHeight: '1.5' }}>
-                    System automatically exports data as ZIP files for backup and compliance.
-                    <br />Configure the schedule and download reports manually anytime.
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowConfigModal(true)}
-                  style={{
-                    padding: '12px 20px',
-                    background: isDarkMode ? 'rgba(255,212,28,0.15)' : 'rgba(59,130,246,0.15)',
-                    border: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}`,
-                    borderRadius: '10px',
-                    color: theme.accent.primary,
-                    fontSize: '14px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  <span>⚙️</span>
-                  <span>Configure Schedule</span>
-                </button>
-              </div>
+          {/* Current Settings Cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+            <SettingCard icon="📅" label="Frequency" value={configurations.autoExport.frequency?.charAt(0).toUpperCase() + configurations.autoExport.frequency?.slice(1) || 'Not set'} theme={theme} />
+            <SettingCard icon="🕐" label="Export Time" value={configurations.autoExport.time || 'Not set'} theme={theme} />
+            <SettingCard icon="📦" label="Data Types" value={`${configurations.autoExport.exportTypes?.length || 0} selected`} theme={theme} />
+          </div>
 
-              {/* Current Settings Cards */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-                <SettingCard icon="📅" label="Frequency" value={configurations.autoExport.frequency?.charAt(0).toUpperCase() + configurations.autoExport.frequency?.slice(1) || 'Not set'} theme={theme} />
-                <SettingCard icon="🕐" label="Export Time" value={configurations.autoExport.time || 'Not set'} theme={theme} />
-                <SettingCard icon="📦" label="Data Types" value={`${configurations.autoExport.exportTypes?.length || 0} selected`} theme={theme} />
-              </div>
+          {/* Manual Export Button */}
+          <div style={{
+            padding: '24px',
+            background: 'rgba(34,197,94,0.1)',
+            border: '2px dashed rgba(34,197,94,0.3)',
+            borderRadius: '12px',
+            textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '48px', marginBottom: '12px' }}>📦</div>
+            <h4 style={{ color: theme.text.primary, fontSize: '16px', fontWeight: 700, marginBottom: '8px' }}>
+              Export Accounting Data Now
+            </h4>
+            <p style={{ color: theme.text.secondary, fontSize: '13px', marginBottom: '16px' }}>
+              Download a complete ZIP file with all accounting data: transactions, cash-ins, balances, and logs.
+            </p>
+            <button
+              onClick={() => setShowManualExportModal(true)}
+              disabled={loading}
+              style={{
+                padding: '14px 32px',
+                background: loading ? '#9CA3AF' : '#22C55E',
+                color: '#FFFFFF',
+                border: 'none',
+                borderRadius: '10px',
+                fontSize: '15px',
+                fontWeight: 700,
+                cursor: loading ? 'not-allowed' : 'pointer',
+                boxShadow: loading ? 'none' : '0 4px 12px rgba(34,197,94,0.4)',
+                transition: 'all 0.2s ease',
+                opacity: loading ? 0.6 : 1
+              }}
+            >
+              {loading ? '⏳ Exporting...' : '📥 Download Accounting Data (ZIP)'}
+            </button>
+          </div>
+        </div>
 
-              {/* Manual Export Button */}
-              <div style={{
-                padding: '24px',
-                background: 'rgba(34,197,94,0.1)',
-                border: '2px dashed rgba(34,197,94,0.3)',
-                borderRadius: '12px',
-                textAlign: 'center'
-              }}>
-                <div style={{ fontSize: '48px', marginBottom: '12px' }}>📦</div>
-                <h4 style={{ color: theme.text.primary, fontSize: '16px', fontWeight: 700, marginBottom: '8px' }}>
-                  Export Data Now
-                </h4>
-                <p style={{ color: theme.text.secondary, fontSize: '13px', marginBottom: '16px' }}>
-                  Download a complete ZIP file with all {isTreasury ? 'treasury' : 'accounting'} data.
-                </p>
-                <button
-                  onClick={() => setShowManualExportModal(true)}
-                  disabled={loading}
-                  style={{
-                    padding: '14px 32px',
-                    background: loading ? '#9CA3AF' : '#22C55E',
-                    color: '#FFFFFF',
-                    border: 'none',
-                    borderRadius: '10px',
-                    fontSize: '15px',
-                    fontWeight: 700,
-                    cursor: loading ? 'not-allowed' : 'pointer',
-                    boxShadow: loading ? 'none' : '0 4px 12px rgba(34,197,94,0.4)',
-                    transition: 'all 0.2s ease',
-                    opacity: loading ? 0.6 : 1
-                  }}
-                >
-                  {loading ? '⏳ Exporting...' : '📥 Download Data (ZIP)'}
-                </button>
-              </div>
+        {/* Combined Export Archive */}
+        <div style={{
+          background: theme.bg.card,
+          borderRadius: '16px',
+          border: `1px solid ${theme.border.primary}`,
+          padding: '28px',
+          marginBottom: '24px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '16px' }}>
+            <div>
+              <h3 style={{ color: theme.accent.primary, fontSize: '18px', fontWeight: 700, margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>🗄️</span> Export Archive
+              </h3>
+              <p style={{ color: theme.text.secondary, fontSize: '12px', margin: 0 }}>
+                All exports - auto-scheduled and manual
+              </p>
             </div>
-
-            {/* Combined Export Archive */}
-            <div style={{
-              background: theme.bg.card,
-              borderRadius: '16px',
-              border: `1px solid ${theme.border.primary}`,
-              padding: '28px',
-              marginBottom: '24px'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '16px' }}>
-                <div>
-                  <h3 style={{ color: theme.accent.primary, fontSize: '18px', fontWeight: 700, margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span>🗄️</span> Export Archive
-                  </h3>
-                  <p style={{ color: theme.text.secondary, fontSize: '12px', margin: 0 }}>
-                    All exports - auto-scheduled and manual
-                  </p>
-                </div>
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  {/* Type Filter Tabs */}
-                  <div style={{ display: 'flex', borderRadius: '8px', overflow: 'hidden', border: `1px solid ${theme.border.primary}` }}>
-                    {[
-                      { key: 'all', label: 'All' },
-                      { key: 'auto', label: '🔄 Auto' },
-                      { key: 'manual', label: '👆 Manual' }
-                    ].map((tab) => (
-                      <button
-                        key={tab.key}
-                        onClick={() => setArchiveFilter(tab.key)}
-                        style={{
-                          padding: '8px 16px',
-                          background: archiveFilter === tab.key ? theme.accent.primary : 'transparent',
-                          color: archiveFilter === tab.key ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.secondary,
-                          border: 'none',
-                          fontSize: '12px',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        {tab.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Search */}
-                  <input
-                    type="text"
-                    placeholder="Search exports..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+              {/* Type Filter Tabs */}
+              <div style={{ display: 'flex', borderRadius: '8px', overflow: 'hidden', border: `1px solid ${theme.border.primary}` }}>
+                {[
+                  { key: 'all', label: 'All' },
+                  { key: 'auto', label: '🔄 Auto' },
+                  { key: 'manual', label: '👆 Manual' }
+                ].map((tab) => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setArchiveFilter(tab.key)}
                     style={{
                       padding: '8px 16px',
-                      background: theme.bg.tertiary,
-                      border: `2px solid ${theme.border.primary}`,
-                      borderRadius: '8px',
-                      color: theme.text.primary,
-                      fontSize: '13px',
-                      outline: 'none',
-                      width: '180px'
+                      background: archiveFilter === tab.key ? theme.accent.primary : 'transparent',
+                      color: archiveFilter === tab.key ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.secondary,
+                      border: 'none',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
                     }}
-                  />
-
-                  {/* Date Filter */}
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <input
-                      type="date"
-                      value={filterDateRange.start}
-                      onChange={(e) => setFilterDateRange({ ...filterDateRange, start: e.target.value })}
-                      style={{
-                        padding: '8px 12px',
-                        background: theme.bg.tertiary,
-                        border: `2px solid ${theme.border.primary}`,
-                        borderRadius: '8px',
-                        color: theme.text.primary,
-                        fontSize: '12px',
-                        outline: 'none'
-                      }}
-                    />
-                    <span style={{ color: theme.text.tertiary }}>→</span>
-                    <input
-                      type="date"
-                      value={filterDateRange.end}
-                      onChange={(e) => setFilterDateRange({ ...filterDateRange, end: e.target.value })}
-                      style={{
-                        padding: '8px 12px',
-                        background: theme.bg.tertiary,
-                        border: `2px solid ${theme.border.primary}`,
-                        borderRadius: '8px',
-                        color: theme.text.primary,
-                        fontSize: '12px',
-                        outline: 'none'
-                      }}
-                    />
-                    {(filterDateRange.start || filterDateRange.end || searchQuery) && (
-                      <button
-                        onClick={() => {
-                          setSearchQuery('');
-                          setFilterDateRange({ start: '', end: '' });
-                        }}
-                        style={{
-                          padding: '8px 12px',
-                          background: 'rgba(239,68,68,0.2)',
-                          border: '2px solid rgba(239,68,68,0.3)',
-                          borderRadius: '8px',
-                          color: '#EF4444',
-                          fontSize: '12px',
-                          fontWeight: 600,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Clear
-                      </button>
-                    )}
-                  </div>
-                </div>
+                  >
+                    {tab.label}
+                  </button>
+                ))}
               </div>
 
-              {filteredArchive.length === 0 ? (
-                <div style={{
-                  padding: '40px',
-                  textAlign: 'center',
-                  color: theme.text.tertiary,
-                  fontSize: '14px'
-                }}>
-                  <div style={{ fontSize: '48px', marginBottom: '12px', opacity: 0.3 }}>📂</div>
-                  <p style={{ margin: 0 }}>No exports found</p>
-                  <p style={{ margin: '8px 0 0 0', fontSize: '12px' }}>
-                    {archiveFilter !== 'all' ? 'Try changing the filter or ' : ''}
-                    Configure auto-export or run a manual export to start
-                  </p>
-                </div>
-              ) : (
-                <div style={{ maxHeight: '500px', overflowY: 'auto', paddingRight: '8px' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {filteredArchive.map((exp, idx) => (
-                      <div
-                        key={exp._id || idx}
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          padding: '16px 18px',
-                          background: theme.bg.tertiary,
-                          borderRadius: '10px',
-                          border: `1px solid ${theme.border.primary}`,
-                          fontSize: '14px',
-                          transition: 'all 0.2s ease'
-                        }}
-                      >
-                        <div style={{ flex: 1 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
-                            <span style={{ fontSize: '20px' }}>{exp.exportSource === 'auto' ? '🔄' : '👆'}</span>
-                            <span style={{ color: theme.accent.primary, fontWeight: 700, fontSize: '15px' }}>
-                              {exp.exportType || `${isTreasury ? 'Treasury' : 'Accounting'} Export`}
-                            </span>
-                            <span style={{
-                              padding: '4px 10px',
-                              borderRadius: '6px',
-                              fontSize: '11px',
-                              fontWeight: 700,
-                              background: exp.exportSource === 'auto' ? 'rgba(59,130,246,0.2)' : 'rgba(34,197,94,0.2)',
-                              color: exp.exportSource === 'auto' ? '#3B82F6' : '#22C55E',
-                              border: `1px solid ${exp.exportSource === 'auto' ? 'rgba(59,130,246,0.3)' : 'rgba(34,197,94,0.3)'}`
-                            }}>
-                              {exp.exportSource === 'auto' ? 'AUTO' : 'MANUAL'}
-                            </span>
-                          </div>
-                          <div style={{ display: 'flex', gap: '20px', fontSize: '13px', color: theme.text.secondary }}>
-                            <span>📅 {new Date(exp.exportedAt || exp.timestamp || exp.createdAt).toLocaleDateString()}</span>
-                            <span>🕐 {new Date(exp.exportedAt || exp.timestamp || exp.createdAt).toLocaleTimeString()}</span>
-                            {exp.fileName && <span>📄 {exp.fileName}</span>}
-                            {exp.recordCount && <span>📊 {exp.recordCount} records</span>}
-                          </div>
-                        </div>
-                        {exp.status === 'success' || !exp.status ? (
-                          <button
-                            onClick={() => handleDownloadExport(exp._id)}
-                            style={{
-                              padding: '10px 18px',
-                              borderRadius: '8px',
-                              fontSize: '13px',
-                              fontWeight: 700,
-                              background: 'rgba(34,197,94,0.2)',
-                              color: '#22C55E',
-                              border: '2px solid rgba(34,197,94,0.3)',
-                              cursor: 'pointer',
-                              transition: 'all 0.2s ease',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '6px'
-                            }}
-                          >
-                            📥 Download
-                          </button>
-                        ) : (
-                          <span style={{
-                            padding: '10px 18px',
-                            borderRadius: '8px',
-                            fontSize: '13px',
-                            fontWeight: 700,
-                            background: 'rgba(239,68,68,0.2)',
-                            color: '#EF4444',
-                            border: '2px solid rgba(239,68,68,0.3)'
-                          }}>
-                            ✗ Failed
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* Search */}
+              <input
+                type="text"
+                placeholder="Search exports..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  padding: '8px 16px',
+                  background: theme.bg.tertiary,
+                  border: `2px solid ${theme.border.primary}`,
+                  borderRadius: '8px',
+                  color: theme.text.primary,
+                  fontSize: '13px',
+                  outline: 'none',
+                  width: '180px'
+                }}
+              />
+
+              {/* Date Filter */}
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <input
+                  type="date"
+                  value={filterDateRange.start}
+                  onChange={(e) => setFilterDateRange({ ...filterDateRange, start: e.target.value })}
+                  style={{
+                    padding: '8px 12px',
+                    background: theme.bg.tertiary,
+                    border: `2px solid ${theme.border.primary}`,
+                    borderRadius: '8px',
+                    color: theme.text.primary,
+                    fontSize: '12px',
+                    outline: 'none'
+                  }}
+                />
+                <span style={{ color: theme.text.tertiary }}>→</span>
+                <input
+                  type="date"
+                  value={filterDateRange.end}
+                  onChange={(e) => setFilterDateRange({ ...filterDateRange, end: e.target.value })}
+                  style={{
+                    padding: '8px 12px',
+                    background: theme.bg.tertiary,
+                    border: `2px solid ${theme.border.primary}`,
+                    borderRadius: '8px',
+                    color: theme.text.primary,
+                    fontSize: '12px',
+                    outline: 'none'
+                  }}
+                />
+                {(filterDateRange.start || filterDateRange.end || searchQuery) && (
+                  <button
+                    onClick={() => {
+                      setSearchQuery('');
+                      setFilterDateRange({ start: '', end: '' });
+                    }}
+                    style={{
+                      padding: '8px 12px',
+                      background: 'rgba(239,68,68,0.2)',
+                      border: '2px solid rgba(239,68,68,0.3)',
+                      borderRadius: '8px',
+                      color: '#EF4444',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
             </div>
           </div>
+
+          {filteredArchive.length === 0 ? (
+            <div style={{
+              padding: '40px',
+              textAlign: 'center',
+              color: theme.text.tertiary,
+              fontSize: '14px'
+            }}>
+              <div style={{ fontSize: '48px', marginBottom: '12px', opacity: 0.3 }}>📂</div>
+              <p style={{ margin: 0 }}>No exports found</p>
+              <p style={{ margin: '8px 0 0 0', fontSize: '12px' }}>
+                {archiveFilter !== 'all' ? 'Try changing the filter or ' : ''}
+                Configure auto-export or run a manual export to start
+              </p>
+            </div>
+          ) : (
+            <div style={{ maxHeight: '500px', overflowY: 'auto', paddingRight: '8px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {filteredArchive.map((exp, idx) => (
+                  <div
+                    key={exp._id || idx}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '16px 18px',
+                      background: theme.bg.tertiary,
+                      borderRadius: '10px',
+                      border: `1px solid ${theme.border.primary}`,
+                      fontSize: '14px',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
+                        <span style={{ fontSize: '20px' }}>{exp.exportSource === 'auto' ? '🔄' : '👆'}</span>
+                        <span style={{ color: theme.accent.primary, fontWeight: 700, fontSize: '15px' }}>
+                          {exp.exportType || 'Accounting Export'}
+                        </span>
+                        <span style={{
+                          padding: '4px 10px',
+                          borderRadius: '6px',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          background: exp.exportSource === 'auto' ? 'rgba(59,130,246,0.2)' : 'rgba(34,197,94,0.2)',
+                          color: exp.exportSource === 'auto' ? '#3B82F6' : '#22C55E',
+                          border: `1px solid ${exp.exportSource === 'auto' ? 'rgba(59,130,246,0.3)' : 'rgba(34,197,94,0.3)'}`
+                        }}>
+                          {exp.exportSource === 'auto' ? 'AUTO' : 'MANUAL'}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '20px', fontSize: '13px', color: theme.text.secondary }}>
+                        <span>📅 {new Date(exp.exportedAt || exp.timestamp || exp.createdAt).toLocaleDateString()}</span>
+                        <span>🕐 {new Date(exp.exportedAt || exp.timestamp || exp.createdAt).toLocaleTimeString()}</span>
+                        {exp.fileName && <span>📄 {exp.fileName}</span>}
+                        {exp.recordCount && <span>📊 {exp.recordCount} records</span>}
+                      </div>
+                    </div>
+                    {exp.status === 'success' || !exp.status ? (
+                      <button
+                        onClick={() => handleDownloadExport(exp._id)}
+                        style={{
+                          padding: '10px 18px',
+                          borderRadius: '8px',
+                          fontSize: '13px',
+                          fontWeight: 700,
+                          background: 'rgba(34,197,94,0.2)',
+                          color: '#22C55E',
+                          border: '2px solid rgba(34,197,94,0.3)',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}
+                      >
+                        📥 Download
+                      </button>
+                    ) : (
+                      <span style={{
+                        padding: '10px 18px',
+                        borderRadius: '8px',
+                        fontSize: '13px',
+                        fontWeight: 700,
+                        background: 'rgba(239,68,68,0.2)',
+                        color: '#EF4444',
+                        border: '2px solid rgba(239,68,68,0.3)'
+                      }}>
+                        ✗ Failed
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -539,7 +559,7 @@ export default function Config() {
         <ConfigModal
           configurations={configurations}
           setConfigurations={setConfigurations}
-          exportTypes={EXPORT_TYPES}
+          exportTypes={ACCOUNTING_EXPORT_TYPES}
           loading={loading}
           onSave={handleSaveAutoExport}
           onCancel={() => setShowConfigModal(false)}
@@ -547,8 +567,6 @@ export default function Config() {
           isDarkMode={isDarkMode}
         />
       )}
-
-      <Footer />
     </div>
   );
 }
