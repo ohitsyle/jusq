@@ -326,7 +326,7 @@ export default function ManageUsers() {
                       ? (option.color || theme.accent.primary)
                       : 'transparent',
                     color: statusFilter === option.value
-                      ? '#FFFFFF'
+                      ? (option.color ? '#FFFFFF' : (isDarkMode ? '#181D40' : '#FFFFFF'))
                       : theme.text.secondary
                   }}
                   className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"

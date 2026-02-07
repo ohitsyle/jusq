@@ -137,53 +137,51 @@ export default function MerchantsPage() {
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Actions Bar - ManageUsers Style */}
       <div
         style={{
           background: isDarkMode ? 'rgba(15,18,39,0.8)' : theme.bg.card,
           borderColor: theme.accent.primary
         }}
-        className="rounded-xl border-2 p-3 mb-5 flex flex-col sm:flex-row items-stretch sm:items-center gap-4"
+        className="rounded-xl border-2 p-4 mb-5"
       >
-        {/* Search Input */}
-        <div className="flex-1 relative">
-          <Search
-            style={{ color: theme.text.tertiary }}
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5"
-          />
-          <input
-            type="text"
-            placeholder="Search merchants..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{
-              background: 'transparent',
-              color: theme.text.primary,
-              borderColor: 'transparent'
-            }}
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg text-sm focus:outline-none placeholder:text-gray-500"
-          />
-        </div>
+        <div className="flex flex-wrap gap-3 items-center justify-between">
+          {/* Left: Search & Filters */}
+          <div className="flex flex-wrap gap-3 items-center flex-1">
+            {/* Search */}
+            <div className="relative flex-1 min-w-[200px] max-w-[300px]">
+              <Search style={{ color: theme.text.tertiary }} className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Search merchants..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }}
+                className="w-full pl-10 pr-4 py-2 rounded-xl border text-sm focus:outline-none transition-all focus:ring-2 focus:ring-opacity-50"
+              />
+            </div>
 
-        {/* Divider */}
-        <div style={{ background: theme.border.primary }} className="hidden sm:block w-px h-8" />
-
-        {/* Status Filter */}
-        <div className="flex gap-2 flex-wrap">
-          {['all', 'active', 'inactive'].map((status) => (
-            <button
-              key={status}
-              onClick={() => setStatusFilter(status)}
-              style={{
-                background: statusFilter === status ? theme.accent.primary : (isDarkMode ? 'rgba(30,35,71,0.8)' : '#F9FAFB'),
-                color: statusFilter === status ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.primary,
-                borderColor: theme.border.primary
-              }}
-              className="px-3 py-2 rounded-lg font-semibold text-xs border hover:opacity-80 transition capitalize"
-            >
-              {status}
-            </button>
-          ))}
+            {/* Status Filter - Segmented Control */}
+            <div className="flex gap-1 p-1 rounded-xl" style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F3F4F6' }}>
+              {[
+                { value: 'all', label: 'All' },
+                { value: 'active', label: 'Active' },
+                { value: 'inactive', label: 'Inactive' }
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => setStatusFilter(option.value)}
+                  style={{
+                    background: statusFilter === option.value ? theme.accent.primary : 'transparent',
+                    color: statusFilter === option.value ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.secondary
+                  }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80 capitalize"
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -370,13 +368,13 @@ function MerchantModal({ merchant, theme, isDarkMode, onClose }) {
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
 
-      {/* Modal Content */}
+      {/* Modal Content - FIXED SIZE */}
       <div
         style={{
           background: isDarkMode ? '#1E2347' : '#FFFFFF',
           borderColor: theme.border.primary
         }}
-        className="relative rounded-2xl shadow-2xl border w-full max-w-5xl max-h-[85vh] overflow-hidden animate-fadeIn"
+        className="relative rounded-2xl shadow-2xl border w-full max-w-5xl overflow-hidden animate-fadeIn"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -445,8 +443,8 @@ function MerchantModal({ merchant, theme, isDarkMode, onClose }) {
           })}
         </div>
 
-        {/* Content */}
-        <div className="p-6 max-h-[55vh] overflow-y-auto">
+        {/* Content - FIXED HEIGHT */}
+        <div className="p-6 overflow-y-auto" style={{ height: '500px' }}>
           {loading ? (
             <div style={{ color: theme.accent.primary }} className="text-center py-10">
               <div className="animate-spin w-8 h-8 border-4 border-t-transparent rounded-full mx-auto mb-4" style={{ borderColor: `${theme.accent.primary} transparent transparent transparent` }} />
@@ -630,7 +628,7 @@ function MetricsTab({ merchant, metrics, theme, isDarkMode, isMotorpool }) {
   );
 }
 
-// ✅ NEW: Tabular Transactions Tab Component
+// Transactions Tab Component
 function TransactionsTab({ transactions, theme, isDarkMode, isMotorpool, formatDate, currentPage, totalPages, onPageChange }) {
   if (transactions.length === 0) {
     return (
@@ -748,7 +746,7 @@ function TransactionsTab({ transactions, theme, isDarkMode, isMotorpool, formatD
                           >
                             {tx.itemDescription || 'Payment'}
                           </p>
-                          {isMotorpool && tx.transactionId && (
+                          {tx.transactionId && (
                             <p
                               style={{ color: theme.text.muted }}
                               className="text-xs font-mono mt-1"

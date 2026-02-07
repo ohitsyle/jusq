@@ -776,7 +776,7 @@ export default function TransferCard() {
                           ? (option.color || theme.accent.primary)
                           : 'transparent',
                         color: statusFilter === option.value
-                          ? '#FFFFFF'
+                          ? (option.color ? '#FFFFFF' : (isDarkMode ? '#181D40' : '#FFFFFF'))
                           : (isDarkMode ? 'rgba(251, 251, 251, 0.6)' : theme.text.secondary)
                       }}
                       className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"

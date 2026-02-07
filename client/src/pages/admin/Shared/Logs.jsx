@@ -3,10 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
-import SearchBar from '../../../components/shared/SearchBar';
-import ExportButton from '../../../components/shared/ExportButton';
-import StatusFilter from '../../../components/shared/StatusFilter';
-import DateRangeFilter from '../../../components/shared/DateRangeFilter';
+import { Search, Download } from 'lucide-react';
 import { exportToCSV, prepareDataForExport } from '../../../utils/csvExport';
 import LogDetailModal from '../../../components/modals/LogDetailModal';
 
@@ -195,14 +192,22 @@ export default function LogsList() {
     // - who/when/what (all accounting admin activities)
     // - login/logout of every accounting admin
     // - crud of every tab and by which accounting admin
+    // - which accounting admin updates/adds note, resolves a concern by which user
+    // - cashed in which user by which accounting admin
     // - which accounting admin changed auto export configs for department
     // - display if a certain accounting admin did a manual export
+    // SAME ACCESS AS TREASURY
     if (role === 'accounting') {
       const isAccountingAdminAuth = (log.eventType === 'login' || log.eventType === 'logout') &&
         log.metadata?.adminRole === 'accounting';
 
       const isAccountingCRUD = (log.eventType === 'crud_create' || log.eventType === 'crud_update' || log.eventType === 'crud_delete') &&
         log.metadata?.adminRole === 'accounting';
+
+      const isAccountingNotes = (log.eventType === 'note_added' || log.eventType === 'note_updated' || log.eventType === 'concern_resolved') &&
+        log.metadata?.adminRole === 'accounting';
+
+      const isAccountingCashIn = log.eventType === 'cash_in' && log.metadata?.adminRole === 'accounting';
 
       const isAccountingExport = 
         (log.eventType === 'export_manual' || log.eventType === 'export_auto') &&
@@ -212,7 +217,13 @@ export default function LogsList() {
         (log.eventType === 'config_updated' && log.metadata?.adminRole === 'accounting') ||
         log.department === 'accounting';
 
-      return isAccountingAdminAuth || isAccountingCRUD || isAccountingExport || isAccountingConfig;
+      const isAccountingRelated = 
+        log.targetEntity === 'user' ||
+        log.targetEntity === 'transaction' ||
+        log.eventType === 'registration';
+
+      return isAccountingAdminAuth || isAccountingCRUD || isAccountingNotes || 
+             isAccountingCashIn || isAccountingExport || isAccountingConfig || isAccountingRelated;
     }
 
     return false;
@@ -238,7 +249,43 @@ export default function LogsList() {
       if (!matchesSearch) return false;
     }
 
-    if (typeFilter && (log.eventType || log.type) !== typeFilter) return false;
+    if (typeFilter) {
+      const eventType = log.eventType || log.type;
+      
+      // Handle grouped filters
+      if (typeFilter === 'access_control') {
+        // Match login and logout events
+        const accessControlTypes = ['login', 'logout'];
+        if (!accessControlTypes.includes(eventType)) return false;
+      } else if (typeFilter === 'admin_action') {
+        // Match CRUD operations, notes, and concern resolution
+        const adminActionTypes = ['crud_create', 'crud_update', 'crud_delete', 'note_added', 'note_updated', 'concern_resolved'];
+        if (!adminActionTypes.includes(eventType)) return false;
+      } else if (typeFilter === 'driver_activities') {
+        // Match driver login and logout
+        const driverActivityTypes = ['driver_login', 'driver_logout'];
+        if (!driverActivityTypes.includes(eventType)) return false;
+      } else if (typeFilter === 'merchant_activities') {
+        // Match merchant login and logout
+        const merchantActivityTypes = ['merchant_login', 'merchant_logout'];
+        if (!merchantActivityTypes.includes(eventType)) return false;
+      } else if (typeFilter === 'trip_operations') {
+        // Match trip-related operations
+        const tripOperationTypes = ['trip_start', 'trip_end', 'route_change', 'refund'];
+        if (!tripOperationTypes.includes(eventType)) return false;
+      } else if (typeFilter === 'data_management') {
+        // Match export and config operations
+        const dataManagementTypes = ['export_manual', 'export_auto', 'config_updated'];
+        if (!dataManagementTypes.includes(eventType)) return false;
+      } else if (typeFilter === 'system_operations') {
+        // Match system-level operations
+        const systemOperationTypes = ['maintenance_mode', 'student_deactivation', 'user_action', 'system', 'security', 'error'];
+        if (!systemOperationTypes.includes(eventType)) return false;
+      } else {
+        // Match exact event type (for individual filters like cash_in, registration)
+        if (eventType !== typeFilter) return false;
+      }
+    }
     if (statusFilter && log.status !== statusFilter) return false;
 
     if (startDate || endDate) {
@@ -277,105 +324,54 @@ export default function LogsList() {
 
     if (role === 'motorpool') {
       return [
-        { value: 'login', label: 'Admin Login' },
-        { value: 'logout', label: 'Admin Logout' },
-        { value: 'crud_create', label: 'Create Record' },
-        { value: 'crud_update', label: 'Update Record' },
-        { value: 'crud_delete', label: 'Delete Record' },
-        { value: 'note_added', label: 'Note Added' },
-        { value: 'note_updated', label: 'Note Updated' },
-        { value: 'concern_resolved', label: 'Concern Resolved' },
-        { value: 'driver_login', label: 'Driver Login' },
-        { value: 'driver_logout', label: 'Driver Logout' },
-        { value: 'trip_start', label: 'Trip Start' },
-        { value: 'trip_end', label: 'Trip End' },
-        { value: 'route_change', label: 'Route Change' },
-        { value: 'refund', label: 'Refund' },
-        { value: 'export_manual', label: 'Manual Export' },
-        { value: 'export_auto', label: 'Auto Export' },
-        { value: 'config_updated', label: 'Config Updated' }
+        { value: 'access_control', label: 'Access Control' },
+        { value: 'admin_action', label: 'Admin Actions' },
+        { value: 'driver_activities', label: 'Driver Activities' },
+        { value: 'trip_operations', label: 'Trip Operations' },
+        { value: 'data_management', label: 'Data Management' }
       ];
     }
 
     if (role === 'treasury') {
       return [
-        { value: 'login', label: 'Admin Login' },
-        { value: 'logout', label: 'Admin Logout' },
-        { value: 'crud_create', label: 'Create Record' },
-        { value: 'crud_update', label: 'Update Record' },
-        { value: 'crud_delete', label: 'Delete Record' },
-        { value: 'note_added', label: 'Note Added' },
-        { value: 'note_updated', label: 'Note Updated' },
-        { value: 'concern_resolved', label: 'Concern Resolved' },
+        { value: 'access_control', label: 'Access Control' },
+        { value: 'admin_action', label: 'Admin Actions' },
         { value: 'cash_in', label: 'Cash In' },
         { value: 'registration', label: 'Registration' },
-        { value: 'export_manual', label: 'Manual Export' },
-        { value: 'export_auto', label: 'Auto Export' },
-        { value: 'config_updated', label: 'Config Updated' }
+        { value: 'data_management', label: 'Data Management' }
       ];
     }
 
     if (role === 'merchant') {
       return [
-        { value: 'login', label: 'Admin Login' },
-        { value: 'logout', label: 'Admin Logout' },
-        { value: 'crud_create', label: 'Create Record' },
-        { value: 'crud_update', label: 'Update Record' },
-        { value: 'crud_delete', label: 'Delete Record' },
-        { value: 'note_added', label: 'Note Added' },
-        { value: 'note_updated', label: 'Note Updated' },
-        { value: 'concern_resolved', label: 'Concern Resolved' },
-        { value: 'merchant_login', label: 'Merchant Login' },
-        { value: 'merchant_logout', label: 'Merchant Logout' },
-        { value: 'export_manual', label: 'Manual Export' },
-        { value: 'export_auto', label: 'Auto Export' },
-        { value: 'config_updated', label: 'Config Updated' }
+        { value: 'access_control', label: 'Access Control' },
+        { value: 'admin_action', label: 'Admin Actions' },
+        { value: 'merchant_activities', label: 'Merchant Activities' },
+        { value: 'data_management', label: 'Data Management' }
       ];
     }
 
     if (role === 'accounting') {
       return [
-        { value: 'login', label: 'Admin Login' },
-        { value: 'logout', label: 'Admin Logout' },
-        { value: 'crud_create', label: 'Create Record' },
-        { value: 'crud_update', label: 'Update Record' },
-        { value: 'crud_delete', label: 'Delete Record' },
-        { value: 'export_manual', label: 'Manual Export' },
-        { value: 'export_auto', label: 'Auto Export' },
-        { value: 'config_updated', label: 'Config Updated' }
+        { value: 'access_control', label: 'Access Control' },
+        { value: 'admin_action', label: 'Admin Actions' },
+        { value: 'cash_in', label: 'Cash In' },
+        { value: 'registration', label: 'Registration' },
+        { value: 'data_management', label: 'Data Management' }
       ];
     }
 
     // System admin (sysad) - sees everything
     return [
-      { value: 'login', label: 'Login' },
-      { value: 'logout', label: 'Logout' },
-      { value: 'crud_create', label: 'Create Record' },
-      { value: 'crud_update', label: 'Update Record' },
-      { value: 'crud_delete', label: 'Delete Record' },
-      { value: 'note_added', label: 'Note Added' },
-      { value: 'note_updated', label: 'Note Updated' },
-      { value: 'concern_resolved', label: 'Concern Resolved' },
-      { value: 'driver_login', label: 'Driver Login' },
-      { value: 'driver_logout', label: 'Driver Logout' },
-      { value: 'merchant_login', label: 'Merchant Login' },
-      { value: 'merchant_logout', label: 'Merchant Logout' },
-      { value: 'trip_start', label: 'Trip Start' },
-      { value: 'trip_end', label: 'Trip End' },
-      { value: 'route_change', label: 'Route Change' },
-      { value: 'refund', label: 'Refund' },
+      { value: 'access_control', label: 'Access Control' },
+      { value: 'admin_action', label: 'Admin Actions' },
+      { value: 'driver_activities', label: 'Driver Activities' },
+      { value: 'merchant_activities', label: 'Merchant Activities' },
+      { value: 'trip_operations', label: 'Trip Operations' },
       { value: 'cash_in', label: 'Cash In' },
       { value: 'registration', label: 'Registration' },
-      { value: 'export_manual', label: 'Manual Export' },
-      { value: 'export_auto', label: 'Auto Export' },
-      { value: 'maintenance_mode', label: 'Maintenance Mode' },
-      { value: 'student_deactivation', label: 'Student Deactivation' },
-      { value: 'config_updated', label: 'Config Updated' },
-      { value: 'admin_action', label: 'Admin Action' },
-      { value: 'user_action', label: 'User Action' },
-      { value: 'system', label: 'System Event' },
-      { value: 'security', label: 'Security Event' },
-      { value: 'error', label: 'Error' }
+      { value: 'data_management', label: 'Data Management' },
+      { value: 'system_operations', label: 'System Operations' }
     ];
   };
 
@@ -410,59 +406,158 @@ export default function LogsList() {
         </p>
       </div>
 
-      {/* Filters */}
+      {/* Actions Bar - New UI Style */}
       <div
         style={{
           background: isDarkMode ? 'rgba(15,18,39,0.8)' : theme.bg.card,
           borderColor: theme.accent.primary
         }}
-        className="rounded-xl border-2 p-4 mb-5 flex flex-wrap gap-3 items-end"
+        className="rounded-xl border-2 p-4 mb-5"
       >
-        <SearchBar value={searchQuery} onChange={setSearchQuery} placeholder="Search logs..." />
-        <StatusFilter
-          value={typeFilter}
-          onChange={setTypeFilter}
-          label="Type"
-          options={getTypeOptions()}
-        />
-        <StatusFilter
-          value={statusFilter}
-          onChange={setStatusFilter}
-          label="Status"
-          options={[
-            { value: 'success', label: 'Success' },
-            { value: 'failed', label: 'Failed' }
-          ]}
-        />
-        <DateRangeFilter
-          startDate={startDate}
-          endDate={endDate}
-          onStartChange={setStartDate}
-          onEndChange={setEndDate}
-        />
-        
-        {/* Sort Buttons */}
-        <div className="flex gap-1 p-1 rounded-xl" style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F3F4F6' }}>
-          {[
-            { value: 'timestamp', label: 'Date' },
-            { value: 'type', label: 'Type' },
-            { value: 'user', label: 'User' }
-          ].map((option) => (
+        <div className="flex flex-wrap gap-3 items-center">
+          {/* Search */}
+          <div className="relative flex-1 min-w-[200px] max-w-[300px]">
+            <Search style={{ color: theme.text.tertiary }} className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Search logs..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ 
+                background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F9FAFB', 
+                color: theme.text.primary, 
+                borderColor: theme.border.primary 
+              }}
+              className="w-full pl-10 pr-4 py-2 rounded-xl border text-sm focus:outline-none transition-all focus:ring-2 focus:ring-opacity-50"
+            />
+          </div>
+
+          {/* Type Filter - Button Group */}
+          <div className="flex gap-1 p-1 rounded-xl flex-wrap" style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F3F4F6' }}>
             <button
-              key={option.value}
-              onClick={() => { setSortBy(option.value); setCurrentPage(1); }}
+              onClick={() => setTypeFilter('')}
               style={{
-                background: sortBy === option.value ? theme.accent.primary : 'transparent',
-                color: sortBy === option.value ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.secondary
+                background: typeFilter === '' ? theme.accent.primary : 'transparent',
+                color: typeFilter === '' ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.secondary
               }}
               className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
             >
-              {option.label}
+              All
             </button>
-          ))}
+            {getTypeOptions().map((option) => (
+              <button
+                key={option.value}
+                onClick={() => setTypeFilter(option.value)}
+                style={{
+                  background: typeFilter === option.value ? theme.accent.primary : 'transparent',
+                  color: typeFilter === option.value ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.secondary
+                }}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80 whitespace-nowrap"
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Status Filter - Button Group */}
+          <div className="flex gap-1 p-1 rounded-xl" style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F3F4F6' }}>
+            <button
+              onClick={() => setStatusFilter('')}
+              style={{
+                background: statusFilter === '' ? theme.accent.primary : 'transparent',
+                color: statusFilter === '' ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.secondary
+              }}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
+            >
+              All
+            </button>
+            <button
+              onClick={() => setStatusFilter('success')}
+              style={{
+                background: statusFilter === 'success' ? theme.accent.primary : 'transparent',
+                color: statusFilter === 'success' ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.secondary
+              }}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
+            >
+              Success
+            </button>
+            <button
+              onClick={() => setStatusFilter('failed')}
+              style={{
+                background: statusFilter === 'failed' ? theme.accent.primary : 'transparent',
+                color: statusFilter === 'failed' ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.secondary
+              }}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
+            >
+              Failed
+            </button>
+          </div>
+
+          {/* Sort Buttons - Only show for sysad */}
+          {adminData?.role === 'sysad' && (
+            <div className="flex gap-1 p-1 rounded-xl" style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F3F4F6' }}>
+              {[
+                { value: 'timestamp', label: 'Date' },
+                { value: 'type', label: 'Type' },
+                { value: 'user', label: 'User' }
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => { setSortBy(option.value); setCurrentPage(1); }}
+                  style={{
+                    background: sortBy === option.value ? theme.accent.primary : 'transparent',
+                    color: sortBy === option.value ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.secondary
+                  }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Date Range Filters */}
+          <div className="flex gap-2 items-center">
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              style={{ 
+                background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F9FAFB', 
+                color: theme.text.primary, 
+                borderColor: theme.border.primary 
+              }}
+              className="px-3 py-1.5 rounded-xl border text-xs focus:outline-none"
+            />
+            <span style={{ color: theme.text.tertiary }} className="text-xs">to</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              style={{ 
+                background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F9FAFB', 
+                color: theme.text.primary, 
+                borderColor: theme.border.primary 
+              }}
+              className="px-3 py-1.5 rounded-xl border text-xs focus:outline-none"
+            />
+          </div>
+
+          {/* Export CSV Button */}
+          <button
+            onClick={handleExport}
+            disabled={sortedLogs.length === 0}
+            style={{ 
+              background: sortedLogs.length === 0 ? 'rgba(16,185,129,0.1)' : 'rgba(16,185,129,0.15)', 
+              color: sortedLogs.length === 0 ? 'rgba(16,185,129,0.5)' : '#10B981', 
+              borderColor: sortedLogs.length === 0 ? 'rgba(16,185,129,0.2)' : 'rgba(16,185,129,0.3)' 
+            }}
+            className="px-4 py-2 rounded-xl font-semibold text-sm border flex items-center gap-2 hover:opacity-80 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Download className="w-4 h-4" />
+            Export
+          </button>
         </div>
-        
-        <ExportButton onClick={handleExport} disabled={sortedLogs.length === 0} />
       </div>
 
       {/* Logs Table */}

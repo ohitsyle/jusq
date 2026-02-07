@@ -119,34 +119,10 @@ export default function TransactionTable({
     return '—';
   };
 
-  // Format amount with sign
+  // Format amount without sign
   const formatAmount = (tx) => {
     const amount = Number(tx.amount).toFixed(2);
-
-    if (isCashIn(tx)) {
-      return `+ ₱${amount}`;
-    }
-
-    if (isPayment(tx)) {
-      return `- ₱${amount}`;
-    }
-
     return `₱${amount}`;
-  };
-
-  // Get amount color
-  const getAmountColor = (tx) => {
-    if (!showColors) return theme.text.primary;
-
-    if (isCashIn(tx)) {
-      return '#10B981'; // Green for cash-in
-    }
-
-    if (isPayment(tx)) {
-      return '#EF4444'; // Red for payment/debit
-    }
-
-    return theme.text.primary;
   };
 
   return (
@@ -212,7 +188,6 @@ export default function TransactionTable({
             <tbody>
               {transactions.map((tx, idx) => {
                 const formattedAmount = formatAmount(tx);
-                const amountColor = getAmountColor(tx);
 
                 return (
                   <tr
@@ -247,8 +222,8 @@ export default function TransactionTable({
                       {getDetails(tx)}
                     </td>
 
-                    {/* Amount with Color */}
-                    <td style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 'bold', color: amountColor }}>
+                    {/* Amount without color */}
+                    <td style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 'bold', color: theme.text.primary }}>
                       {formattedAmount}
                     </td>
 
