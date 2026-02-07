@@ -631,339 +631,481 @@ export default function SysadConcernsPage() {
         )}
       </div>
 
-      {/* Details Modal */}
+      {/* Details Modal with Tabs - Treasury Style */}
       {showDetailsModal && selectedConcern && (
-        <DetailsModal
-          concern={selectedConcern}
-          theme={theme}
-          isDarkMode={isDarkMode}
-          modalTab={modalTab}
-          setModalTab={setModalTab}
-          noteText={noteText}
-          setNoteText={setNoteText}
-          sendingNote={sendingNote}
-          onSendNote={handleSendNote}
-          onOpenResolve={handleOpenResolve}
-          onClose={() => { setShowDetailsModal(false); setSelectedConcern(null); }}
-          getStatusColor={getStatusColor}
-        />
-      )}
+        <div
+          onClick={() => { setShowDetailsModal(false); setSelectedConcern(null); }}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            background: 'rgba(15,18,39,0.9)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: isDarkMode ? 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)' : '#FFFFFF',
+              borderRadius: '16px',
+              maxWidth: '700px',
+              width: '90%',
+              maxHeight: '90vh',
+              display: 'flex',
+              flexDirection: 'column',
+              border: `2px solid ${theme.border.primary}`,
+              boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
+            }}
+          >
+            {/* Header */}
+            <div style={{ padding: '24px', borderBottom: `2px solid ${theme.border.primary}`, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <span style={{
+                  display: 'inline-block',
+                  padding: '4px 12px',
+                  borderRadius: '20px',
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  background: `${getStatusColor(selectedConcern.status)}20`,
+                  color: getStatusColor(selectedConcern.status),
+                  marginBottom: '8px'
+                }}>
+                  {selectedConcern.status?.replace('_', ' ') || 'Pending'}
+                </span>
+                <h2 style={{ fontSize: '20px', fontWeight: 700, color: theme.text.primary, margin: 0 }}>
+                  {selectedConcern.subject || 'No Subject'}
+                </h2>
+              </div>
+              <button
+                onClick={() => { setShowDetailsModal(false); setSelectedConcern(null); }}
+                style={{
+                  background: 'rgba(239,68,68,0.2)',
+                  border: 'none',
+                  color: '#EF4444',
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  cursor: 'pointer',
+                  fontSize: '18px'
+                }}
+              >
+                ×
+              </button>
+            </div>
 
-      {/* Resolve Modal */}
-      {showResolveModal && selectedConcern && (
-        <ResolveModal
-          concern={selectedConcern}
-          theme={theme}
-          isDarkMode={isDarkMode}
-          resolution={resolution}
-          setResolution={setResolution}
-          resolving={resolving}
-          onResolve={handleResolve}
-          onClose={() => setShowResolveModal(false)}
-        />
-      )}
-    </div>
-  );
-}
+            {/* Tabs */}
+            <div style={{ padding: '0 24px', borderBottom: `2px solid ${theme.border.primary}`, display: 'flex', gap: '8px' }}>
+              <button
+                onClick={() => setModalTab('details')}
+                style={{
+                  padding: '12px 20px',
+                  background: 'transparent',
+                  border: 'none',
+                  borderBottom: `3px solid ${modalTab === 'details' ? theme.accent.primary : 'transparent'}`,
+                  color: modalTab === 'details' ? theme.accent.primary : theme.text.secondary,
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                📋 Details
+              </button>
+              {selectedConcern.submissionType !== 'feedback' && (
+                <button
+                  onClick={() => setModalTab('notes')}
+                  style={{
+                    padding: '12px 20px',
+                    background: 'transparent',
+                    border: 'none',
+                    borderBottom: `3px solid ${modalTab === 'notes' ? theme.accent.primary : 'transparent'}`,
+                    color: modalTab === 'notes' ? theme.accent.primary : theme.text.secondary,
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  📝 Notes History {selectedConcern.notes?.length > 0 && `(${selectedConcern.notes.length})`}
+                </button>
+              )}
+            </div>
 
-// Details Modal Component - Matches Treasury style with Details/Notes tabs
-function DetailsModal({ concern, theme, isDarkMode, modalTab, setModalTab, noteText, setNoteText, sendingNote, onSendNote, onOpenResolve, onClose, getStatusColor }) {
-  const isFeedback = concern.submissionType === 'feedback';
+            {/* Tab Content */}
+            <div style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
+              {modalTab === 'details' ? (
+                <>
+                  {/* User Info */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                    <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: theme.accent.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '18px', color: theme.accent.secondary }}>
+                      {selectedConcern.user?.firstName?.[0] || '?'}
+                    </div>
+                    <div>
+                      <p style={{ color: theme.text.primary, fontWeight: 600, margin: 0 }}>
+                        {selectedConcern.user?.firstName || selectedConcern.userName} {selectedConcern.user?.lastName || ''}
+                      </p>
+                      <p style={{ color: theme.text.secondary, fontSize: '13px', margin: 0 }}>
+                        {selectedConcern.user?.email || selectedConcern.userEmail || 'N/A'}
+                      </p>
+                    </div>
+                    <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
+                      <p style={{ color: theme.text.muted, fontSize: '12px', margin: 0 }}>
+                        {selectedConcern.createdAt ? new Date(selectedConcern.createdAt).toLocaleString() : ''}
+                      </p>
+                    </div>
+                  </div>
 
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-      <div
-        style={{ background: isDarkMode ? '#1E2347' : '#FFFFFF', borderColor: theme.border.primary }}
-        className="relative rounded-2xl shadow-2xl border w-full max-w-2xl max-h-[85vh] overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div style={{ background: isDarkMode ? 'linear-gradient(135deg, rgba(255,212,28,0.3) 0%, rgba(255,212,28,0.1) 100%)' : 'linear-gradient(135deg, rgba(59,130,246,0.3) 0%, rgba(59,130,246,0.1) 100%)' }}
-             className="px-6 py-5 flex items-center justify-between">
-          <div>
-            <h3 style={{ color: theme.accent.primary }} className="text-xl font-bold">
-              {isFeedback ? 'Feedback Details' : 'Concern Details'}
-            </h3>
-            <p style={{ color: theme.text.secondary }} className="text-sm mt-1">
-              ID: {concern._id?.slice(-8)}
-            </p>
-          </div>
-          <button onClick={onClose} style={{ color: theme.text.secondary }} className="hover:opacity-70 transition">
-            <X className="w-6 h-6" />
-          </button>
-        </div>
-
-        {/* Tabs (only for assistance, not feedback) */}
-        {!isFeedback && (
-          <div className="flex gap-2 px-6 pt-4">
-            <button
-              onClick={() => setModalTab('details')}
-              style={{
-                padding: '8px 16px',
-                background: modalTab === 'details' ? theme.accent.primary : 'transparent',
-                color: modalTab === 'details' ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.secondary,
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: 600,
-                border: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-            >
-              <FileText className="w-4 h-4" />
-              Details
-            </button>
-            <button
-              onClick={() => setModalTab('notes')}
-              style={{
-                padding: '8px 16px',
-                background: modalTab === 'notes' ? theme.accent.primary : 'transparent',
-                color: modalTab === 'notes' ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.secondary,
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: 600,
-                border: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-            >
-              <MessageCircle className="w-4 h-4" />
-              Notes ({concern.notes?.length || 0})
-            </button>
-          </div>
-        )}
-
-        {/* Content */}
-        <div className="p-6 space-y-4 max-h-[50vh] overflow-y-auto">
-          {(modalTab === 'details' || isFeedback) ? (
-            <>
-              {/* User Info */}
-              <div style={{ background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB', borderColor: theme.border.primary }}
-                   className="p-4 rounded-xl border">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p style={{ color: theme.text.secondary }} className="text-xs uppercase font-semibold mb-1">User</p>
-                    <p style={{ color: theme.text.primary }} className="font-semibold">
-                      {concern.user?.firstName || concern.userName} {concern.user?.lastName || ''}
+                  {/* Message */}
+                  <div style={{ background: theme.bg.tertiary, borderRadius: '12px', padding: '16px', marginBottom: '20px', border: `1px solid ${theme.border.primary}` }}>
+                    <p style={{ color: theme.text.primary, whiteSpace: 'pre-wrap', margin: 0, lineHeight: '1.6' }}>
+                      {selectedConcern.message || selectedConcern.feedbackText || 'No message provided'}
                     </p>
                   </div>
-                  <div>
-                    <p style={{ color: theme.text.secondary }} className="text-xs uppercase font-semibold mb-1">Email</p>
-                    <p style={{ color: theme.text.primary }}>{concern.user?.email || concern.userEmail || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p style={{ color: theme.text.secondary }} className="text-xs uppercase font-semibold mb-1">Date Submitted</p>
-                    <p style={{ color: theme.text.primary }}>
-                      {concern.createdAt ? new Date(concern.createdAt).toLocaleString() : 'N/A'}
-                    </p>
-                  </div>
-                  <div>
-                    <p style={{ color: theme.text.secondary }} className="text-xs uppercase font-semibold mb-1">
-                      {isFeedback ? 'Rating' : 'Status'}
-                    </p>
-                    {isFeedback ? (
+
+                  {/* Rating if feedback */}
+                  {selectedConcern.submissionType === 'feedback' && selectedConcern.rating && (
+                    <div style={{ marginBottom: '20px' }}>
+                      <p style={{ color: theme.text.secondary, fontSize: '12px', marginBottom: '8px', fontWeight: 600 }}>Rating</p>
                       <div className="flex items-center gap-1">
                         {[...Array(5)].map((_, i) => (
-                          <span key={i} style={{ color: i < (concern.rating || 0) ? '#FFD41C' : theme.text.muted }}>★</span>
+                          <span key={i} style={{ fontSize: '24px', color: i < selectedConcern.rating ? '#FFD41C' : 'rgba(255,212,28,0.2)' }}>
+                            ⭐
+                          </span>
                         ))}
-                        <span style={{ color: theme.text.muted, marginLeft: '4px' }}>({concern.rating || 0}/5)</span>
-                      </div>
-                    ) : (
-                      <span style={{
-                        display: 'inline-block',
-                        padding: '4px 12px',
-                        borderRadius: '20px',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        background: `${getStatusColor(concern.status)}20`,
-                        color: getStatusColor(concern.status)
-                      }}>
-                        {concern.status?.replace('_', ' ') || 'Pending'}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Subject */}
-              <div>
-                <p style={{ color: theme.text.secondary }} className="text-xs uppercase font-semibold mb-2">Subject</p>
-                <p style={{ color: theme.text.primary }} className="font-semibold">{concern.subject || 'No subject'}</p>
-              </div>
-
-              {/* Message */}
-              <div>
-                <p style={{ color: theme.text.secondary }} className="text-xs uppercase font-semibold mb-2">Message</p>
-                <div style={{ background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB', borderColor: theme.border.primary }}
-                     className="p-4 rounded-xl border">
-                  <p style={{ color: theme.text.primary }} className="whitespace-pre-wrap">
-                    {concern.message || concern.feedbackText || 'No message provided'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Resolution (if resolved) */}
-              {concern.status === 'resolved' && concern.adminResponse && (
-                <div>
-                  <p style={{ color: theme.text.secondary }} className="text-xs uppercase font-semibold mb-2">Resolution</p>
-                  <div style={{ background: 'rgba(16,185,129,0.1)', borderColor: 'rgba(16,185,129,0.3)' }}
-                       className="p-4 rounded-xl border">
-                    <p style={{ color: '#10B981' }} className="whitespace-pre-wrap font-semibold">
-                      {concern.adminResponse}
-                    </p>
-                    {concern.resolvedBy && (
-                      <p style={{ color: theme.text.muted }} className="text-xs mt-2">
-                        Resolved by {concern.resolvedBy} on {concern.resolvedDate ? new Date(concern.resolvedDate).toLocaleString() : 'N/A'}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-            </>
-          ) : (
-            /* Notes Tab */
-            <div className="space-y-4">
-              {/* Notes History */}
-              <div className="space-y-3 max-h-[200px] overflow-y-auto">
-                {concern.notes && concern.notes.length > 0 ? (
-                  [...concern.notes].reverse().map((note, idx) => (
-                    <div key={idx} style={{ background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB', borderColor: theme.border.primary }}
-                         className="p-3 rounded-xl border">
-                      <div className="flex justify-between items-start mb-2">
-                        <span style={{ color: theme.accent.primary }} className="font-semibold text-sm">{note.adminName || 'Admin'}</span>
-                        <span style={{ color: theme.text.muted }} className="text-xs">
-                          {note.timestamp ? new Date(note.timestamp).toLocaleString() : 'N/A'}
+                        <span style={{ color: theme.text.secondary, marginLeft: '8px' }}>
+                          ({selectedConcern.rating}/5)
                         </span>
                       </div>
-                      <p style={{ color: theme.text.primary }} className="text-sm">{note.message}</p>
                     </div>
-                  ))
-                ) : (
-                  <div style={{ color: theme.text.tertiary }} className="text-center py-8">
-                    <MessageCircle className="w-10 h-10 mx-auto mb-3 opacity-50" />
-                    <p>No notes yet</p>
-                  </div>
-                )}
-              </div>
+                  )}
 
-              {/* Add Note Input */}
-              {concern.status !== 'resolved' && (
+                  {/* Resolution if exists */}
+                  {selectedConcern.status === 'resolved' && selectedConcern.adminResponse && (
+                    <div style={{ background: 'rgba(16,185,129,0.1)', borderRadius: '12px', padding: '16px', border: '1px solid rgba(16,185,129,0.3)' }}>
+                      <p style={{ color: '#10B981', fontSize: '12px', marginBottom: '8px', fontWeight: 700 }}>✓ Resolution</p>
+                      <p style={{ color: theme.text.primary, margin: 0 }}>
+                        {selectedConcern.adminResponse}
+                      </p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                /* Notes History Tab */
                 <div>
-                  <p style={{ color: theme.text.secondary }} className="text-xs uppercase font-semibold mb-2">Add Note</p>
-                  <div className="flex gap-2">
-                    <textarea
-                      value={noteText}
-                      onChange={(e) => setNoteText(e.target.value)}
-                      placeholder="Type your note..."
-                      rows={2}
-                      style={{ background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }}
-                      className="flex-1 px-4 py-3 rounded-xl border text-sm focus:outline-none resize-none"
-                    />
-                    <button
-                      onClick={onSendNote}
-                      disabled={sendingNote || !noteText.trim()}
-                      style={{ background: theme.accent.primary, color: isDarkMode ? '#181D40' : '#FFFFFF' }}
-                      className="px-4 rounded-xl font-semibold disabled:opacity-50 flex items-center justify-center"
-                    >
-                      {sendingNote ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-                    </button>
-                  </div>
+                  {(!selectedConcern.notes || selectedConcern.notes.length === 0) && selectedConcern.status !== 'resolved' ? (
+                    <div style={{ textAlign: 'center', padding: '40px 20px', color: theme.text.tertiary }}>
+                      <div style={{ fontSize: '48px', marginBottom: '16px' }}>📝</div>
+                      <p style={{ fontSize: '14px', margin: 0 }}>No notes sent yet</p>
+                      <p style={{ fontSize: '12px', color: theme.text.muted, marginTop: '8px' }}>
+                        Use the note field below to send updates to the user
+                      </p>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      {/* Show notes in reverse order (newest first) */}
+                      {selectedConcern.notes?.slice().reverse().map((note, index) => (
+                        <div
+                          key={index}
+                          style={{
+                            background: theme.bg.tertiary,
+                            borderRadius: '12px',
+                            padding: '16px',
+                            border: `1px solid ${theme.border.primary}`
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <span style={{ color: theme.accent.primary, fontSize: '12px', fontWeight: 700 }}>
+                              📨 {note.adminName || 'System Admin'}
+                            </span>
+                            <span style={{ color: theme.text.muted, fontSize: '11px' }}>
+                              {note.timestamp ? new Date(note.timestamp).toLocaleString() : ''}
+                            </span>
+                          </div>
+                          <p style={{ color: theme.text.primary, margin: 0, lineHeight: '1.5' }}>
+                            {note.message}
+                          </p>
+                        </div>
+                      ))}
+
+                      {/* Show resolution as final entry if resolved */}
+                      {selectedConcern.status === 'resolved' && selectedConcern.adminResponse && (
+                        <div
+                          style={{
+                            background: 'rgba(16,185,129,0.1)',
+                            borderRadius: '12px',
+                            padding: '16px',
+                            border: '2px solid rgba(16,185,129,0.3)'
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <span style={{ color: '#10B981', fontSize: '12px', fontWeight: 700 }}>
+                              ✓ RESOLVED by {selectedConcern.resolvedBy || 'System Admin'}
+                            </span>
+                            <span style={{ color: '#10B981', fontSize: '11px', fontWeight: 600 }}>
+                              {selectedConcern.resolvedAt ? new Date(selectedConcern.resolvedAt).toLocaleString() : ''}
+                            </span>
+                          </div>
+                          <p style={{ color: theme.text.primary, margin: 0, lineHeight: '1.5', fontWeight: 500 }}>
+                            {selectedConcern.adminResponse}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          )}
-        </div>
 
-        {/* Footer */}
-        <div style={{ borderColor: theme.border.primary }} className="px-6 py-4 border-t flex gap-3 justify-end">
-          <button
-            onClick={onClose}
-            style={{ background: isDarkMode ? 'rgba(71,85,105,0.5)' : '#E5E7EB', color: theme.text.primary }}
-            className="px-6 py-2.5 rounded-xl font-semibold transition hover:opacity-80"
-          >
-            Close
-          </button>
-          {!isFeedback && concern.status !== 'resolved' && (
-            <button
-              onClick={onOpenResolve}
-              style={{ background: '#10B981', color: '#FFFFFF' }}
-              className="px-6 py-2.5 rounded-xl font-semibold flex items-center gap-2 transition hover:opacity-90"
-            >
-              <CheckCircle className="w-4 h-4" />
-              Resolve
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
+            {/* Footer - Note Input & Actions (only for in_progress assistance) */}
+            {selectedConcern.status === 'in_progress' && selectedConcern.submissionType !== 'feedback' && (
+              <div style={{ borderTop: `2px solid ${theme.border.primary}`, padding: '20px 24px' }}>
+                {/* Note Input */}
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ color: theme.text.primary, fontWeight: 600, fontSize: '13px', display: 'block', marginBottom: '8px' }}>
+                    💬 Send Note to User
+                  </label>
+                  <textarea
+                    value={noteText}
+                    onChange={(e) => setNoteText(e.target.value)}
+                    placeholder="Type your message here... The user will receive this via email."
+                    rows={3}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      borderRadius: '8px',
+                      border: `2px solid ${theme.border.primary}`,
+                      background: theme.bg.tertiary,
+                      color: theme.text.primary,
+                      fontSize: '14px',
+                      resize: 'vertical',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
 
-// Resolve Modal Component
-function ResolveModal({ concern, theme, isDarkMode, resolution, setResolution, resolving, onResolve, onClose }) {
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-      <div
-        style={{ background: isDarkMode ? '#1E2347' : '#FFFFFF', borderColor: theme.border.primary }}
-        className="relative rounded-2xl shadow-2xl border w-full max-w-md overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' }}
-             className="px-6 py-5 flex items-center justify-between">
-          <div>
-            <h3 className="text-xl font-bold text-white">Resolve Concern</h3>
-            <p className="text-sm text-white/80 mt-1">ID: {concern._id?.slice(-8)}</p>
+                {/* Action Buttons */}
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button
+                    onClick={handleSendNote}
+                    disabled={sendingNote || !noteText.trim()}
+                    style={{
+                      flex: 1,
+                      padding: '12px 24px',
+                      background: sendingNote || !noteText.trim() ? 'rgba(59,130,246,0.3)' : 'rgba(59,130,246,0.2)',
+                      color: sendingNote || !noteText.trim() ? 'rgba(59,130,246,0.5)' : '#3B82F6',
+                      border: `2px solid ${sendingNote || !noteText.trim() ? 'rgba(59,130,246,0.3)' : '#3B82F6'}`,
+                      borderRadius: '8px',
+                      cursor: sendingNote || !noteText.trim() ? 'not-allowed' : 'pointer',
+                      fontSize: '14px',
+                      fontWeight: 700,
+                      opacity: sendingNote || !noteText.trim() ? 0.6 : 1
+                    }}
+                  >
+                    {sendingNote ? '⏳ Sending...' : '📨 Send Note'}
+                  </button>
+                  <button
+                    onClick={() => handleOpenResolve(selectedConcern)}
+                    style={{
+                      flex: 1,
+                      padding: '12px 24px',
+                      background: '#10B981',
+                      color: '#FFFFFF',
+                      border: 'none',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: 700,
+                      boxShadow: '0 4px 12px rgba(16,185,129,0.4)'
+                    }}
+                  >
+                    ✓ Resolve Concern
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Show resolve button for pending concerns */}
+            {selectedConcern.status === 'pending' && selectedConcern.submissionType !== 'feedback' && (
+              <div style={{ borderTop: `2px solid ${theme.border.primary}`, padding: '20px 24px', display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => handleOpenResolve(selectedConcern)}
+                  style={{
+                    padding: '12px 24px',
+                    background: '#10B981',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: 700,
+                    boxShadow: '0 4px 12px rgba(16,185,129,0.4)'
+                  }}
+                >
+                  ✓ Resolve Concern
+                </button>
+              </div>
+            )}
           </div>
-          <button onClick={onClose} className="text-white/80 hover:text-white transition">
-            <X className="w-6 h-6" />
-          </button>
         </div>
+      )}
 
-        {/* Content */}
-        <div className="p-6 space-y-4">
-          <div>
-            <p style={{ color: theme.text.secondary }} className="text-xs uppercase font-semibold mb-2">Resolution Message *</p>
-            <textarea
-              value={resolution}
-              onChange={(e) => setResolution(e.target.value)}
-              placeholder="Explain how this concern was resolved..."
-              rows={5}
-              style={{ background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }}
-              className="w-full px-4 py-3 rounded-xl border text-sm focus:outline-none resize-none"
-            />
-            <p style={{ color: theme.text.muted }} className="text-xs mt-2">
-              This message will be sent to the user via email.
-            </p>
+      {/* Resolve Modal - Treasury Style */}
+      {showResolveModal && selectedConcern && (
+        <div
+          onClick={() => setShowResolveModal(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            background: 'rgba(15,18,39,0.9)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 10000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: isDarkMode ? 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)' : '#FFFFFF',
+              borderRadius: '16px',
+              maxWidth: '500px',
+              width: '90%',
+              border: `2px solid ${theme.border.primary}`,
+              boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
+            }}
+          >
+            {/* Header */}
+            <div style={{ padding: '24px', borderBottom: '2px solid rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.1)', borderRadius: '16px 16px 0 0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#10B981', margin: 0, marginBottom: '8px' }}>
+                    Resolve Concern
+                  </h2>
+                  <p style={{ fontSize: '13px', color: theme.text.secondary, margin: 0 }}>
+                    Mark this concern as resolved and notify the user
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowResolveModal(false)}
+                  style={{
+                    background: 'rgba(239,68,68,0.2)',
+                    border: 'none',
+                    color: '#EF4444',
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    cursor: 'pointer',
+                    fontSize: '18px'
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: '24px' }}>
+              {/* Concern Info */}
+              <div style={{ background: theme.bg.tertiary, borderRadius: '12px', padding: '16px', marginBottom: '20px', border: `1px solid ${theme.border.primary}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span style={{ color: theme.text.secondary, fontSize: '12px' }}>From</span>
+                  <span style={{ color: theme.text.primary, fontSize: '14px', fontWeight: 600 }}>
+                    {selectedConcern.user?.firstName || selectedConcern.userName} {selectedConcern.user?.lastName || ''}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: theme.text.secondary, fontSize: '12px' }}>Subject</span>
+                  <span style={{ color: theme.text.primary, fontSize: '14px', fontWeight: 600, maxWidth: '60%', textAlign: 'right' }}>
+                    {selectedConcern.subject}
+                  </span>
+                </div>
+              </div>
+
+              {/* Resolution Input */}
+              <div>
+                <label style={{ color: theme.text.primary, fontWeight: 600, display: 'block', marginBottom: '8px' }}>
+                  Resolution Message <span style={{ color: '#EF4444' }}>*</span>
+                </label>
+                <p style={{ color: theme.text.secondary, fontSize: '13px', marginBottom: '12px' }}>
+                  This final message will be sent to the user via email and mark the concern as resolved.
+                </p>
+                <textarea
+                  value={resolution}
+                  onChange={(e) => setResolution(e.target.value)}
+                  placeholder="Enter your resolution response..."
+                  rows={5}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: `2px solid ${theme.border.primary}`,
+                    background: theme.bg.tertiary,
+                    color: theme.text.primary,
+                    fontSize: '14px',
+                    resize: 'vertical',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div style={{ padding: '20px 24px', borderTop: `2px solid ${theme.border.primary}`, display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => setShowResolveModal(false)}
+                disabled={resolving}
+                style={{
+                  flex: 1,
+                  padding: '14px',
+                  background: theme.bg.tertiary,
+                  color: theme.text.primary,
+                  border: `1px solid ${theme.border.primary}`,
+                  borderRadius: '8px',
+                  cursor: resolving ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  opacity: resolving ? 0.5 : 1
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleResolve}
+                disabled={resolving || !resolution.trim()}
+                style={{
+                  flex: 1,
+                  padding: '14px',
+                  background: resolving || !resolution.trim() ? 'rgba(16,185,129,0.3)' : '#10B981',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: resolving || !resolution.trim() ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 700,
+                  opacity: resolving || !resolution.trim() ? 0.6 : 1,
+                  boxShadow: resolving || !resolution.trim() ? 'none' : '0 4px 12px rgba(16,185,129,0.4)'
+                }}
+              >
+                {resolving ? '⏳ Resolving...' : '✓ Resolve & Notify User'}
+              </button>
+            </div>
           </div>
         </div>
-
-        {/* Footer */}
-        <div style={{ borderColor: theme.border.primary }} className="px-6 py-4 border-t flex gap-3 justify-end">
-          <button
-            onClick={onClose}
-            style={{ background: isDarkMode ? 'rgba(71,85,105,0.5)' : '#E5E7EB', color: theme.text.primary }}
-            className="px-6 py-2.5 rounded-xl font-semibold transition hover:opacity-80"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onResolve}
-            disabled={resolving || !resolution.trim()}
-            style={{ background: '#10B981', color: '#FFFFFF' }}
-            className="px-6 py-2.5 rounded-xl font-semibold flex items-center gap-2 transition hover:opacity-90 disabled:opacity-50"
-          >
-            {resolving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-            {resolving ? 'Resolving...' : 'Resolve & Notify User'}
-          </button>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
