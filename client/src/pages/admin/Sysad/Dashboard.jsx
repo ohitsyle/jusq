@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { toast } from 'react-toastify';
-import { Users, UserCheck, UserX, Shield, GraduationCap, Briefcase, DollarSign, Activity, Store, Truck, Clock, Plus, CreditCard, Search, Check, Loader2, AlertCircle, X, ArrowRight, CheckCircle } from 'lucide-react';
+import { Users, UserCheck, UserX, Shield, GraduationCap, Briefcase, Clock, Plus, CreditCard, Search, Check, Loader2, AlertCircle, X, ArrowRight, CheckCircle } from 'lucide-react';
 
 export default function SysadDashboard() {
   const { theme, isDarkMode } = useTheme();
@@ -66,7 +66,7 @@ export default function SysadDashboard() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-220px)] flex flex-col">
+    <div className="h-full flex flex-col">
       {/* Header */}
       <div style={{ borderColor: theme.border.primary }} className="mb-6 border-b-2 pb-5">
         <h2 style={{ color: theme.accent.primary }} className="text-2xl font-bold m-0 mb-2 flex items-center gap-[10px]">
@@ -77,111 +77,99 @@ export default function SysadDashboard() {
         </p>
       </div>
 
-      {/* Quick Actions */}
-      <div className="mb-6">
-        <h3 style={{ color: theme.text.primary }} className="text-lg font-bold mb-4 flex items-center gap-2">
-          <Activity className="w-5 h-5" style={{ color: theme.accent.primary }} />
-          Quick Actions
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <button
-            onClick={() => setShowAddUserModal(true)}
-            style={{
-              background: isDarkMode ? 'linear-gradient(135deg, rgba(255,212,28,0.15) 0%, rgba(255,212,28,0.05) 100%)' : 'linear-gradient(135deg, rgba(59,130,246,0.15) 0%, rgba(59,130,246,0.05) 100%)',
-              borderColor: isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'
-            }}
-            className="p-5 rounded-2xl border-2 flex items-center gap-4 hover:scale-[1.02] transition-all duration-200 cursor-pointer text-left"
-          >
-            <div
-              style={{ background: isDarkMode ? 'rgba(255,212,28,0.2)' : 'rgba(59,130,246,0.2)' }}
-              className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0"
-            >
-              <Plus className="w-7 h-7" style={{ color: theme.accent.primary }} />
-            </div>
-            <div>
-              <p style={{ color: theme.accent.primary }} className="font-bold text-lg">Add User</p>
-              <p style={{ color: theme.text.secondary }} className="text-sm">Create a new student, employee, or admin account</p>
-            </div>
-          </button>
-
-          <button
-            onClick={() => setShowTransferModal(true)}
-            style={{
-              background: isDarkMode ? 'linear-gradient(135deg, rgba(16,185,129,0.15) 0%, rgba(16,185,129,0.05) 100%)' : 'linear-gradient(135deg, rgba(16,185,129,0.15) 0%, rgba(16,185,129,0.05) 100%)',
-              borderColor: 'rgba(16,185,129,0.3)'
-            }}
-            className="p-5 rounded-2xl border-2 flex items-center gap-4 hover:scale-[1.02] transition-all duration-200 cursor-pointer text-left"
-          >
-            <div
-              style={{ background: 'rgba(16,185,129,0.2)' }}
-              className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0"
-            >
-              <CreditCard className="w-7 h-7 text-emerald-500" />
-            </div>
-            <div>
-              <p className="font-bold text-lg text-emerald-500">Transfer Card</p>
-              <p style={{ color: theme.text.secondary }} className="text-sm">Transfer user data to a new RFID card</p>
-            </div>
-          </button>
-        </div>
+      {/* User Metrics */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
+        <StatCard
+          icon={<Users className="w-6 h-6" />}
+          label="Total Users"
+          value={metrics.totalUsers?.toLocaleString() || '0'}
+          color="#3B82F6"
+          theme={theme}
+          isDarkMode={isDarkMode}
+        />
+        <StatCard
+          icon={<UserCheck className="w-6 h-6" />}
+          label="Active Users"
+          value={metrics.activeUsers?.toLocaleString() || '0'}
+          color="#10B981"
+          theme={theme}
+          isDarkMode={isDarkMode}
+        />
+        <StatCard
+          icon={<UserX className="w-6 h-6" />}
+          label="Inactive Users"
+          value={metrics.inactiveUsers?.toLocaleString() || '0'}
+          color="#EF4444"
+          theme={theme}
+          isDarkMode={isDarkMode}
+        />
+        <StatCard
+          icon={<Shield className="w-6 h-6" />}
+          label="Admins"
+          value={metrics.admins?.toLocaleString() || '0'}
+          color="#8B5CF6"
+          theme={theme}
+          isDarkMode={isDarkMode}
+        />
+        <StatCard
+          icon={<GraduationCap className="w-6 h-6" />}
+          label="Students"
+          value={metrics.students?.toLocaleString() || '0'}
+          color="#F59E0B"
+          theme={theme}
+          isDarkMode={isDarkMode}
+        />
+        <StatCard
+          icon={<Briefcase className="w-6 h-6" />}
+          label="Employees"
+          value={metrics.employees?.toLocaleString() || '0'}
+          color="#06B6D4"
+          theme={theme}
+          isDarkMode={isDarkMode}
+        />
       </div>
 
-      {/* User Metrics */}
-      <div className="mb-6">
-        <h3 style={{ color: theme.text.primary }} className="text-lg font-bold mb-4 flex items-center gap-2">
-          <Users className="w-5 h-5" style={{ color: theme.accent.primary }} />
-          User Metrics
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
-          <StatCard
-            icon={<Users className="w-6 h-6" />}
-            label="Total Users"
-            value={metrics.totalUsers?.toLocaleString() || '0'}
-            color="#3B82F6"
-            theme={theme}
-            isDarkMode={isDarkMode}
-          />
-          <StatCard
-            icon={<UserCheck className="w-6 h-6" />}
-            label="Active Users"
-            value={metrics.activeUsers?.toLocaleString() || '0'}
-            color="#10B981"
-            theme={theme}
-            isDarkMode={isDarkMode}
-          />
-          <StatCard
-            icon={<UserX className="w-6 h-6" />}
-            label="Inactive Users"
-            value={metrics.inactiveUsers?.toLocaleString() || '0'}
-            color="#EF4444"
-            theme={theme}
-            isDarkMode={isDarkMode}
-          />
-          <StatCard
-            icon={<Shield className="w-6 h-6" />}
-            label="Admins"
-            value={metrics.admins?.toLocaleString() || '0'}
-            color="#8B5CF6"
-            theme={theme}
-            isDarkMode={isDarkMode}
-          />
-          <StatCard
-            icon={<GraduationCap className="w-6 h-6" />}
-            label="Students"
-            value={metrics.students?.toLocaleString() || '0'}
-            color="#F59E0B"
-            theme={theme}
-            isDarkMode={isDarkMode}
-          />
-          <StatCard
-            icon={<Briefcase className="w-6 h-6" />}
-            label="Employees"
-            value={metrics.employees?.toLocaleString() || '0'}
-            color="#06B6D4"
-            theme={theme}
-            isDarkMode={isDarkMode}
-          />
-        </div>
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+        <button
+          onClick={() => setShowAddUserModal(true)}
+          style={{
+            background: isDarkMode ? 'linear-gradient(135deg, rgba(255,212,28,0.15) 0%, rgba(255,212,28,0.05) 100%)' : 'linear-gradient(135deg, rgba(59,130,246,0.15) 0%, rgba(59,130,246,0.05) 100%)',
+            borderColor: isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'
+          }}
+          className="p-5 rounded-2xl border flex items-center gap-4 hover:scale-[1.01] hover:shadow-lg transition-all cursor-pointer text-left"
+        >
+          <div
+            style={{ background: isDarkMode ? 'rgba(255,212,28,0.2)' : 'rgba(59,130,246,0.2)' }}
+            className="w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0 text-2xl"
+          >
+            👤
+          </div>
+          <div>
+            <p style={{ color: theme.accent.primary }} className="font-bold text-base m-0">Add User</p>
+            <p style={{ color: theme.text.secondary }} className="text-xs m-0 mt-1">Create a new student, employee, or admin account</p>
+          </div>
+        </button>
+
+        <button
+          onClick={() => setShowTransferModal(true)}
+          style={{
+            background: 'linear-gradient(135deg, rgba(16,185,129,0.15) 0%, rgba(16,185,129,0.05) 100%)',
+            borderColor: 'rgba(16,185,129,0.3)'
+          }}
+          className="p-5 rounded-2xl border flex items-center gap-4 hover:scale-[1.01] hover:shadow-lg transition-all cursor-pointer text-left"
+        >
+          <div
+            style={{ background: 'rgba(16,185,129,0.2)' }}
+            className="w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0 text-2xl"
+          >
+            💳
+          </div>
+          <div>
+            <p className="font-bold text-base text-emerald-500 m-0">Transfer Card</p>
+            <p style={{ color: theme.text.secondary }} className="text-xs m-0 mt-1">Transfer user data to a new RFID card</p>
+          </div>
+        </button>
       </div>
 
       {/* Recent Admin Activity */}

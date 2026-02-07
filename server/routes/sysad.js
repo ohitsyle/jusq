@@ -1281,8 +1281,10 @@ router.get('/concerns', async (req, res) => {
     const { page = 1, limit = 100, status, search } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    // Sysad sees ALL concerns - no department filter
-    const filter = {};
+    // Only show concerns sent to sysad (reportTo: 'sysad')
+    const filter = {
+      reportTo: { $regex: /sysad/i }
+    };
 
     if (status && status !== 'all') {
       filter.status = status;
@@ -1315,12 +1317,13 @@ router.get('/concerns', async (req, res) => {
       createdAt: c.submittedAt || c.createdAt
     }));
 
-    // Get stats - ALL concerns
+    // Get stats - only sysad concerns
+    const sysadFilter = { reportTo: { $regex: /sysad/i } };
     const [pending, inProgress, resolved, totalAll] = await Promise.all([
-      UserConcern.countDocuments({ status: 'pending' }),
-      UserConcern.countDocuments({ status: 'in_progress' }),
-      UserConcern.countDocuments({ status: 'resolved' }),
-      UserConcern.countDocuments({})
+      UserConcern.countDocuments({ ...sysadFilter, status: 'pending' }),
+      UserConcern.countDocuments({ ...sysadFilter, status: 'in_progress' }),
+      UserConcern.countDocuments({ ...sysadFilter, status: 'resolved' }),
+      UserConcern.countDocuments(sysadFilter)
     ]);
 
     res.json({
