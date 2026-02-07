@@ -49,7 +49,7 @@ export default function LogsList() {
     const exportData = filteredLogs.map(log => ({
       Timestamp: new Date(log.timestamp).toLocaleString(),
       Action: log.title || log.eventType || 'N/A',
-      User: log.adminName || log.driverName || log.userId || 'System',
+      Admin: log.adminName || log.driverName || log.userId || 'System',
       'ID Number': log.adminId || log.driverId || log.userId || '-',
       Description: log.description || log.message || '-',
       Status: log.status || 'success'
@@ -58,14 +58,18 @@ export default function LogsList() {
   };
 
   // Filter logs based on admin department
+  // Each department ONLY sees their own logs - strictly isolated
   const filterByDepartment = (log) => {
     const role = adminData?.role;
 
-    // System admin sees everything
+    // System admin sees EVERYTHING - every log across all departments
     if (role === 'sysad') return true;
 
+    // Helper: check if log belongs to sysad (exclude from non-sysad)
+    const isSysadLog = log.metadata?.adminRole === 'sysad' || log.department === 'sysad';
+    if (isSysadLog && role !== 'sysad') return false;
+
     // Motorpool admin sees:
-    // - who/when/what (all motorpool admin activities)
     // - login/logout of every motorpool admin
     // - crud of every tab and by which motorpool admin
     // - which motorpool admin updates/adds note, resolves a concern by which user
@@ -78,45 +82,29 @@ export default function LogsList() {
       const isMotorpoolAdminAuth = (log.eventType === 'login' || log.eventType === 'logout') &&
         log.metadata?.adminRole === 'motorpool';
 
-      const isMotorpoolCRUD = (log.eventType === 'crud_create' || log.eventType === 'crud_update' || log.eventType === 'crud_delete') &&
+      const isMotorpoolCRUD = ['crud_create', 'crud_update', 'crud_delete'].includes(log.eventType) &&
         log.metadata?.adminRole === 'motorpool';
 
-      const isMotorpoolNotes = (log.eventType === 'note_added' || log.eventType === 'note_updated' || log.eventType === 'concern_resolved') &&
+      const isMotorpoolNotes = ['note_added', 'note_updated', 'concern_resolved'].includes(log.eventType) &&
         log.metadata?.adminRole === 'motorpool';
 
-      const isMotorpoolDriverActivity = 
-        log.eventType === 'driver_login' ||
-        log.eventType === 'driver_logout' ||
-        log.eventType === 'trip_start' ||
-        log.eventType === 'trip_end' ||
-        log.eventType === 'route_change' ||
-        log.eventType === 'refund';
+      const isDriverActivity = ['driver_login', 'driver_logout'].includes(log.eventType);
 
-      const isMotorpoolExport = 
-        (log.eventType === 'export_manual' || log.eventType === 'export_auto') &&
+      const isDriverShuttleRoute = log.eventType === 'shuttle_selection' || log.eventType === 'driver_assignment';
+
+      const isTripOperation = ['trip_start', 'trip_end', 'route_start', 'route_end', 'route_change', 'refund'].includes(log.eventType);
+
+      const isMotorpoolExport = ['auto_export_config_change', 'manual_export', 'export_manual', 'export_auto', 'config_updated'].includes(log.eventType) &&
         log.metadata?.adminRole === 'motorpool';
 
-      const isMotorpoolConfig =
-        (log.eventType === 'config_updated' && log.metadata?.adminRole === 'motorpool') ||
-        log.department === 'motorpool';
+      const isMotorpoolDept = log.department === 'motorpool';
 
-      const isMotorpoolRelated =
-        log.driverId ||
-        log.shuttleId ||
-        log.routeId ||
-        log.tripId ||
-        log.targetEntity === 'driver' ||
-        log.targetEntity === 'shuttle' ||
-        log.targetEntity === 'route' ||
-        log.targetEntity === 'trip' ||
-        log.targetEntity === 'phone';
-
-      return isMotorpoolAdminAuth || isMotorpoolCRUD || isMotorpoolNotes || 
-             isMotorpoolDriverActivity || isMotorpoolExport || isMotorpoolConfig || isMotorpoolRelated;
+      return isMotorpoolAdminAuth || isMotorpoolCRUD || isMotorpoolNotes ||
+             isDriverActivity || isDriverShuttleRoute || isTripOperation ||
+             isMotorpoolExport || isMotorpoolDept;
     }
 
     // Merchant admin sees:
-    // - who/when/what (all merchant admin activities)
     // - login/logout of every merchant admin
     // - crud of every tab and by which merchant admin
     // - which merchant admin updates/adds note, resolves a concern by which user
@@ -127,32 +115,24 @@ export default function LogsList() {
       const isMerchantAdminAuth = (log.eventType === 'login' || log.eventType === 'logout') &&
         log.metadata?.adminRole === 'merchant';
 
-      const isMerchantCRUD = (log.eventType === 'crud_create' || log.eventType === 'crud_update' || log.eventType === 'crud_delete') &&
+      const isMerchantCRUD = ['crud_create', 'crud_update', 'crud_delete'].includes(log.eventType) &&
         log.metadata?.adminRole === 'merchant';
 
-      const isMerchantNotes = (log.eventType === 'note_added' || log.eventType === 'note_updated' || log.eventType === 'concern_resolved') &&
+      const isMerchantNotes = ['note_added', 'note_updated', 'concern_resolved'].includes(log.eventType) &&
         log.metadata?.adminRole === 'merchant';
 
-      const isMerchantActivity = 
-        log.eventType === 'merchant_login' ||
-        log.eventType === 'merchant_logout';
+      const isMerchantActivity = ['merchant_login', 'merchant_logout'].includes(log.eventType);
 
-      const isMerchantExport = 
-        (log.eventType === 'export_manual' || log.eventType === 'export_auto') &&
+      const isMerchantExport = ['auto_export_config_change', 'manual_export', 'export_manual', 'export_auto', 'config_updated'].includes(log.eventType) &&
         log.metadata?.adminRole === 'merchant';
 
-      const isMerchantConfig =
-        (log.eventType === 'config_updated' && log.metadata?.adminRole === 'merchant') ||
-        log.department === 'merchant';
+      const isMerchantDept = log.department === 'merchant';
 
-      const isMerchantRelated = log.targetEntity === 'merchant';
-
-      return isMerchantAdminAuth || isMerchantCRUD || isMerchantNotes || 
-             isMerchantActivity || isMerchantExport || isMerchantConfig || isMerchantRelated;
+      return isMerchantAdminAuth || isMerchantCRUD || isMerchantNotes ||
+             isMerchantActivity || isMerchantExport || isMerchantDept;
     }
 
     // Treasury admin sees:
-    // - who/when/what (all treasury admin activities)
     // - login/logout of every treasury admin
     // - crud of every tab and by which treasury admin
     // - which treasury admin updates/adds note, resolves a concern by which user
@@ -163,67 +143,42 @@ export default function LogsList() {
       const isTreasuryAdminAuth = (log.eventType === 'login' || log.eventType === 'logout') &&
         log.metadata?.adminRole === 'treasury';
 
-      const isTreasuryCRUD = (log.eventType === 'crud_create' || log.eventType === 'crud_update' || log.eventType === 'crud_delete') &&
+      const isTreasuryCRUD = ['crud_create', 'crud_update', 'crud_delete'].includes(log.eventType) &&
         log.metadata?.adminRole === 'treasury';
 
-      const isTreasuryNotes = (log.eventType === 'note_added' || log.eventType === 'note_updated' || log.eventType === 'concern_resolved') &&
+      const isTreasuryNotes = ['note_added', 'note_updated', 'concern_resolved'].includes(log.eventType) &&
         log.metadata?.adminRole === 'treasury';
 
       const isTreasuryCashIn = log.eventType === 'cash_in' && log.metadata?.adminRole === 'treasury';
 
-      const isTreasuryExport = 
-        (log.eventType === 'export_manual' || log.eventType === 'export_auto') &&
+      const isTreasuryExport = ['auto_export_config_change', 'manual_export', 'export_manual', 'export_auto', 'config_updated'].includes(log.eventType) &&
         log.metadata?.adminRole === 'treasury';
 
-      const isTreasuryConfig =
-        (log.eventType === 'config_updated' && log.metadata?.adminRole === 'treasury') ||
-        log.department === 'treasury';
+      const isTreasuryDept = log.department === 'treasury';
 
-      const isTreasuryRelated = 
-        log.targetEntity === 'user' ||
-        log.targetEntity === 'transaction' ||
-        log.eventType === 'registration';
-
-      return isTreasuryAdminAuth || isTreasuryCRUD || isTreasuryNotes || 
-             isTreasuryCashIn || isTreasuryExport || isTreasuryConfig || isTreasuryRelated;
+      return isTreasuryAdminAuth || isTreasuryCRUD || isTreasuryNotes ||
+             isTreasuryCashIn || isTreasuryExport || isTreasuryDept;
     }
 
     // Accounting admin sees:
-    // - who/when/what (all accounting admin activities)
     // - login/logout of every accounting admin
     // - crud of every tab and by which accounting admin
-    // - which accounting admin updates/adds note, resolves a concern by which user
-    // - cashed in which user by which accounting admin
     // - which accounting admin changed auto export configs for department
     // - display if a certain accounting admin did a manual export
-    // SAME ACCESS AS TREASURY
+    // NOTE: Accounting does NOT see notes/concerns or cash-in
     if (role === 'accounting') {
       const isAccountingAdminAuth = (log.eventType === 'login' || log.eventType === 'logout') &&
         log.metadata?.adminRole === 'accounting';
 
-      const isAccountingCRUD = (log.eventType === 'crud_create' || log.eventType === 'crud_update' || log.eventType === 'crud_delete') &&
+      const isAccountingCRUD = ['crud_create', 'crud_update', 'crud_delete'].includes(log.eventType) &&
         log.metadata?.adminRole === 'accounting';
 
-      const isAccountingNotes = (log.eventType === 'note_added' || log.eventType === 'note_updated' || log.eventType === 'concern_resolved') &&
+      const isAccountingExport = ['auto_export_config_change', 'manual_export', 'export_manual', 'export_auto', 'config_updated'].includes(log.eventType) &&
         log.metadata?.adminRole === 'accounting';
 
-      const isAccountingCashIn = log.eventType === 'cash_in' && log.metadata?.adminRole === 'accounting';
+      const isAccountingDept = log.department === 'accounting';
 
-      const isAccountingExport = 
-        (log.eventType === 'export_manual' || log.eventType === 'export_auto') &&
-        log.metadata?.adminRole === 'accounting';
-
-      const isAccountingConfig =
-        (log.eventType === 'config_updated' && log.metadata?.adminRole === 'accounting') ||
-        log.department === 'accounting';
-
-      const isAccountingRelated = 
-        log.targetEntity === 'user' ||
-        log.targetEntity === 'transaction' ||
-        log.eventType === 'registration';
-
-      return isAccountingAdminAuth || isAccountingCRUD || isAccountingNotes || 
-             isAccountingCashIn || isAccountingExport || isAccountingConfig || isAccountingRelated;
+      return isAccountingAdminAuth || isAccountingCRUD || isAccountingExport || isAccountingDept;
     }
 
     return false;
@@ -251,38 +206,30 @@ export default function LogsList() {
 
     if (typeFilter) {
       const eventType = log.eventType || log.type;
-      
+
       // Handle grouped filters
       if (typeFilter === 'access_control') {
-        // Match login and logout events
         const accessControlTypes = ['login', 'logout'];
         if (!accessControlTypes.includes(eventType)) return false;
       } else if (typeFilter === 'admin_action') {
-        // Match CRUD operations, notes, and concern resolution
         const adminActionTypes = ['crud_create', 'crud_update', 'crud_delete', 'note_added', 'note_updated', 'concern_resolved'];
         if (!adminActionTypes.includes(eventType)) return false;
       } else if (typeFilter === 'driver_activities') {
-        // Match driver login and logout
-        const driverActivityTypes = ['driver_login', 'driver_logout'];
+        const driverActivityTypes = ['driver_login', 'driver_logout', 'shuttle_selection', 'driver_assignment'];
         if (!driverActivityTypes.includes(eventType)) return false;
       } else if (typeFilter === 'merchant_activities') {
-        // Match merchant login and logout
         const merchantActivityTypes = ['merchant_login', 'merchant_logout'];
         if (!merchantActivityTypes.includes(eventType)) return false;
       } else if (typeFilter === 'trip_operations') {
-        // Match trip-related operations
-        const tripOperationTypes = ['trip_start', 'trip_end', 'route_change', 'refund'];
+        const tripOperationTypes = ['trip_start', 'trip_end', 'route_start', 'route_end', 'route_change', 'refund'];
         if (!tripOperationTypes.includes(eventType)) return false;
       } else if (typeFilter === 'data_management') {
-        // Match export and config operations
-        const dataManagementTypes = ['export_manual', 'export_auto', 'config_updated'];
+        const dataManagementTypes = ['export_manual', 'export_auto', 'auto_export_config_change', 'manual_export', 'config_updated'];
         if (!dataManagementTypes.includes(eventType)) return false;
       } else if (typeFilter === 'system_operations') {
-        // Match system-level operations
         const systemOperationTypes = ['maintenance_mode', 'student_deactivation', 'user_action', 'system', 'security', 'error'];
         if (!systemOperationTypes.includes(eventType)) return false;
       } else {
-        // Match exact event type (for individual filters like cash_in, registration)
         if (eventType !== typeFilter) return false;
       }
     }
@@ -332,16 +279,6 @@ export default function LogsList() {
       ];
     }
 
-    if (role === 'treasury') {
-      return [
-        { value: 'access_control', label: 'Access Control' },
-        { value: 'admin_action', label: 'Admin Actions' },
-        { value: 'cash_in', label: 'Cash In' },
-        { value: 'registration', label: 'Registration' },
-        { value: 'data_management', label: 'Data Management' }
-      ];
-    }
-
     if (role === 'merchant') {
       return [
         { value: 'access_control', label: 'Access Control' },
@@ -351,12 +288,19 @@ export default function LogsList() {
       ];
     }
 
-    if (role === 'accounting') {
+    if (role === 'treasury') {
       return [
         { value: 'access_control', label: 'Access Control' },
         { value: 'admin_action', label: 'Admin Actions' },
         { value: 'cash_in', label: 'Cash In' },
-        { value: 'registration', label: 'Registration' },
+        { value: 'data_management', label: 'Data Management' }
+      ];
+    }
+
+    if (role === 'accounting') {
+      return [
+        { value: 'access_control', label: 'Access Control' },
+        { value: 'admin_action', label: 'Admin Actions' },
         { value: 'data_management', label: 'Data Management' }
       ];
     }
@@ -369,7 +313,6 @@ export default function LogsList() {
       { value: 'merchant_activities', label: 'Merchant Activities' },
       { value: 'trip_operations', label: 'Trip Operations' },
       { value: 'cash_in', label: 'Cash In' },
-      { value: 'registration', label: 'Registration' },
       { value: 'data_management', label: 'Data Management' },
       { value: 'system_operations', label: 'System Operations' }
     ];
@@ -499,7 +442,7 @@ export default function LogsList() {
               {[
                 { value: 'timestamp', label: 'Date' },
                 { value: 'type', label: 'Type' },
-                { value: 'user', label: 'User' }
+                { value: 'user', label: 'Admin' }
               ].map((option) => (
                 <button
                   key={option.value}
@@ -579,7 +522,7 @@ export default function LogsList() {
                   <tr style={{ background: isDarkMode ? 'rgba(255,212,28,0.1)' : 'rgba(59,130,246,0.1)' }}>
                     <th style={{ color: theme.accent.primary, borderColor: theme.border.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2">Timestamp</th>
                     <th style={{ color: theme.accent.primary, borderColor: theme.border.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2">Action</th>
-                    <th style={{ color: theme.accent.primary, borderColor: theme.border.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2">User</th>
+                    <th style={{ color: theme.accent.primary, borderColor: theme.border.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2">Admin</th>
                     <th style={{ color: theme.accent.primary, borderColor: theme.border.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2">ID Number</th>
                     <th style={{ color: theme.accent.primary, borderColor: theme.border.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2">Description</th>
                     <th style={{ color: theme.accent.primary, borderColor: theme.border.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2">Status</th>
@@ -610,12 +553,28 @@ export default function LogsList() {
                           </div>
                           <span
                             style={{
-                              background: log.eventType === 'login' ? 'rgba(34,197,94,0.2)' :
-                                log.eventType === 'logout' ? 'rgba(239,68,68,0.2)' :
-                                  'rgba(59,130,246,0.2)',
-                              color: log.eventType === 'login' ? '#22C55E' :
-                                log.eventType === 'logout' ? '#EF4444' :
-                                  '#3B82F6'
+                              background: (() => {
+                                const et = log.eventType;
+                                if (et === 'login' || et === 'driver_login' || et === 'merchant_login' || et === 'crud_create') return 'rgba(34,197,94,0.2)';
+                                if (et === 'logout' || et === 'driver_logout' || et === 'merchant_logout' || et === 'crud_delete' || et === 'maintenance_mode') return 'rgba(239,68,68,0.2)';
+                                if (et === 'cash_in' || et === 'concern_resolved' || et === 'trip_start' || et === 'route_start') return 'rgba(16,185,129,0.2)';
+                                if (et === 'route_change' || et === 'refund') return 'rgba(251,146,60,0.2)';
+                                if (et === 'trip_end' || et === 'route_end' || et === 'student_deactivation') return 'rgba(251,191,36,0.2)';
+                                if (et === 'note_added' || et === 'note_updated') return 'rgba(168,85,247,0.2)';
+                                if (['auto_export_config_change', 'manual_export', 'export_manual', 'export_auto', 'config_updated'].includes(et)) return 'rgba(99,102,241,0.2)';
+                                return 'rgba(59,130,246,0.2)';
+                              })(),
+                              color: (() => {
+                                const et = log.eventType;
+                                if (et === 'login' || et === 'driver_login' || et === 'merchant_login' || et === 'crud_create') return '#22C55E';
+                                if (et === 'logout' || et === 'driver_logout' || et === 'merchant_logout' || et === 'crud_delete' || et === 'maintenance_mode') return '#EF4444';
+                                if (et === 'cash_in' || et === 'concern_resolved' || et === 'trip_start' || et === 'route_start') return '#10B981';
+                                if (et === 'route_change' || et === 'refund') return '#FB923C';
+                                if (et === 'trip_end' || et === 'route_end' || et === 'student_deactivation') return '#FBBF24';
+                                if (et === 'note_added' || et === 'note_updated') return '#A855F7';
+                                if (['auto_export_config_change', 'manual_export', 'export_manual', 'export_auto', 'config_updated'].includes(et)) return '#6366F1';
+                                return '#3B82F6';
+                              })()
                             }}
                             className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase"
                           >

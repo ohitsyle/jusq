@@ -52,7 +52,10 @@ const EventLogSchema = new mongoose.Schema({
       'refund',
       'phone_assigned',
       'phone_unassigned',
-      'config_updated'
+      'config_updated',
+      'shuttle_selection',
+      'auto_export_config_change',
+      'manual_export'
     ],
     index: true
   },
@@ -116,7 +119,7 @@ const EventLogSchema = new mongoose.Schema({
   // Department and entity classification
   department: {
     type: String,
-    enum: ['motorpool', 'merchant', 'treasury', 'accounting', 'system'],
+    enum: ['motorpool', 'merchant', 'treasury', 'accounting', 'system', 'sysad'],
     default: null,
     index: true
   },

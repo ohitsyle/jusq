@@ -17,6 +17,29 @@ export default function LogDetailModal({ log, onClose }) {
       case 'registration': return { bg: 'rgba(59,130,246,0.2)', color: '#3B82F6', border: 'rgba(59,130,246,0.3)' };
       case 'admin_action': return { bg: 'rgba(59,130,246,0.2)', color: '#3B82F6', border: 'rgba(59,130,246,0.3)' };
       case 'user_action': return { bg: 'rgba(168,85,247,0.2)', color: '#A855F7', border: 'rgba(168,85,247,0.3)' };
+      case 'crud_create': return { bg: 'rgba(34,197,94,0.2)', color: '#22C55E', border: 'rgba(34,197,94,0.3)' };
+      case 'crud_update': return { bg: 'rgba(59,130,246,0.2)', color: '#3B82F6', border: 'rgba(59,130,246,0.3)' };
+      case 'crud_delete': return { bg: 'rgba(239,68,68,0.2)', color: '#EF4444', border: 'rgba(239,68,68,0.3)' };
+      case 'driver_login': return { bg: 'rgba(34,197,94,0.2)', color: '#22C55E', border: 'rgba(34,197,94,0.3)' };
+      case 'driver_logout': return { bg: 'rgba(239,68,68,0.2)', color: '#EF4444', border: 'rgba(239,68,68,0.3)' };
+      case 'merchant_login': return { bg: 'rgba(34,197,94,0.2)', color: '#22C55E', border: 'rgba(34,197,94,0.3)' };
+      case 'merchant_logout': return { bg: 'rgba(239,68,68,0.2)', color: '#EF4444', border: 'rgba(239,68,68,0.3)' };
+      case 'trip_start':
+      case 'route_start': return { bg: 'rgba(16,185,129,0.2)', color: '#10B981', border: 'rgba(16,185,129,0.3)' };
+      case 'trip_end':
+      case 'route_end': return { bg: 'rgba(251,191,36,0.2)', color: '#FBBF24', border: 'rgba(251,191,36,0.3)' };
+      case 'route_change':
+      case 'refund': return { bg: 'rgba(251,146,60,0.2)', color: '#FB923C', border: 'rgba(251,146,60,0.3)' };
+      case 'note_added':
+      case 'note_updated': return { bg: 'rgba(168,85,247,0.2)', color: '#A855F7', border: 'rgba(168,85,247,0.3)' };
+      case 'concern_resolved': return { bg: 'rgba(16,185,129,0.2)', color: '#10B981', border: 'rgba(16,185,129,0.3)' };
+      case 'auto_export_config_change':
+      case 'manual_export':
+      case 'export_manual':
+      case 'export_auto':
+      case 'config_updated': return { bg: 'rgba(99,102,241,0.2)', color: '#6366F1', border: 'rgba(99,102,241,0.3)' };
+      case 'maintenance_mode': return { bg: 'rgba(239,68,68,0.2)', color: '#EF4444', border: 'rgba(239,68,68,0.3)' };
+      case 'student_deactivation': return { bg: 'rgba(251,191,36,0.2)', color: '#FBBF24', border: 'rgba(251,191,36,0.3)' };
       default: return { bg: 'rgba(255,212,28,0.2)', color: '#FFD41C', border: 'rgba(255,212,28,0.3)' };
     }
   };
@@ -156,7 +179,7 @@ export default function LogDetailModal({ log, onClose }) {
             >
               {(log.adminName || log.driverName) && (
                 <div className="flex justify-between">
-                  <span style={{ color: theme.text.secondary }} className="text-sm">User</span>
+                  <span style={{ color: theme.text.secondary }} className="text-sm">Admin</span>
                   <span style={{ color: theme.text.primary }} className="text-sm font-semibold">
                     {log.adminName || log.driverName || 'System'}
                   </span>

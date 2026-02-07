@@ -62,7 +62,7 @@ export default function LogsExportModal({ onClose, logs }) {
   };
 
   const exportToCSV = (data) => {
-    const headers = ["Date", "Time", "Event Type", "Event ID", "Title", "Description", "Severity", "User", "School UID"];
+    const headers = ["Date", "Time", "Event Type", "Event ID", "Title", "Description", "Severity", "Admin", "School UID"];
     const csvContent = [
       headers.join(","),
       ...data.map((log) => {

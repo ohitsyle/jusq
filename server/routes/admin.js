@@ -662,131 +662,138 @@ router.delete('/routes/:id', async (req, res) => {
 router.get('/event-logs', async (req, res) => {
   try {
     const { department } = req.query;
-    
-    // Build query based on department/role - works with both old and new formats
+
+    // Build query based on department/role
+    // Each department ONLY sees their own logs - no cross-department visibility
     let query = {};
-    
+
+    // Helper to exclude sysad logs from non-sysad departments
+    const excludeSysad = {
+      $and: [
+        { $or: [{ 'metadata.adminRole': { $ne: 'sysad' } }, { 'metadata.adminRole': { $exists: false } }] },
+        { $or: [{ department: { $ne: 'sysad' } }, { department: { $exists: false } }] }
+      ]
+    };
+
     if (!department || department === 'sysad') {
-      // System admin sees everything
+      // System admin sees EVERYTHING - all logs across all departments
       query = {};
     } else if (department === 'motorpool') {
-      // Motorpool admin sees motorpool-related logs (works with old and new formats)
+      // Motorpool admin sees:
+      // - login/logout of every motorpool admin
+      // - crud of every tab by motorpool admins
+      // - notes/concerns by motorpool admins
+      // - driver mobile app login/logout
+      // - driver shuttle/route selection
+      // - driver trip start/end, route changes, refunds
+      // - auto export config changes by motorpool admins
+      // - manual exports by motorpool admins
       query = {
         $or: [
-          // New format: motorpool admin authentication
+          // Motorpool admin authentication
           { eventType: { $in: ['login', 'logout'] }, 'metadata.adminRole': 'motorpool' },
-          // Old format: motorpool admin authentication (department field)
           { eventType: { $in: ['login', 'logout'] }, department: 'motorpool' },
-          // New format: department field
-          { department: 'motorpool' },
-          // New format: targetEntity
-          { targetEntity: { $in: ['driver', 'shuttle', 'route', 'trip', 'phone'] } },
-          // Driver-related event types (new specific types)
-          { eventType: { $in: [
-            'driver_login', 'driver_logout', 'trip_start', 'trip_end', 
-            'route_change', 'refund', 'phone_assigned', 'phone_unassigned',
-            'shuttle_selection'
-          ]}},
-          // Old format: admin actions by motorpool
-          { eventType: 'admin_action', 'metadata.adminRole': 'motorpool' },
-          // Any logs with driverId (motorpool related)
-          { driverId: { $exists: true, $ne: null } },
-          // New format: CRUD operations by motorpool admins
+          // CRUD operations by motorpool admins
           { eventType: { $in: ['crud_create', 'crud_update', 'crud_delete'] }, 'metadata.adminRole': 'motorpool' },
+          // Notes and concerns by motorpool admins
+          { eventType: { $in: ['note_added', 'note_updated', 'concern_resolved'] }, 'metadata.adminRole': 'motorpool' },
+          // Driver mobile app activities
+          { eventType: { $in: ['driver_login', 'driver_logout'] } },
+          // Driver shuttle and route selection
+          { eventType: 'shuttle_selection' },
+          { eventType: 'driver_assignment' },
+          // Trip operations
+          { eventType: { $in: ['trip_start', 'trip_end', 'route_start', 'route_end', 'route_change', 'refund'] } },
+          // Phone assignments
+          { eventType: { $in: ['phone_assigned', 'phone_unassigned'] }, 'metadata.adminRole': 'motorpool' },
           // Export operations by motorpool admins
-          { eventType: { $in: ['auto_export_config_change', 'manual_export'] }, 'metadata.adminRole': 'motorpool' }
+          { eventType: { $in: ['auto_export_config_change', 'manual_export', 'export_manual', 'export_auto', 'config_updated'] }, 'metadata.adminRole': 'motorpool' },
+          // Department-tagged motorpool logs
+          { department: 'motorpool' }
         ],
-        // Exclude sysad logs
-        $and: [
-          { $or: [{ 'metadata.adminRole': { $ne: 'sysad' } }, { 'metadata.adminRole': { $exists: false } }] },
-          { $or: [{ department: { $ne: 'sysad' } }, { department: { $exists: false } }] }
-        ]
-      };
-    } else if (department === 'treasury') {
-      // Treasury admin sees treasury-related logs (works with old and new formats)
-      query = {
-        $or: [
-          // New format: treasury admin authentication
-          { eventType: { $in: ['login', 'logout'] }, 'metadata.adminRole': 'treasury' },
-          // Old format: treasury admin authentication (department field)
-          { eventType: { $in: ['login', 'logout'] }, department: 'treasury' },
-          // New format: department field
-          { department: 'treasury' },
-          // New format: targetEntity
-          { targetEntity: { $in: ['user', 'transaction'] } },
-          // Treasury-specific event types (new specific types)
-          { eventType: { $in: ['cash_in', 'registration'] } },
-          // Old format: admin actions by treasury
-          { eventType: 'admin_action', 'metadata.adminRole': 'treasury' },
-          // Old format: cash-in processed by treasury
-          { eventType: 'admin_action', title: /Cash-In/i },
-          // New format: CRUD operations by treasury admins
-          { eventType: { $in: ['crud_create', 'crud_update', 'crud_delete'] }, 'metadata.adminRole': 'treasury' },
-          // Auto export and manual export by treasury
-          { eventType: { $in: ['auto_export_config_change', 'manual_export'] }, 'metadata.adminRole': 'treasury' }
-        ],
-        // Exclude sysad logs
-        $and: [
-          { $or: [{ 'metadata.adminRole': { $ne: 'sysad' } }, { 'metadata.adminRole': { $exists: false } }] },
-          { $or: [{ department: { $ne: 'sysad' } }, { department: { $exists: false } }] }
-        ]
+        ...excludeSysad
       };
     } else if (department === 'merchant') {
-      // Merchant admin sees merchant-related logs
+      // Merchant admin sees:
+      // - login/logout of every merchant admin
+      // - crud of every tab by merchant admins
+      // - notes/concerns by merchant admins
+      // - merchant mobile app login/logout
+      // - auto export config changes by merchant admins
+      // - manual exports by merchant admins
       query = {
         $or: [
-          // New format: merchant admin authentication
+          // Merchant admin authentication
           { eventType: { $in: ['login', 'logout'] }, 'metadata.adminRole': 'merchant' },
-          // Old format: merchant admin authentication (department field)
           { eventType: { $in: ['login', 'logout'] }, department: 'merchant' },
-          // New format: department field
-          { department: 'merchant' },
-          // New format: targetEntity
-          { targetEntity: 'merchant' },
-          // Merchant-specific event types (new specific types)
-          { eventType: { $in: ['merchant_login', 'merchant_logout'] } },
-          // Old format: admin actions by merchant
-          { eventType: 'admin_action', 'metadata.adminRole': 'merchant' },
-          // New format: CRUD operations by merchant admins
+          // CRUD operations by merchant admins
           { eventType: { $in: ['crud_create', 'crud_update', 'crud_delete'] }, 'metadata.adminRole': 'merchant' },
-          // Auto export and manual export by merchant
-          { eventType: { $in: ['auto_export_config_change', 'manual_export'] }, 'metadata.adminRole': 'merchant' }
+          // Notes and concerns by merchant admins
+          { eventType: { $in: ['note_added', 'note_updated', 'concern_resolved'] }, 'metadata.adminRole': 'merchant' },
+          // Merchant mobile app activities
+          { eventType: { $in: ['merchant_login', 'merchant_logout'] } },
+          // Export operations by merchant admins
+          { eventType: { $in: ['auto_export_config_change', 'manual_export', 'export_manual', 'export_auto', 'config_updated'] }, 'metadata.adminRole': 'merchant' },
+          // Department-tagged merchant logs
+          { department: 'merchant' }
         ],
-        // Exclude sysad logs
-        $and: [
-          { $or: [{ 'metadata.adminRole': { $ne: 'sysad' } }, { 'metadata.adminRole': { $exists: false } }] },
-          { $or: [{ department: { $ne: 'sysad' } }, { department: { $exists: false } }] }
-        ]
+        ...excludeSysad
+      };
+    } else if (department === 'treasury') {
+      // Treasury admin sees:
+      // - login/logout of every treasury admin
+      // - crud of every tab by treasury admins
+      // - notes/concerns by treasury admins
+      // - cash-in by treasury admins
+      // - auto export config changes by treasury admins
+      // - manual exports by treasury admins
+      query = {
+        $or: [
+          // Treasury admin authentication
+          { eventType: { $in: ['login', 'logout'] }, 'metadata.adminRole': 'treasury' },
+          { eventType: { $in: ['login', 'logout'] }, department: 'treasury' },
+          // CRUD operations by treasury admins
+          { eventType: { $in: ['crud_create', 'crud_update', 'crud_delete'] }, 'metadata.adminRole': 'treasury' },
+          // Notes and concerns by treasury admins
+          { eventType: { $in: ['note_added', 'note_updated', 'concern_resolved'] }, 'metadata.adminRole': 'treasury' },
+          // Cash-in by treasury admins
+          { eventType: 'cash_in', 'metadata.adminRole': 'treasury' },
+          // Registration events by treasury
+          { eventType: 'registration', 'metadata.adminRole': 'treasury' },
+          // Export operations by treasury admins
+          { eventType: { $in: ['auto_export_config_change', 'manual_export', 'export_manual', 'export_auto', 'config_updated'] }, 'metadata.adminRole': 'treasury' },
+          // Department-tagged treasury logs
+          { department: 'treasury' }
+        ],
+        ...excludeSysad
       };
     } else if (department === 'accounting') {
-      // Accounting admin sees accounting-related logs
+      // Accounting admin sees:
+      // - login/logout of every accounting admin
+      // - crud of every tab by accounting admins
+      // - auto export config changes by accounting admins
+      // - manual exports by accounting admins
+      // NOTE: Accounting does NOT see notes/concerns or cash-in
       query = {
         $or: [
-          // New format: accounting admin authentication
+          // Accounting admin authentication
           { eventType: { $in: ['login', 'logout'] }, 'metadata.adminRole': 'accounting' },
-          // Old format: accounting admin authentication (department field)
           { eventType: { $in: ['login', 'logout'] }, department: 'accounting' },
-          // New format: department field
-          { department: 'accounting' },
-          // Old format: admin actions by accounting
-          { eventType: 'admin_action', 'metadata.adminRole': 'accounting' },
-          // New format: CRUD operations by accounting admins
+          // CRUD operations by accounting admins
           { eventType: { $in: ['crud_create', 'crud_update', 'crud_delete'] }, 'metadata.adminRole': 'accounting' },
-          // Auto export and manual export by accounting
-          { eventType: { $in: ['auto_export_config_change', 'manual_export'] }, 'metadata.adminRole': 'accounting' }
+          // Export operations by accounting admins
+          { eventType: { $in: ['auto_export_config_change', 'manual_export', 'export_manual', 'export_auto', 'config_updated'] }, 'metadata.adminRole': 'accounting' },
+          // Department-tagged accounting logs
+          { department: 'accounting' }
         ],
-        // Exclude sysad logs
-        $and: [
-          { $or: [{ 'metadata.adminRole': { $ne: 'sysad' } }, { 'metadata.adminRole': { $exists: false } }] },
-          { $or: [{ department: { $ne: 'sysad' } }, { department: { $exists: false } }] }
-        ]
+        ...excludeSysad
       };
     }
-    
+
     const logs = await EventLog.find(query)
       .sort({ timestamp: -1 })
-      .limit(200);
-    
+      .limit(500);
+
     res.json(logs);
   } catch (error) {
     console.error('❌ Error getting event logs:', error);
