@@ -293,25 +293,17 @@ router.post('/refund', async (req, res) => {
       const transaction = new Transaction({
         transactionId,
         userId: user._id,
-        rfidUId: user.rfidUId,
-        userName: user.fullName,
-        userEmail: user.email,
+        schoolUId: user.schoolUId,
+        email: user.email,
         amount: fareAmount,
-        type: 'credit',
-        transactionType: 'refund',
-        status: 'Completed',
-        paymentMethod: 'offline_refund',
+        transactionType: 'credit',
+        status: 'Refunded',
+        balance: balanceAfter,
         driverId,
         shuttleId,
         routeId,
-        tripId,
-        timestamp: new Date(deviceTimestamp || Date.now()),
-        deviceTimestamp: deviceTimestamp,
-        offlineMode: true,
-        reason: reason || 'Offline refund processed',
-        balanceBefore,
-        balanceAfter,
-        merchantName: 'NU Shuttle Service'
+        deviceTimestamp: deviceTimestamp || new Date().toISOString(),
+        viewFor: 'treasury'
       });
 
       await transaction.save();
