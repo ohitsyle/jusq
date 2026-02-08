@@ -6,6 +6,7 @@ import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { Search, Download, Plus, Edit, Trash2, Users, UserCheck, UserX, Shield, GraduationCap, Briefcase, X, Check, Loader2, CreditCard, AlertCircle, CheckCircle, XCircle, AlertTriangle, Info } from 'lucide-react';
 import { exportToCSV } from '../../../utils/csvExport';
+import { convertToHexLittleEndian } from '../../../utils/rfidConverter';
 
 // Custom Notification Modal Component
 function NotificationModal({ isOpen, onClose, type = 'success', title, message }) {
@@ -627,25 +628,7 @@ function StatusBadge({ isActive }) {
 }
 
 // RFID Hex conversion utility
-const normalizeRfidHex = (input) => {
-  if (!input) return '';
-  let cleaned = input.replace(/[\s:-]/g, '').toUpperCase();
-  if (/^[0-9A-F]{8}$/.test(cleaned)) return cleaned;
-  if (/^[0-9A-F]+$/.test(cleaned)) {
-    if (cleaned.length % 2 !== 0) cleaned = '0' + cleaned;
-    const bytes = cleaned.match(/.{2}/g) || [];
-    return bytes.reverse().join('');
-  }
-  if (/^\d+$/.test(cleaned)) {
-    const decimal = BigInt(cleaned);
-    let hex = decimal.toString(16).toUpperCase();
-    if (hex.length % 2 !== 0) hex = '0' + hex;
-    while (hex.length < 8) hex = '0' + hex;
-    const bytes = hex.match(/.{2}/g) || [];
-    return bytes.reverse().join('');
-  }
-  return cleaned;
-};
+const normalizeRfidHex = convertToHexLittleEndian;
 
 // Add User Modal - Updated with selection buttons and custom notifications
 function AddUserModal({ theme, isDarkMode, onClose, onSuccess, showNotification }) {
@@ -876,6 +859,12 @@ function AddUserModal({ theme, isDarkMode, onClose, onSuccess, showNotification 
                 type="text"
                 value={formData.rfidUId}
                 onChange={handleRfidChange}
+                onBlur={() => {
+                  if (formData.rfidUId.trim()) {
+                    const converted = normalizeRfidHex(formData.rfidUId.trim());
+                    setFormData(prev => ({ ...prev, rfidUId: converted }));
+                  }
+                }}
                 placeholder="Scan or enter RFID..."
                 style={{
                   background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB',

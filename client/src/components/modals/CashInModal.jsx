@@ -6,44 +6,10 @@ import { X, Wallet, CreditCard, AlertCircle, CheckCircle, User, Loader2, ArrowRi
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../utils/api';
 import { toast } from 'react-toastify';
+import { convertToHexLittleEndian } from '../../utils/rfidConverter';
 
-// RFID Hex conversion utility (byte-reversed / little-endian)
-// Only converts if needed - doesn't double convert
-const normalizeRfidHex = (input) => {
-  if (!input) return '';
-
-  // Remove any spaces, colons, or dashes and uppercase
-  let cleaned = input.replace(/[\s:-]/g, '').toUpperCase();
-
-  // If it's already 8 character hex, assume it's already in correct format
-  if (/^[0-9A-F]{8}$/.test(cleaned)) {
-    return cleaned;
-  }
-
-  // If it's a different length hex, try to normalize
-  if (/^[0-9A-F]+$/.test(cleaned)) {
-    // Pad to even length if needed
-    if (cleaned.length % 2 !== 0) cleaned = '0' + cleaned;
-    // Reverse bytes for little-endian
-    const bytes = cleaned.match(/.{2}/g) || [];
-    return bytes.reverse().join('');
-  }
-
-  // If it's decimal, convert to hex then reverse
-  if (/^\d+$/.test(cleaned)) {
-    const decimal = BigInt(cleaned);
-    let hex = decimal.toString(16).toUpperCase();
-    // Pad to even length
-    if (hex.length % 2 !== 0) hex = '0' + hex;
-    // Pad to 8 characters if less
-    while (hex.length < 8) hex = '0' + hex;
-    // Reverse bytes
-    const bytes = hex.match(/.{2}/g) || [];
-    return bytes.reverse().join('');
-  }
-
-  return cleaned;
-};
+// Use shared RFID converter
+const normalizeRfidHex = convertToHexLittleEndian;
 
 // Mask RFID for display
 const maskRfid = (rfid) => {

@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { CreditCard, ArrowRight, Search, AlertTriangle, CheckCircle, Loader2, User, RefreshCw, Users, Download } from 'lucide-react';
+import { convertToHexLittleEndian } from '../../../utils/rfidConverter';
 
 // Custom Notification Modal for TransferCard
 function TransferNotificationModal({ isOpen, onClose, type, title, message }) {
@@ -63,29 +64,10 @@ function TransferModal({ isOpen, onClose, selectedUser }) {
     { id: 4, name: 'Complete', icon: CheckCircle }
   ];
 
-  // Convert RFID to hex little endian and capitalize
-  const convertToHexLittleEndian = (rfid) => {
-    if (!rfid) return '';
-    
-    // Convert to uppercase first
-    const upperRfid = rfid.toUpperCase();
-    
-    // If already hex, return as is
-    if (/^[0-9A-F]+$/.test(upperRfid)) {
-      return upperRfid;
-    }
-    
-    // If decimal, convert to hex
-    const decimalValue = parseInt(upperRfid, 10);
-    if (!isNaN(decimalValue)) {
-      return decimalValue.toString(16).toUpperCase();
-    }
-    
-    return upperRfid;
-  };
-
   const handleRfidSubmit = () => {
     if (newRfid.trim()) {
+      // Auto-convert RFID to hex little-endian before proceeding
+      setNewRfid(convertToHexLittleEndian(newRfid.trim()));
       setCurrentStep(2);
     }
   };
@@ -130,7 +112,16 @@ function TransferModal({ isOpen, onClose, selectedUser }) {
               <input
                 placeholder="Scan or enter new RFID..."
                 value={newRfid}
-                onChange={(e) => setNewRfid(e.target.value.toUpperCase())}
+                onChange={(e) => setNewRfid(e.target.value)}
+                onBlur={() => {
+                  if (newRfid.trim()) setNewRfid(convertToHexLittleEndian(newRfid.trim()));
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newRfid.trim()) {
+                    setNewRfid(convertToHexLittleEndian(newRfid.trim()));
+                    handleRfidSubmit();
+                  }
+                }}
                 className="w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-yellow-400/50 font-mono text-lg tracking-wider"
                 style={{
                   background: 'rgba(15, 18, 39, 0.5)',

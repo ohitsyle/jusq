@@ -5,55 +5,7 @@ import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { toast } from 'react-toastify';
 
-// Utility function to convert RFID to little-endian hex
-const convertToLittleEndianHex = (rfidInput) => {
-  const cleaned = rfidInput.trim();
-  
-  // If it's a decimal number (most common from RFID scanners)
-  if (/^\d+$/.test(cleaned)) {
-    const num = parseInt(cleaned, 10);
-    let hex = num.toString(16).toUpperCase();
-    
-    // Pad to even length
-    if (hex.length % 2 !== 0) {
-      hex = '0' + hex;
-    }
-    
-    // Pad to 8 characters (4 bytes) if needed
-    hex = hex.padStart(8, '0');
-    
-    // Split into bytes and reverse
-    const bytes = hex.match(/.{2}/g) || [];
-    const reversed = bytes.reverse().join('');
-    
-    console.log('🔄 RFID Conversion (Registration):', {
-      input: cleaned,
-      decimal: num,
-      hexBigEndian: hex,
-      hexLittleEndian: reversed
-    });
-    
-    return reversed;
-  }
-  
-  // If it's already in hex format
-  const isHex = /^[0-9A-Fa-f]+$/.test(cleaned);
-  if (isHex && cleaned.length % 2 === 0) {
-    const bytes = cleaned.match(/.{2}/g) || [];
-    const reversed = bytes.reverse().join('').toUpperCase();
-    
-    console.log('🔄 RFID Conversion (Registration - already hex):', {
-      input: cleaned,
-      hexBigEndian: cleaned.toUpperCase(),
-      hexLittleEndian: reversed
-    });
-    
-    return reversed;
-  }
-  
-  console.warn('⚠️ Unrecognized RFID format:', cleaned);
-  return cleaned;
-};
+import { convertToHexLittleEndian } from '../../../utils/rfidConverter';
 
 export default function RegistrationForm() {
   const navigate = useNavigate();
@@ -114,8 +66,8 @@ export default function RegistrationForm() {
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
-    // Convert RFID to little-endian hex before sending
-    const rfidHex = convertToLittleEndianHex(formData.rfidUId);
+    // Ensure RFID is in hex little-endian format
+    const rfidHex = convertToHexLittleEndian(formData.rfidUId);
     console.log('📤 Sending registration with RFID:', rfidHex);
 
     setSubmitting(true);
@@ -259,9 +211,23 @@ export default function RegistrationForm() {
               </label>
               <input
                 ref={rfidInputRef}
-                type="password"
+                type="text"
                 value={formData.rfidUId}
                 onChange={(e) => handleInputChange('rfidUId', e.target.value)}
+                onBlur={() => {
+                  if (formData.rfidUId.trim()) {
+                    const converted = convertToHexLittleEndian(formData.rfidUId);
+                    handleInputChange('rfidUId', converted);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === 'Tab') {
+                    if (formData.rfidUId.trim()) {
+                      const converted = convertToHexLittleEndian(formData.rfidUId);
+                      handleInputChange('rfidUId', converted);
+                    }
+                  }
+                }}
                 placeholder="Scan or enter RFID"
                 style={{ background: theme.bg.tertiary, color: theme.text.primary, borderColor: theme.border.primary }}
                 className="w-full px-4 py-3 rounded-xl border font-mono text-sm focus:outline-none"
