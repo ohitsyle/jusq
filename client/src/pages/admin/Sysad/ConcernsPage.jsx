@@ -424,18 +424,7 @@ export default function SysadConcernsPage() {
           />
 
           {/* Export CSV Button */}
-          <button
-            onClick={handleExport}
-            disabled={filteredConcerns.length === 0}
-            style={{  background: 'rgba(16,185,129,0.15)',
-                      color: '#10B981',
-                      borderColor: 'rgba(16,185,129,0.3)'
-                  }}
-            className="px-4 py-2 rounded-xl font-semibold text-sm border flex items-center gap-2 hover:opacity-80 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Download className="w-4 h-4" />
-            Export
-          </button>
+          <ExportButton onClick={handleExport} disabled={filteredConcerns.length === 0} />
         </div>
       </div>
 
