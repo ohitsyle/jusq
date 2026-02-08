@@ -539,7 +539,7 @@ export default function RoutesList() {
   const currentRoutes = filteredRoutes.slice(startIndex, endIndex);
 
   return (
-    <div className="p-6 h-full flex flex-col">
+    <div className="h-full flex flex-col">
       {/* Alert */}
       {alert && (
         <div style={{ position: 'fixed', top: '20px', right: '20px', zIndex: 10000 }}>
