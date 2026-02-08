@@ -76,7 +76,7 @@ export default function Header({ merchantData, onLogout, onOpenProfile }) {
             letterSpacing: '0.5px',
             margin: 0
           }}>
-            NUCash Admin Dashboard
+            NUCash System
           </h1>
           <p style={{
             fontSize: '12px',
@@ -86,7 +86,7 @@ export default function Header({ merchantData, onLogout, onOpenProfile }) {
             letterSpacing: '1px',
             margin: '2px 0 0 0'
           }}>
-            Merchant Management System
+            Merchant Management Dashboard
           </p>
         </div>
       </div>

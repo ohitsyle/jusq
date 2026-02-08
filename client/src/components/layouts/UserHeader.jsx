@@ -52,7 +52,7 @@ export default function UserHeader({ userData, onLogout, onOpenProfile }) {
 
         <div>
           <h1 className="text-base sm:text-lg md:text-2xl font-bold m-0" style={{ color: theme.text.primary, letterSpacing: '0.5px' }}>
-            NUCash
+            NUCash System
           </h1>
           <p className="text-[10px] sm:text-xs font-semibold uppercase m-0 mt-0.5 hidden sm:block" style={{ color: theme.accent.primary, letterSpacing: '1px' }}>
             Student Portal

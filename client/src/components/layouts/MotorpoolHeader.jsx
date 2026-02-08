@@ -77,7 +77,7 @@ export default function Header({ adminData, onLogout, onOpenProfile }) {
             letterSpacing: '0.5px',
             margin: 0
           }}>
-            NUCash Admin Dashboard
+            NUCash System
           </h1>
           <p style={{
             fontSize: '12px',
@@ -87,7 +87,7 @@ export default function Header({ adminData, onLogout, onOpenProfile }) {
             letterSpacing: '1px',
             margin: '2px 0 0 0'
           }}>
-            Motorpool Management System
+            Motorpool Management Dashboard
           </p>
         </div>
       </div>

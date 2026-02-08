@@ -74,10 +74,10 @@ export default function SysadHeader({ adminData, onLogout, onOpenProfile }) {
 
         <div>
           <h1 style={{ fontSize: '24px', fontWeight: 700, color: theme.text.primary, letterSpacing: '0.5px', margin: 0 }}>
-            NUCash Admin Dashboard
+            NUCash System
           </h1>
           <p style={{ fontSize: '12px', color: sysadAccent, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', margin: '2px 0 0 0' }}>
-            System Administration
+            System Administration Dashboard
           </p>
         </div>
       </div>
