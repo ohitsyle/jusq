@@ -173,7 +173,16 @@ router.post('/', async (req, res) => {
         return res.status(401).json({ error: 'Invalid PIN' });
       }
 
-      // Check if admin needs activation
+      // Check if admin is deactivated
+      if (admin.isDeactivated) {
+        console.log('🚫 Admin account is deactivated:', normalizedEmail);
+        return res.status(403).json({
+          isDeactivated: true,
+          message: 'Your account has been deactivated. If you have any concerns, please visit ITSO.'
+        });
+      }
+
+      // Check if admin needs activation (isActive: false)
       if (!admin.isActive) {
         console.log('⚠️  Admin account needs activation:', normalizedEmail);
         return res.status(403).json({
@@ -186,7 +195,7 @@ router.post('/', async (req, res) => {
         });
       }
 
-      // Admin is active, proceed with login
+      // Admin is active and not deactivated, proceed with login
       console.log('🔐 Signing admin token with getJWTSecret():', getJWTSecret());
       const token = jwt.sign(
         { id: admin._id, role: admin.role || 'admin', adminId: admin.adminId },
@@ -291,7 +300,16 @@ router.post('/', async (req, res) => {
         return res.status(401).json({ error: 'Invalid PIN' });
       }
 
-      // Check if user needs activation
+      // Check if user is deactivated (isActive: false, isDeactivated: true)
+      if (user.isDeactivated) {
+        console.log('🚫 User account is deactivated:', normalizedEmail);
+        return res.status(403).json({
+          isDeactivated: true,
+          message: 'Your account has been deactivated. If you have any concerns, please visit ITSO.'
+        });
+      }
+
+      // Check if user needs activation (isActive: false, isDeactivated: false)
       if (!user.isActive) {
         console.log('⚠️  User account needs activation:', normalizedEmail);
         return res.status(403).json({
@@ -304,7 +322,7 @@ router.post('/', async (req, res) => {
         });
       }
 
-      // User is active, proceed with login
+      // User is active and not deactivated, proceed with login
       const token = jwt.sign(
         { id: user._id, role: user.role, userId: user.userId },
         getJWTSecret(),

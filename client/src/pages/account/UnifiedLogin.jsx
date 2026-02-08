@@ -170,7 +170,13 @@ export default function UnifiedLogin() {
       const data = await response.json();
       console.log('📦 Server response data:', data);
 
-      // Check if account requires activation (isActive: false) - this returns 403 status
+      // Check if account is deactivated (isActive: false, isDeactivated: true)
+      if (response.status === 403 && data.isDeactivated) {
+        console.log('🚫 Account is deactivated');
+        throw new Error(data.message || 'Your account has been deactivated. If you have any concerns, please visit ITSO.');
+      }
+
+      // Check if account requires activation (isActive: false, isDeactivated: false) - this returns 403 status
       if (response.status === 403 && data.requiresActivation) {
         console.log('⚠️  Account requires activation, redirecting...');
 
