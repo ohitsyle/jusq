@@ -82,11 +82,26 @@ const OfflineStorageService = {
   // ============================================================
   async cacheUsers(users) {
     try {
-      await AsyncStorage.setItem(STORAGE_KEYS.CACHED_CARDS, JSON.stringify({
-        data: users,
-        timestamp: Date.now()
-      }));
-      console.log('✅ Cached', users.length, 'active users for offline payments');
+      // Store as object keyed by rfidUId (same format as cacheCardData)
+      // so lookupCard() can always find users via cards[rfidUId]
+      const cards = {};
+      users.forEach(user => {
+        if (user.rfidUId) {
+          cards[user.rfidUId] = {
+            rfidUId: user.rfidUId,
+            fullName: user.fullName || `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+            firstName: user.firstName,
+            lastName: user.lastName,
+            balance: user.balance || 0,
+            schoolUId: user.schoolUId,
+            isActive: user.isActive !== false,
+            isDeactivated: user.isActive === false,
+            cachedAt: new Date().toISOString()
+          };
+        }
+      });
+      await AsyncStorage.setItem(STORAGE_KEYS.CACHED_CARDS, JSON.stringify(cards));
+      console.log('✅ Cached', Object.keys(cards).length, 'active users for offline payments');
     } catch (error) {
       console.error('❌ Failed to cache users:', error);
     }
@@ -96,9 +111,16 @@ const OfflineStorageService = {
     try {
       const cached = await AsyncStorage.getItem(STORAGE_KEYS.CACHED_CARDS);
       if (cached) {
-        const { data, timestamp } = JSON.parse(cached);
-        console.log('📦 Retrieved', data.length, 'cached users from', new Date(timestamp).toLocaleString());
-        return data;
+        const parsed = JSON.parse(cached);
+        // Handle both formats: object keyed by rfidUId, or old {data: [...]} format
+        if (parsed.data && Array.isArray(parsed.data)) {
+          console.log('📦 Retrieved', parsed.data.length, 'cached users (array format)');
+          return parsed.data;
+        }
+        // Object format: convert to array
+        const users = Object.values(parsed).filter(u => u && u.rfidUId);
+        console.log('📦 Retrieved', users.length, 'cached users (object format)');
+        return users;
       }
       return [];
     } catch (error) {
@@ -375,36 +397,30 @@ const OfflineStorageService = {
 
   async lookupCard(rfidUId) {
     try {
-      // Try the new users cache first (array format from SyncManager)
       const cached = await AsyncStorage.getItem(STORAGE_KEYS.CACHED_CARDS);
       if (cached) {
         const parsed = JSON.parse(cached);
-        console.log('🔍 Raw cached data:', JSON.stringify(parsed, null, 2));
-        
-        // Check if it's the new array format (has 'data' array)
+
+        // Primary format: object keyed by rfidUId (from cacheUsers + cacheCardData)
+        if (parsed[rfidUId]) {
+          console.log('✅ Found user in cache:', parsed[rfidUId].fullName);
+          return parsed[rfidUId];
+        }
+
+        // Fallback: old array format {data: [...]} (backward compat)
         if (parsed.data && Array.isArray(parsed.data)) {
           const user = parsed.data.find(u => u.rfidUId === rfidUId);
           if (user) {
-            console.log('✅ Found user in new cache:', user.fullName);
-            console.log('👤 User data:', JSON.stringify(user, null, 2));
+            console.log('✅ Found user in array cache:', user.fullName);
             return user;
-          } else {
-            console.log('❌ User not found in array cache');
           }
         }
-        
-        // Check if it's the old object format (has direct rfidUId keys)
-        if (parsed[rfidUId]) {
-          console.log('✅ Found user in old cache:', parsed[rfidUId]);
-          console.log('👤 User data:', JSON.stringify(parsed[rfidUId], null, 2));
-          return parsed[rfidUId];
-        } else {
-          console.log('❌ User not found in old cache either');
-        }
+
+        console.log('❌ User not found in cache for RFID:', rfidUId);
       } else {
-        console.log('❌ No cached data found at all');
+        console.log('❌ No cached card data found');
       }
-      
+
       return null;
     } catch (error) {
       console.error('❌ Failed to lookup card:', error);

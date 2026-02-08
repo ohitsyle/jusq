@@ -130,6 +130,12 @@ const PaymentService = {
       // Buffer refund for later sync
       await this.bufferOfflineTransaction(offlineRefund);
 
+      // Update cached card balance so next offline scan sees increased balance
+      if (cachedCard) {
+        cachedCard.balance = cachedBalance + fareAmount;
+        await OfflineStorageService.cacheCardData(cachedCard);
+      }
+
       console.log('📦 Offline refund for:', studentName, '+ ₱', fareAmount);
 
       return {
@@ -466,11 +472,24 @@ const PaymentService = {
         }
       }
 
-      // Check if user has sufficient balance (allow negative for offline but warn)
-      const hasSufficientBalance = cachedBalance >= fare;
-      
-      if (!hasSufficientBalance && cachedBalance > -1000) { // Allow some negative but not too much
-        console.warn(`⚠️ Low balance warning: ₱${cachedBalance} (fare: ₱${fare})`);
+      // Enforce negative balance limit from cached settings (same as server)
+      const cachedSettings = await OfflineStorageService.getCachedSettings();
+      const negativeLimit = cachedSettings?.negativeLimit ?? -14;
+      const balanceAfter = cachedBalance - fare;
+
+      if (balanceAfter < negativeLimit) {
+        console.log(`❌ Offline payment rejected: balance ${cachedBalance} - fare ${fare} = ${balanceAfter} < limit ${negativeLimit}`);
+        return {
+          success: false,
+          error: {
+            message: 'Insufficient balance. Please recharge your card.',
+            code: 'INSUFFICIENT_BALANCE'
+          }
+        };
+      }
+
+      if (balanceAfter < 0) {
+        console.warn(`⚠️ Low balance warning: ₱${cachedBalance} - ₱${fare} = ₱${balanceAfter}`);
       }
 
       // Create offline transaction record
@@ -494,7 +513,13 @@ const PaymentService = {
       // Buffer transaction for later sync
       await this.bufferOfflineTransaction(offlineTransaction);
 
-      console.log('📦 Offline payment for:', studentName, '- ₱', fare, '(Balance: ₱' + cachedBalance + ')');
+      // Update cached card balance so next offline scan sees reduced balance
+      if (cachedCard) {
+        cachedCard.balance = balanceAfter;
+        await OfflineStorageService.cacheCardData(cachedCard);
+      }
+
+      console.log('📦 Offline payment for:', studentName, '- ₱', fare, '(Balance: ₱' + cachedBalance + ' → ₱' + balanceAfter + ')');
 
       return {
         success: true,
