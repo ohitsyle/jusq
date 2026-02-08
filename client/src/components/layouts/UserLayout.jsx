@@ -40,10 +40,8 @@ export default function UserLayout({ children }) {
     { path: '/user/concerns', icon: '📋', label: 'My Concerns' },
   ];
 
-  // System tabs - Only FAQs (removed Settings)
-  const systemTabs = [
-    { path: '/faq', icon: '❓', label: 'FAQs' },
-  ];
+  // System tabs - removed FAQs
+  const systemTabs = [];
 
   return (
     <div style={{ background: theme.bg.primary }} className="min-h-screen flex flex-col">

@@ -81,19 +81,31 @@ router.get('/analytics', async (req, res) => {
     // Total merchants
     const totalMerchants = await Merchant.countDocuments({ isActive: true });
 
-    // Total balance in circulation
-    const balanceResult = await User.aggregate([
-      { $group: { _id: null, total: { $sum: '$balance' } } }
+    // Total collections from merchant transactions and shuttle transactions
+    const { default: MerchantTransaction } = await import('../models/MerchantTransaction.js');
+    const { default: ShuttleTransaction } = await import('../models/ShuttleTransaction.js');
+
+    const [merchantCollections, shuttleCollections] = await Promise.all([
+      MerchantTransaction.aggregate([
+        { $match: { status: 'completed', timestamp: { $gte: startDate } } },
+        { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } }
+      ]),
+      ShuttleTransaction.aggregate([
+        { $match: { status: 'completed', timestamp: { $gte: startDate } } },
+        { $group: { _id: null, total: { $sum: '$fareCharged' }, count: { $sum: 1 } } }
+      ])
     ]);
+
+    const totalCollections = (merchantCollections[0]?.total || 0) + (shuttleCollections[0]?.total || 0);
 
     res.json({
       success: true,
       todayCashIn: cashInResult[0]?.total || 0,
       todayCashOut: cashOutResult[0]?.total || 0,
       todayTransactions: totalTransactions,
+      totalCollections,
       totalUsers,
-      totalMerchants,
-      totalBalance: balanceResult[0]?.total || 0
+      totalMerchants
     });
   } catch (error) {
     console.error('❌ Accounting analytics error:', error);

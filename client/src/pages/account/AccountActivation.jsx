@@ -268,7 +268,48 @@ export default function AccountActivation() {
         throw new Error(data.error || "Invalid verification code");
       }
 
-      toast.success("Account activated successfully!");
+      toast.success("Account activated successfully! Logging you in...");
+
+      // Auto-login after activation using the PIN they just set
+      try {
+        const loginResponse = await fetch(`${API_BASE}/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ emailOrUsername: email, password: newPin })
+        });
+
+        const loginData = await loginResponse.json();
+
+        if (loginResponse.ok && loginData.token) {
+          // Determine if admin or user login
+          const isAdminRole = loginData.role && ['motorpool', 'merchant', 'treasury', 'accounting', 'sysad', 'cafeteria', 'bookstore', 'printshop'].includes(loginData.role);
+
+          if (isAdminRole) {
+            localStorage.setItem('adminToken', loginData.token);
+            localStorage.setItem('adminData', JSON.stringify(loginData));
+            const redirectMap = {
+              motorpool: '/admin/motorpool',
+              merchant: '/admin/merchant',
+              treasury: '/admin/treasury',
+              accounting: '/admin/accounting',
+              sysad: '/admin/sysad',
+              cafeteria: '/admin/merchant',
+              bookstore: '/admin/merchant',
+              printshop: '/admin/merchant'
+            };
+            window.location.href = redirectMap[loginData.role] || '/admin';
+          } else {
+            localStorage.setItem('userToken', loginData.token);
+            localStorage.setItem('userData', JSON.stringify(loginData));
+            window.location.href = '/user/dashboard';
+          }
+          return;
+        }
+      } catch (loginErr) {
+        console.error('Auto-login failed:', loginErr);
+      }
+
+      // Fallback: show success page if auto-login fails
       setStep("success");
     } catch (err) {
       setError(err.message);

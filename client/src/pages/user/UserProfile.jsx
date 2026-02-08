@@ -237,12 +237,15 @@ export default function UserProfile() {
       if (data?.success) {
         toast.success('Account deactivated successfully');
         
-        // 🔥 FORCE LOGOUT - Clear auth data
+        // 🔥 FORCE LOGOUT - Clear all auth data
         setTimeout(() => {
-          localStorage.removeItem('token');
+          localStorage.removeItem('userToken');
           localStorage.removeItem('userData');
+          localStorage.removeItem('adminToken');
+          localStorage.removeItem('adminData');
+          localStorage.removeItem('token');
           localStorage.removeItem('userRole');
-          
+
           // Redirect to login with deactivation message
           window.location.href = '/login?deactivated=true';
         }, 1500);

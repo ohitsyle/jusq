@@ -398,9 +398,17 @@ router.post('/forgot-pin', async (req, res) => {
 
     if (!user) {
       // Don't reveal if email exists or not for security
-      return res.json({ 
-        success: true, 
-        message: 'If your email is registered, you will receive a PIN reset OTP.' 
+      return res.json({
+        success: true,
+        message: 'If your email is registered, you will receive a PIN reset OTP.'
+      });
+    }
+
+    // Block deactivated users from resetting PIN
+    if (user.isDeactivated) {
+      return res.status(403).json({
+        error: 'Your account has been deactivated. Please visit ITSO to reactivate your account.',
+        deactivated: true
       });
     }
 

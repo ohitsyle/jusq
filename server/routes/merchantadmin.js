@@ -176,16 +176,17 @@ router.post('/merchants', verifyMerchantToken, async (req, res) => {
       return res.status(409).json({ error: 'Email already exists' });
     }
 
-    // Generate merchantId - find the highest existing ID and increment
-    const lastMerchant = await Merchant.findOne().sort({ merchantId: -1 });
-    let nextNum = 1;
-    if (lastMerchant && lastMerchant.merchantId) {
-      const match = lastMerchant.merchantId.match(/M(\d+)/);
+    // Generate merchantId - find the highest existing numeric ID and increment
+    const allMerchants = await Merchant.find({}, { merchantId: 1 }).lean();
+    let maxNum = 0;
+    allMerchants.forEach(m => {
+      const match = m.merchantId?.match(/M(\d+)/);
       if (match) {
-        nextNum = parseInt(match[1]) + 1;
+        const num = parseInt(match[1]);
+        if (num > maxNum) maxNum = num;
       }
-    }
-    const merchantId = `M${String(nextNum).padStart(4, '0')}`;
+    });
+    const merchantId = `M${String(maxNum + 1).padStart(4, '0')}`;
 
     console.log('✅ Creating merchant with data:', {
       merchantId,

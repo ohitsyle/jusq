@@ -905,6 +905,108 @@ router.post('/manual-export-sysad', async (req, res) => {
 });
 
 /**
+ * POST /admin/configurations/manual-export-accounting
+ * Manually trigger accounting export (multiple types as ZIP)
+ */
+router.post('/manual-export-accounting', async (req, res) => {
+  try {
+    const { exportTypes, dateRange, customStartDate, customEndDate } = req.body;
+
+    if (!exportTypes || !Array.isArray(exportTypes) || exportTypes.length === 0) {
+      return res.status(400).json({ error: 'Export types array is required' });
+    }
+
+    // Prepare date filter
+    const dateFilter = {};
+    if (dateRange === 'custom' && customStartDate && customEndDate) {
+      dateFilter.startDate = customStartDate;
+      dateFilter.endDate = customEndDate;
+    } else if (dateRange === '24hr') {
+      const now = new Date();
+      dateFilter.startDate = new Date(now - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      dateFilter.endDate = now.toISOString().split('T')[0];
+    } else if (dateRange === 'week') {
+      const now = new Date();
+      dateFilter.startDate = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      dateFilter.endDate = now.toISOString().split('T')[0];
+    } else if (dateRange === 'month') {
+      const now = new Date();
+      dateFilter.startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+      dateFilter.endDate = now.toISOString().split('T')[0];
+    }
+
+    const AdmZip = (await import('adm-zip')).default;
+    const zip = new AdmZip();
+    let totalRecords = 0;
+
+    // Map accounting export types to actual data types
+    const typeMapping = {
+      'Transactions': 'transactions',
+      'Cash-Ins': 'cashins',
+      'Users': 'users',
+      'Balances': 'balances',
+      'Merchants': 'merchants',
+      'Logs': 'logs',
+      'Concerns': 'concerns'
+    };
+
+    // Export each selected type and add to ZIP
+    for (const type of exportTypes) {
+      try {
+        const actualType = typeMapping[type] || type.toLowerCase();
+        const { csv, count } = await exportByType(actualType, dateFilter);
+        const fileName = `${actualType}_export_${new Date().toISOString().split('T')[0]}.csv`;
+        zip.addFile(fileName, Buffer.from(csv, 'utf8'));
+        totalRecords += count;
+      } catch (error) {
+        console.error(`Error exporting ${type}:`, error);
+      }
+    }
+
+    const zipFileName = `accounting_export_${new Date().toISOString().split('T')[0]}.zip`;
+    const zipBuffer = zip.toBuffer();
+    const base64Data = zipBuffer.toString('base64');
+
+    // Save to export history (manual export)
+    const exportRecord = await new ExportHistory({
+      exportType: exportTypes.join(', '),
+      fileName: zipFileName,
+      recordCount: totalRecords,
+      triggeredBy: 'manual',
+      adminRole: 'accounting',
+      status: 'success',
+      fileData: base64Data,
+      fileSize: `${(zipBuffer.length / 1024).toFixed(2)} KB`
+    }).save();
+
+    logAdminAction({
+      adminId: req.adminId || 'system',
+      adminName: req.adminName || 'Admin',
+      adminRole: req.adminRole || 'accounting',
+      department: req.department || 'accounting',
+      action: 'Accounting Export',
+      description: `exported accounting data (${totalRecords} records): ${exportTypes.join(', ')}`,
+      targetEntity: 'config',
+      targetId: 'manual-export-accounting',
+      crudOperation: 'export_manual',
+      changes: { exportTypes, totalRecords, fileName: zipFileName, dateRange },
+      ipAddress: req.ip
+    }).catch(() => {});
+
+    res.json({
+      message: 'Accounting export successful',
+      fileName: zipFileName,
+      totalRecords,
+      downloadUrl: `data:application/zip;base64,${base64Data}`,
+      exportId: exportRecord._id
+    });
+  } catch (error) {
+    console.error('Error accounting export:', error);
+    res.status(500).json({ error: 'Failed to export accounting data' });
+  }
+});
+
+/**
  * GET /admin/configurations/download-export/:id
  * Download a previously exported file by its export history ID
  */

@@ -11,9 +11,9 @@ export default function AccountingHome() {
     todayCashIn: 0,
     todayCashOut: 0,
     todayTransactions: 0,
+    totalCollections: 0,
     totalUsers: 0,
-    totalMerchants: 0,
-    totalBalance: 0
+    totalMerchants: 0
   });
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState('today');
@@ -29,9 +29,9 @@ export default function AccountingHome() {
           todayCashIn: data.todayCashIn || 0,
           todayCashOut: data.todayCashOut || 0,
           todayTransactions: data.todayTransactions || 0,
+          totalCollections: data.totalCollections || 0,
           totalUsers: data.totalUsers || 0,
-          totalMerchants: data.totalMerchants || 0,
-          totalBalance: data.totalBalance || 0
+          totalMerchants: data.totalMerchants || 0
         });
       }
     } catch (error) {
@@ -50,8 +50,6 @@ export default function AccountingHome() {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [dateRange]);
-
-  const netFlow = analytics.todayCashIn - analytics.todayCashOut;
 
   if (loading) {
     return (
@@ -98,17 +96,16 @@ export default function AccountingHome() {
 
       {/* Main Stats Grid */}
       <div className="grid grid-cols-4 gap-5 mb-5">
-        <StatCard icon="💵" label="CASH-IN" value={`₱${analytics.todayCashIn.toLocaleString()}`} subtitle="loaded" color="#10B981" theme={theme} />
+        <StatCard icon="🏪" label="TOTAL COLLECTIONS" value={`₱${analytics.totalCollections.toLocaleString()}`} subtitle="from payments" color="#10B981" theme={theme} />
+        <StatCard icon="💵" label="CASH-IN" value={`₱${analytics.todayCashIn.toLocaleString()}`} subtitle="loaded" color="#3B82F6" theme={theme} />
         <StatCard icon="💸" label="CASH-OUT" value={`₱${analytics.todayCashOut.toLocaleString()}`} subtitle="withdrawn" color="#EF4444" theme={theme} />
-        <StatCard icon="📈" label="NET FLOW" value={`₱${netFlow.toLocaleString()}`} subtitle={netFlow >= 0 ? 'positive' : 'negative'} color={netFlow >= 0 ? '#10B981' : '#EF4444'} theme={theme} />
-        <StatCard icon="📊" label="TRANSACTIONS" value={analytics.todayTransactions} subtitle="total" color="#3B82F6" theme={theme} />
+        <StatCard icon="📊" label="TRANSACTIONS" value={analytics.todayTransactions} subtitle="total" color="#A855F7" theme={theme} />
       </div>
 
       {/* Secondary Stats */}
-      <div className="grid grid-cols-3 gap-5 mb-5">
-        <StatCard icon="👥" label="TOTAL USERS" value={analytics.totalUsers.toLocaleString()} subtitle="registered" color="#A855F7" theme={theme} />
-        <StatCard icon="🏪" label="MERCHANTS" value={analytics.totalMerchants.toLocaleString()} subtitle="active" color="#F59E0B" theme={theme} />
-        <StatCard icon="🏦" label="SYSTEM BALANCE" value={`₱${analytics.totalBalance.toLocaleString()}`} subtitle="in circulation" color="#06B6D4" theme={theme} />
+      <div className="grid grid-cols-2 gap-5 mb-5">
+        <StatCard icon="👥" label="TOTAL USERS" value={analytics.totalUsers.toLocaleString()} subtitle="registered" color="#F59E0B" theme={theme} />
+        <StatCard icon="🏪" label="MERCHANTS" value={analytics.totalMerchants.toLocaleString()} subtitle="active" color="#06B6D4" theme={theme} />
       </div>
     </div>
   );

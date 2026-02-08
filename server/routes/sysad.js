@@ -950,7 +950,7 @@ router.post('/transfer-card', async (req, res) => {
 // CONFIGURATION ENDPOINTS
 // ============================================================
 
-// In-memory config store (in production, use database)
+// In-memory config store (hydrated from DB on startup)
 let systemConfig = {
   maintenanceMode: false,
   maintenanceMessage: 'System is under maintenance. Please try again later.',
@@ -966,6 +966,31 @@ let systemConfig = {
     time: null
   }
 };
+
+// Hydrate deactivation scheduler from DB on startup so it survives PM2 restarts
+(async () => {
+  try {
+    const mongoose = (await import('mongoose')).default;
+    const waitForConnection = () => new Promise((resolve) => {
+      if (mongoose.connection.readyState === 1) return resolve();
+      mongoose.connection.once('connected', resolve);
+    });
+    await waitForConnection();
+
+    const doc = await mongoose.connection.db.collection('system_settings').findOne({ _id: 'deactivationScheduler' });
+    if (doc) {
+      systemConfig.deactivationScheduler = {
+        enabled: doc.enabled || false,
+        date: doc.date || null,
+        time: doc.time || null,
+        executed: doc.executed || false
+      };
+      console.log('[SysAd] Restored deactivation scheduler from DB:', systemConfig.deactivationScheduler);
+    }
+  } catch (err) {
+    console.error('[SysAd] Failed to restore deactivation scheduler from DB:', err.message);
+  }
+})();
 
 /**
  * GET /api/admin/sysad/config
@@ -1243,6 +1268,19 @@ router.post('/deactivation-scheduler', async (req, res) => {
       time: time || systemConfig.deactivationScheduler.time,
       executed: false  // Reset executed flag when schedule is updated
     };
+
+    // Persist to MongoDB so it survives PM2 restarts
+    try {
+      const mongoose = (await import('mongoose')).default;
+      await mongoose.connection.db.collection('system_settings').updateOne(
+        { _id: 'deactivationScheduler' },
+        { $set: { ...systemConfig.deactivationScheduler, updatedAt: new Date() } },
+        { upsert: true }
+      );
+      console.log('[SysAd] Deactivation scheduler persisted to DB');
+    } catch (dbErr) {
+      console.error('[SysAd] Failed to persist scheduler to DB:', dbErr.message);
+    }
 
     // Log student deactivation scheduler change with proper department tracking
     await logStudentDeactivation({
@@ -1650,9 +1688,22 @@ export function getSystemConfig() {
   return systemConfig;
 }
 
-export function setSchedulerExecuted() {
+export async function setSchedulerExecuted() {
   systemConfig.deactivationScheduler.enabled = false;
   systemConfig.deactivationScheduler.executed = true;
+
+  // Persist to MongoDB
+  try {
+    const mongoose = (await import('mongoose')).default;
+    await mongoose.connection.db.collection('system_settings').updateOne(
+      { _id: 'deactivationScheduler' },
+      { $set: { enabled: false, executed: true, updatedAt: new Date() } },
+      { upsert: true }
+    );
+    console.log('[SysAd] Scheduler executed status persisted to DB');
+  } catch (err) {
+    console.error('[SysAd] Failed to persist scheduler executed status:', err.message);
+  }
 }
 
 export default router;

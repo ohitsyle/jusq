@@ -441,6 +441,55 @@ router.delete('/shuttles/:id', async (req, res) => {
 // PHONES CRUD
 // ============================================================
 
+router.post('/phones', async (req, res) => {
+  try {
+    const { phoneId, phoneModel, phoneType, serialNumber, imei, notes, status } = req.body;
+
+    if (!phoneId || !phoneModel) {
+      return res.status(400).json({ error: 'Phone ID and Phone Model are required' });
+    }
+
+    // Check if phoneId already exists
+    const existing = await Phone.findOne({ phoneId });
+    if (existing) {
+      return res.status(409).json({ error: 'Phone ID already exists' });
+    }
+
+    const phone = new Phone({
+      phoneId,
+      phoneModel,
+      phoneType: phoneType || 'Android',
+      serialNumber: serialNumber || '',
+      imei: imei || '',
+      notes: notes || '',
+      status: status || 'available',
+      isActive: true
+    });
+
+    await phone.save();
+
+    // Log phone creation
+    logAdminAction({
+      adminId: req.adminInfo?.adminId || 'system',
+      adminName: req.adminInfo?.adminName || 'Unknown Admin',
+      adminRole: req.adminInfo?.adminRole || 'motorpool',
+      department: req.adminInfo?.department || 'motorpool',
+      action: 'Phone Created',
+      description: `created phone ${phoneId}`,
+      targetEntity: 'phone',
+      targetId: phoneId,
+      crudOperation: 'crud_create',
+      changes: { phoneId, phoneModel, phoneType },
+      ipAddress: req.ip
+    }).catch(() => {});
+
+    res.status(201).json(phone);
+  } catch (error) {
+    console.error('Create phone error:', error);
+    res.status(500).json({ error: error.message || 'Failed to create phone' });
+  }
+});
+
 router.get('/phones', async (req, res) => {
   try {
     // Motorpool admin only sees phones that are either:
