@@ -431,16 +431,17 @@ const OfflineStorageService = {
   // ============================================================
   // OFFLINE TRANSACTION TRACKING (for duplicate detection)
   // ============================================================
-  async hasRecentTransaction(rfidUId, timeWindowMinutes = 5) {
+  async hasRecentTransaction(rfidUId, timeWindowMinutes = 5, transactionType = null) {
     try {
       const transactions = await this.getOfflineTransactions();
       const now = Date.now();
       const windowStart = now - (timeWindowMinutes * 60 * 1000);
 
-      // Check if there's a recent transaction for this RFID
-      const recentTransaction = transactions.find(tx => 
-        tx.rfidUId === rfidUId && 
-        new Date(tx.timestamp).getTime() > windowStart
+      // Check if there's a recent transaction for this RFID, optionally filtered by type
+      const recentTransaction = transactions.find(tx =>
+        tx.rfidUId === rfidUId &&
+        new Date(tx.timestamp).getTime() > windowStart &&
+        (!transactionType || tx.type === transactionType)
       );
 
       if (recentTransaction) {

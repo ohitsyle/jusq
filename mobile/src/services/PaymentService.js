@@ -84,14 +84,14 @@ const PaymentService = {
       };
     }
 
-    // Check for recent offline transactions (duplicate detection)
-    const recentCheck = await OfflineStorageService.hasRecentTransaction(rfidUId, 5);
+    // Check for recent offline refunds only (duplicate detection)
+    const recentCheck = await OfflineStorageService.hasRecentTransaction(rfidUId, 5, 'refund');
     if (recentCheck.hasRecent) {
       const studentName = recentCheck.transaction.studentName || 'Student';
       return {
         success: false,
         error: {
-          message: `${studentName} already has a recent transaction. Refund not processed.`,
+          message: `${studentName} already has a recent refund. Refund not processed.`,
           code: 'RECENT_TRANSACTION',
           studentName: studentName,
           timeAgo: recentCheck.timeAgo
@@ -466,8 +466,8 @@ const PaymentService = {
       };
     }
 
-    // Check for recent offline transactions (duplicate detection)
-    const recentCheck = await OfflineStorageService.hasRecentTransaction(rfidUId, 5); // 5-minute window
+    // Check for recent offline payments only (duplicate detection)
+    const recentCheck = await OfflineStorageService.hasRecentTransaction(rfidUId, 5, 'payment'); // 5-minute window
     if (recentCheck.hasRecent) {
       const studentName = recentCheck.transaction.studentName || 'Student';
       return {
@@ -618,6 +618,7 @@ const PaymentService = {
       studentName: studentName,
       timestamp: new Date().toISOString(),
       mode: 'offline',
+      type: 'payment',
       previousBalance: cachedBalance,
       estimatedNewBalance: cachedBalance - fare
     };
