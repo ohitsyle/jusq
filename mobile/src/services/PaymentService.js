@@ -14,27 +14,33 @@ const DEFAULT_FARE = 15; // Fallback if no fare specified
 
 const PaymentService = {
   // Check network connectivity - improved version
+  // Uses NetworkService first for instant check, then verifies with a quick ping
   async isOnline() {
     try {
-      // Try multiple endpoints for better reliability
-      const endpoints = ['/system/config', '/health', '/api/health'];
-      
-      for (const endpoint of endpoints) {
+      // Fast check: if device reports no network at all, skip API pings
+      if (!NetworkService.isConnected) {
+        return false;
+      }
+
+      // Quick single-endpoint ping with short timeout (instead of 3 endpoints × 3s)
+      try {
+        const response = await api.get('/system/config', {
+          timeout: 2000,
+          validateStatus: (status) => status < 500
+        });
+        return response.status < 500;
+      } catch (err) {
+        // Single retry with health endpoint
         try {
-          const response = await api.get(endpoint, { 
-            timeout: 3000,
+          const response = await api.get('/health', {
+            timeout: 2000,
             validateStatus: (status) => status < 500
           });
-          
-          if (response.status < 500) {
-            return true;
-          }
-        } catch (err) {
-          continue; // Try next endpoint
+          return response.status < 500;
+        } catch (err2) {
+          return false;
         }
       }
-      
-      return false;
     } catch (error) {
       return false;
     }
@@ -45,11 +51,15 @@ const PaymentService = {
   // ============================================================
   async processRefund(rfidUId, driverId, shuttleId, routeId, tripId, fareAmount, reason = 'Refund requested') {
     const isOnline = await this.isOnline();
-    
+    // Keep NetworkService in sync
+    NetworkService.isConnected = isOnline;
+
     console.log('💸 Processing refund: ₱', fareAmount, 'for:', rfidUId);
 
-    // Validate student status first
-    const statusValidation = await this.validateStudentStatus(rfidUId);
+    // Validate student status — use cache-only when offline to avoid timeouts
+    const statusValidation = isOnline
+      ? await this.validateStudentStatus(rfidUId)
+      : await this._validateFromCache(rfidUId);
     
     // Ensure we always have a validation result
     if (!statusValidation) {
@@ -410,15 +420,31 @@ const PaymentService = {
   // FIXED: Now accepts fareAmount parameter
   // ============================================================
   async processFare(rfidUId, driverId, shuttleId, routeId, tripId, fareAmount = DEFAULT_FARE) {
-    // Use NetworkService for faster offline detection
-    const isOnline = NetworkService.isConnected;
     const fare = fareAmount || DEFAULT_FARE;
+
+    // Do a LIVE network check instead of relying on possibly-stale NetworkService.isConnected
+    let isOnline = false;
+    try {
+      isOnline = await this.isOnline();
+      // Also update NetworkService so other parts of the app stay in sync
+      NetworkService.isConnected = isOnline;
+    } catch (err) {
+      console.log('⚠️ Network check failed, assuming offline');
+      isOnline = false;
+    }
 
     console.log('💳 Processing fare:', fare, 'for route:', routeId, 'network:', isOnline ? 'online' : 'offline');
 
-    // Validate student status first
-    const statusValidation = await this.validateStudentStatus(rfidUId);
-    
+    // Validate student status
+    // If offline, skip the API call and go straight to cached validation
+    let statusValidation;
+    if (isOnline) {
+      statusValidation = await this.validateStudentStatus(rfidUId);
+    } else {
+      // Offline: validate from cache only (don't attempt API calls that will timeout)
+      statusValidation = await this._validateFromCache(rfidUId);
+    }
+
     // Ensure we always have a validation result
     if (!statusValidation) {
       return {
@@ -429,7 +455,7 @@ const PaymentService = {
         }
       };
     }
-    
+
     if (!statusValidation.valid) {
       return {
         success: false,
@@ -456,84 +482,7 @@ const PaymentService = {
     }
 
     if (!isOnline) {
-      // Look up user from cached card data
-      let cachedCard = await OfflineStorageService.lookupCard(rfidUId);
-      let studentName = cachedCard?.fullName || 'Unknown Student';
-      let cachedBalance = cachedCard?.balance ?? 0;
-
-      // If we don't have cached data and we're actually online (network detection failed), try to fetch it
-      if (!cachedCard && studentName === 'Unknown Student') {
-        console.log('🔄 No cached data, attempting to fetch user data...');
-        const userData = await this.fetchAndCacheUserData(rfidUId);
-        if (userData) {
-          studentName = userData.fullName;
-          cachedBalance = userData.balance;
-          cachedCard = userData;
-        }
-      }
-
-      // Enforce negative balance limit from cached settings (same as server)
-      const cachedSettings = await OfflineStorageService.getCachedSettings();
-      const negativeLimit = cachedSettings?.negativeLimit ?? -14;
-      const balanceAfter = cachedBalance - fare;
-
-      if (balanceAfter < negativeLimit) {
-        console.log(`❌ Offline payment rejected: balance ${cachedBalance} - fare ${fare} = ${balanceAfter} < limit ${negativeLimit}`);
-        return {
-          success: false,
-          error: {
-            message: 'Insufficient balance. Please recharge your card.',
-            code: 'INSUFFICIENT_BALANCE'
-          }
-        };
-      }
-
-      if (balanceAfter < 0) {
-        console.warn(`⚠️ Low balance warning: ₱${cachedBalance} - ₱${fare} = ₱${balanceAfter}`);
-      }
-
-      // Create offline transaction record
-      const offlineTransaction = {
-        rfidUId,
-        driverId,
-        shuttleId: shuttleId || DEVICE_ID,
-        routeId,
-        tripId,
-        fareAmount: fare,
-        studentName: studentName,
-        timestamp: new Date().toISOString(),
-        mode: 'offline',
-        previousBalance: cachedBalance,
-        estimatedNewBalance: cachedBalance - fare
-      };
-
-      // Add to offline transactions for duplicate detection
-      await OfflineStorageService.addOfflineTransaction(offlineTransaction);
-
-      // Buffer transaction for later sync
-      await this.bufferOfflineTransaction(offlineTransaction);
-
-      // Update cached card balance so next offline scan sees reduced balance
-      if (cachedCard) {
-        cachedCard.balance = balanceAfter;
-        await OfflineStorageService.cacheCardData(cachedCard);
-      }
-
-      console.log('📦 Offline payment for:', studentName, '- ₱', fare, '(Balance: ₱' + cachedBalance + ' → ₱' + balanceAfter + ')');
-
-      return {
-        success: true,
-        mode: 'offline',
-        offlineMode: true,
-        data: {
-          studentName: studentName,
-          fareAmount: fare,
-          previousBalance: cachedBalance,
-          newBalance: cachedBalance - fare, // Estimated balance
-          isEstimated: true, // Flag to indicate this is estimated
-          balanceWarning: !hasSufficientBalance
-        }
-      };
+      return this._processOfflinePayment(rfidUId, driverId, shuttleId, routeId, tripId, fare);
     }
 
     try {
@@ -544,7 +493,7 @@ const PaymentService = {
         shuttleId: shuttleId || DEVICE_ID,
         routeId,
         tripId,
-        fareAmount: fare,  // NEW: Pass fare amount
+        fareAmount: fare,
         deviceId: DEVICE_ID,
         timestamp: new Date().toISOString()
       });
@@ -553,13 +502,13 @@ const PaymentService = {
       if (res.data) {
         // Handle different response structures
         let userData;
-        
+
         if (res.data.user) {
           // Payment API response structure
           userData = {
             rfidUId,
-            fullName: res.data.user?.fullName || 
-                     (res.data.user?.firstName && res.data.user?.lastName ? 
+            fullName: res.data.user?.fullName ||
+                     (res.data.user?.firstName && res.data.user?.lastName ?
                       `${res.data.user.firstName} ${res.data.user.lastName}` : 'Unknown Student'),
             firstName: res.data.user?.firstName,
             lastName: res.data.user?.lastName,
@@ -587,8 +536,8 @@ const PaymentService = {
         console.log('✅ Cached user data for offline use:', userData.fullName);
       }
 
-      return { 
-        success: true, 
+      return {
+        success: true,
         mode: 'online',
         offlineMode: false,
         data: res.data,
@@ -609,37 +558,143 @@ const PaymentService = {
         };
       }
 
-      // Network error - buffer for offline with cached user data
-      const cachedCard = await OfflineStorageService.lookupCard(rfidUId);
-      const studentName = cachedCard?.fullName || 'Unknown Student';
-      const cachedBalance = cachedCard?.balance ?? 0;
+      // Network error — we thought we were online but actually aren't
+      // Fall back to offline payment processing
+      console.log('📦 Network error during online payment — falling back to offline mode');
+      NetworkService.isConnected = false; // Update state so UI reflects offline
+      return this._processOfflinePayment(rfidUId, driverId, shuttleId, routeId, tripId, fare);
+    }
+  },
 
-      await this.bufferOfflineTransaction({
-        rfidUId,
-        driverId,
-        shuttleId: shuttleId || DEVICE_ID,
-        routeId,
-        tripId,
-        fareAmount: fare,
-        studentName: studentName,
-        timestamp: new Date().toISOString()
-      });
+  // ============================================================
+  // OFFLINE PAYMENT PROCESSING (extracted for reuse)
+  // ============================================================
+  async _processOfflinePayment(rfidUId, driverId, shuttleId, routeId, tripId, fare) {
+    // Look up user from cached card data
+    let cachedCard = await OfflineStorageService.lookupCard(rfidUId);
+    let studentName = cachedCard?.fullName || 'Unknown Student';
+    let cachedBalance = cachedCard?.balance ?? 0;
 
-      console.log('📦 Network error - Offline payment for:', studentName, '- ₱', fare);
-
+    // If we don't have cached data, reject — can't process unknown cards offline
+    if (!cachedCard || studentName === 'Unknown Student') {
+      console.log('❌ No cached data for card — rejecting offline payment');
       return {
-        success: true,
-        mode: 'offline',
-        offlineMode: true,
-        data: {
-          studentName: studentName,
-          fareAmount: fare,
-          previousBalance: cachedBalance,
-          newBalance: cachedBalance - fare,
-          isEstimated: true
+        success: false,
+        error: {
+          message: 'Student not recognized. Please connect to internet to verify this card.',
+          code: 'CARD_NOT_CACHED'
         }
       };
     }
+
+    // Enforce negative balance limit from cached settings (same as server)
+    const cachedSettings = await OfflineStorageService.getCachedSettings();
+    const negativeLimit = cachedSettings?.negativeLimit ?? -14;
+    const balanceAfter = cachedBalance - fare;
+
+    if (balanceAfter < negativeLimit) {
+      console.log(`❌ Offline payment rejected: balance ${cachedBalance} - fare ${fare} = ${balanceAfter} < limit ${negativeLimit}`);
+      return {
+        success: false,
+        error: {
+          message: 'Insufficient balance. Please recharge your card.',
+          code: 'INSUFFICIENT_BALANCE'
+        }
+      };
+    }
+
+    if (balanceAfter < 0) {
+      console.warn(`⚠️ Low balance warning: ₱${cachedBalance} - ₱${fare} = ₱${balanceAfter}`);
+    }
+
+    // Create offline transaction record
+    const offlineTransaction = {
+      rfidUId,
+      driverId,
+      shuttleId: shuttleId || DEVICE_ID,
+      routeId,
+      tripId,
+      fareAmount: fare,
+      studentName: studentName,
+      timestamp: new Date().toISOString(),
+      mode: 'offline',
+      previousBalance: cachedBalance,
+      estimatedNewBalance: cachedBalance - fare
+    };
+
+    // Add to offline transactions for duplicate detection
+    await OfflineStorageService.addOfflineTransaction(offlineTransaction);
+
+    // Buffer transaction for later sync
+    await this.bufferOfflineTransaction(offlineTransaction);
+
+    // Update cached card balance so next offline scan sees reduced balance
+    cachedCard.balance = balanceAfter;
+    await OfflineStorageService.cacheCardData(cachedCard);
+
+    console.log('📦 Offline payment for:', studentName, '- ₱', fare, '(Balance: ₱' + cachedBalance + ' → ₱' + balanceAfter + ')');
+
+    return {
+      success: true,
+      mode: 'offline',
+      offlineMode: true,
+      data: {
+        studentName: studentName,
+        fareAmount: fare,
+        previousBalance: cachedBalance,
+        newBalance: balanceAfter,
+        isEstimated: true,
+        balanceWarning: balanceAfter < 0
+      }
+    };
+  },
+
+  // ============================================================
+  // OFFLINE-ONLY CACHE VALIDATION (no API calls)
+  // ============================================================
+  async _validateFromCache(rfidUId) {
+    console.log('🔄 Validating student from cache (offline)...');
+    const cachedCard = await OfflineStorageService.lookupCard(rfidUId);
+
+    if (cachedCard) {
+      if (cachedCard.isActive === false) {
+        return {
+          valid: false,
+          reason: 'Student account is not active (cached)',
+          code: 'INACTIVE_ACCOUNT'
+        };
+      }
+
+      if (cachedCard.isDeactivated === true) {
+        return {
+          valid: false,
+          reason: 'Student account is deactivated (cached)',
+          code: 'DEACTIVATED_ACCOUNT'
+        };
+      }
+
+      if (cachedCard.fullName && cachedCard.fullName !== 'Unknown Student') {
+        console.log('✅ Cached student data found:', cachedCard.fullName);
+        return {
+          valid: true,
+          offlineMode: true,
+          user: cachedCard
+        };
+      } else {
+        return {
+          valid: false,
+          reason: 'Invalid cached student data',
+          code: 'INVALID_CACHE_DATA'
+        };
+      }
+    }
+
+    console.log('❌ No cached data for card — rejecting offline payment');
+    return {
+      valid: false,
+      reason: 'Student not recognized. Please connect to internet to verify this card.',
+      code: 'CARD_NOT_CACHED'
+    };
   },
 
   // Legacy alias for processPayment (some code might still use this)
