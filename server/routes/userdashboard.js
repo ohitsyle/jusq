@@ -733,8 +733,10 @@ router.post('/deactivate-account', verifyUserToken, async (req, res) => {
     // Clear OTP
     deactivationOtpStore.delete(user.email);
 
-    // 🔥 FREEZE ACCOUNT - Set isActive to false (preserves all data)
+    // 🔥 FREEZE ACCOUNT - Set isActive to false AND isDeactivated to true (preserves all data)
     user.isActive = false;
+    user.isDeactivated = true;
+    user.deactivatedAt = new Date();
     await user.save();
 
     // Log the deactivation for admin audit trail

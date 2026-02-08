@@ -1227,7 +1227,8 @@ router.post('/deactivation-scheduler', async (req, res) => {
     systemConfig.deactivationScheduler = {
       enabled: enabled !== undefined ? enabled : systemConfig.deactivationScheduler.enabled,
       date: date || systemConfig.deactivationScheduler.date,
-      time: time || systemConfig.deactivationScheduler.time
+      time: time || systemConfig.deactivationScheduler.time,
+      executed: false  // Reset executed flag when schedule is updated
     };
 
     // Log student deactivation scheduler change with proper department tracking
@@ -1630,5 +1631,15 @@ router.get('/feedbacks/export', async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
+
+// Export systemConfig accessors for deactivation cron job
+export function getSystemConfig() {
+  return systemConfig;
+}
+
+export function setSchedulerExecuted() {
+  systemConfig.deactivationScheduler.enabled = false;
+  systemConfig.deactivationScheduler.executed = true;
+}
 
 export default router;

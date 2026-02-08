@@ -40,6 +40,8 @@ mongoose.connect(mongoUri)
     console.log('✅ MongoDB connected');
     // Initialize auto-export cron job after DB connection
     initializeAutoExportCron();
+    // Initialize deactivation scheduler cron job
+    initializeDeactivationCron(getSystemConfig, setSchedulerExecuted);
   })
   .catch(e => console.error('❌ MongoDB connection error:', e));
 
@@ -55,9 +57,10 @@ import userDashboardRoutes from './routes/userdashboard.js';
 import activationRoutes from './routes/activation.js';
 import treasuryRoutes from './routes/treasury.js';
 import accountingRoutes from './routes/accounting.js';
-import sysadRoutes from './routes/sysad.js';
+import sysadRoutes, { getSystemConfig, setSchedulerExecuted } from './routes/sysad.js';
 import websocketRoutes from './routes/websocket.js';
 import { initializeAutoExportCron } from './jobs/autoExportCron.js';
+import { initializeDeactivationCron } from './jobs/deactivationCron.js';
 import { checkMaintenanceMode } from './middlewares/maintenanceMode.js';
 import websocketService from './services/websocketService.js';
 
