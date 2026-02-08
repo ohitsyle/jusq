@@ -377,7 +377,7 @@ export default function SysadConcernsPage() {
           <div className="flex gap-1 p-1 rounded-xl" style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F3F4F6' }}>
             {[
               { value: 'all', label: `All (${concerns.length})` },
-              { value: 'assistance', label: `Assistance (${concerns.filter(c => c.submissionType === 'assistance' || !c.submissionType).length})` },
+              { value: 'assistance', label: `Ass (${concerns.filter(c => c.submissionType === 'assistance' || !c.submissionType).length})` },
               { value: 'feedback', label: `Feedback (${concerns.filter(c => c.submissionType === 'feedback').length})` }
             ].map((option) => (
               <button
