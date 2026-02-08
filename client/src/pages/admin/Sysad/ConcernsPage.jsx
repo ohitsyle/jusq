@@ -282,148 +282,126 @@ export default function SysadConcernsPage() {
 
   return (
     <div className="h-full flex flex-col">
-      {/* Header */}
+      {/* Header - Title & Subtitle */}
       <div style={{ borderColor: theme.border.primary }} className="mb-6 border-b-2 pb-5">
-        <div className="mb-5">
-          <h2 style={{ color: theme.accent.primary }} className="text-2xl font-bold m-0 mb-2 flex items-center gap-[10px]">
-            <span>💬</span> Concerns & Feedback
-          </h2>
-          <p style={{ color: theme.text.secondary }} className="text-[13px] m-0">
-            {filteredConcerns.length > 0
-              ? `Showing ${startIndex + 1}-${Math.min(startIndex + ITEMS_PER_PAGE, filteredConcerns.length)} of ${filteredConcerns.length} • Page ${currentPage} of ${totalPages}`
-              : `All user reports and feedbacks about the NUCash system • Total: ${concerns.length}`
-            }
-          </p>
-        </div>
+        <h2 style={{ color: theme.accent.primary }} className="text-2xl font-bold m-0 mb-2 flex items-center gap-[10px]">
+          <span>💬</span> Concerns & Feedback
+        </h2>
+        <p style={{ color: theme.text.secondary }} className="text-[13px] m-0">
+          {filteredConcerns.length > 0
+            ? `Showing ${startIndex + 1}-${Math.min(startIndex + ITEMS_PER_PAGE, filteredConcerns.length)} of ${filteredConcerns.length} • Page ${currentPage} of ${totalPages}`
+            : `All user reports and feedbacks about the NUCash system • Total: ${concerns.length}`
+          }
+        </p>
+      </div>
 
-        {/* Metrics Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
-          {/* Pending Card */}
+      {/* Metrics Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+        {/* Pending Card */}
+        <div
+          style={{
+            background: theme.bg.card,
+            borderColor: 'rgba(251, 191, 36, 0.3)'
+          }}
+          className="p-4 rounded-xl border flex items-center gap-4 transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
+        >
           <div
-            style={{
-              background: theme.bg.card,
-              borderColor: 'rgba(251, 191, 36, 0.3)'
-            }}
-            className="p-4 rounded-xl border flex items-center gap-4 transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
+            style={{ background: 'rgba(251, 191, 36, 0.2)' }}
+            className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
           >
-            <div
-              style={{ background: 'rgba(251, 191, 36, 0.2)' }}
-              className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-            >
-              <Clock style={{ color: '#FBBF24' }} className="w-6 h-6" />
-            </div>
-            <div>
-              <p style={{ color: theme.text.secondary }} className="text-[10px] font-semibold uppercase tracking-wide">Pending</p>
-              <p style={{ color: '#FBBF24' }} className="text-2xl font-bold">
-                {concerns.filter(c => c.status === 'pending' && c.submissionType !== 'feedback').length}
-              </p>
-            </div>
+            <Clock style={{ color: '#FBBF24' }} className="w-6 h-6" />
           </div>
-
-          {/* In Progress Card */}
-          <div
-            style={{
-              background: theme.bg.card,
-              borderColor: 'rgba(59, 130, 246, 0.3)'
-            }}
-            className="p-4 rounded-xl border flex items-center gap-4 transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
-          >
-            <div
-              style={{ background: 'rgba(59, 130, 246, 0.2)' }}
-              className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-            >
-              <Loader2 style={{ color: '#3B82F6' }} className="w-6 h-6 animate-spin" />
-            </div>
-            <div>
-              <p style={{ color: theme.text.secondary }} className="text-[10px] font-semibold uppercase tracking-wide">In Progress</p>
-              <p style={{ color: '#3B82F6' }} className="text-2xl font-bold">
-                {concerns.filter(c => c.status === 'in_progress').length}
-              </p>
-            </div>
-          </div>
-
-          {/* Resolved Card */}
-          <div
-            style={{
-              background: theme.bg.card,
-              borderColor: 'rgba(16, 185, 129, 0.3)'
-            }}
-            className="p-4 rounded-xl border flex items-center gap-4 transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
-          >
-            <div
-              style={{ background: 'rgba(16, 185, 129, 0.2)' }}
-              className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-            >
-              <CheckCircle style={{ color: '#10B981' }} className="w-6 h-6" />
-            </div>
-            <div>
-              <p style={{ color: theme.text.secondary }} className="text-[10px] font-semibold uppercase tracking-wide">Resolved</p>
-              <p style={{ color: '#10B981' }} className="text-2xl font-bold">
-                {concerns.filter(c => c.status === 'resolved').length}
-              </p>
-            </div>
+          <div>
+            <p style={{ color: theme.text.secondary }} className="text-[10px] font-semibold uppercase tracking-wide">Pending</p>
+            <p style={{ color: '#FBBF24' }} className="text-2xl font-bold">
+              {concerns.filter(c => c.status === 'pending' && c.submissionType !== 'feedback').length}
+            </p>
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-2 mb-5">
-          <button
-            onClick={() => setActiveTab('all')}
-            style={{
-              padding: '10px 20px',
-              background: activeTab === 'all' ? (isDarkMode ? 'rgba(255,212,28,0.2)' : 'rgba(59,130,246,0.2)') : 'transparent',
-              border: `2px solid ${activeTab === 'all' ? theme.accent.primary : (isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)')}`,
-              borderRadius: '8px',
-              color: activeTab === 'all' ? theme.accent.primary : theme.text.secondary,
-              fontSize: '13px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}
+        {/* In Progress Card */}
+        <div
+          style={{
+            background: theme.bg.card,
+            borderColor: 'rgba(59, 130, 246, 0.3)'
+          }}
+          className="p-4 rounded-xl border flex items-center gap-4 transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
+        >
+          <div
+            style={{ background: 'rgba(59, 130, 246, 0.2)' }}
+            className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
           >
-            All ({concerns.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('assistance')}
-            style={{
-              padding: '10px 20px',
-              background: activeTab === 'assistance' ? 'rgba(59,130,246,0.2)' : 'transparent',
-              border: `2px solid ${activeTab === 'assistance' ? '#3B82F6' : 'rgba(59,130,246,0.3)'}`,
-              borderRadius: '8px',
-              color: activeTab === 'assistance' ? '#3B82F6' : theme.text.secondary,
-              fontSize: '13px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}
-          >
-            Assistance ({concerns.filter(c => c.submissionType === 'assistance' || !c.submissionType).length})
-          </button>
-          <button
-            onClick={() => setActiveTab('feedback')}
-            style={{
-              padding: '10px 20px',
-              background: activeTab === 'feedback' ? 'rgba(34,197,94,0.2)' : 'transparent',
-              border: `2px solid ${activeTab === 'feedback' ? '#22C55E' : 'rgba(34,197,94,0.3)'}`,
-              borderRadius: '8px',
-              color: activeTab === 'feedback' ? '#22C55E' : theme.text.secondary,
-              fontSize: '13px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}
-          >
-            Feedback ({concerns.filter(c => c.submissionType === 'feedback').length})
-          </button>
+            <Loader2 style={{ color: '#3B82F6' }} className="w-6 h-6 animate-spin" />
+          </div>
+          <div>
+            <p style={{ color: theme.text.secondary }} className="text-[10px] font-semibold uppercase tracking-wide">In Progress</p>
+            <p style={{ color: '#3B82F6' }} className="text-2xl font-bold">
+              {concerns.filter(c => c.status === 'in_progress').length}
+            </p>
+          </div>
         </div>
 
-        {/* Filters Row */}
-        <div className="flex gap-3 items-end flex-wrap">
+        {/* Resolved Card */}
+        <div
+          style={{
+            background: theme.bg.card,
+            borderColor: 'rgba(16, 185, 129, 0.3)'
+          }}
+          className="p-4 rounded-xl border flex items-center gap-4 transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
+        >
+          <div
+            style={{ background: 'rgba(16, 185, 129, 0.2)' }}
+            className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+          >
+            <CheckCircle style={{ color: '#10B981' }} className="w-6 h-6" />
+          </div>
+          <div>
+            <p style={{ color: theme.text.secondary }} className="text-[10px] font-semibold uppercase tracking-wide">Resolved</p>
+            <p style={{ color: '#10B981' }} className="text-2xl font-bold">
+              {concerns.filter(c => c.status === 'resolved').length}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Actions Bar */}
+      <div
+        style={{
+          background: isDarkMode ? 'rgba(15,18,39,0.8)' : theme.bg.card,
+          borderColor: theme.accent.primary
+        }}
+        className="rounded-xl border-2 p-4 mb-5"
+      >
+        <div className="flex flex-wrap gap-3 items-center">
+          {/* Sort Tabs - All/Assistance/Feedback */}
+          <div className="flex gap-1 p-1 rounded-xl" style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F3F4F6' }}>
+            {[
+              { value: 'all', label: `All (${concerns.length})` },
+              { value: 'assistance', label: `Assistance (${concerns.filter(c => c.submissionType === 'assistance' || !c.submissionType).length})` },
+              { value: 'feedback', label: `Feedback (${concerns.filter(c => c.submissionType === 'feedback').length})` }
+            ].map((option) => (
+              <button
+                key={option.value}
+                onClick={() => setActiveTab(option.value)}
+                style={{
+                  background: activeTab === option.value ? theme.accent.primary : 'transparent',
+                  color: activeTab === option.value ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.secondary
+                }}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Search */}
           <SearchBar
             value={searchQuery}
             onChange={setSearchQuery}
             placeholder="Search by ID, user, subject..."
           />
+
+          {/* Status Filter */}
           {activeTab !== 'feedback' && (
             <StatusFilter
               value={statusFilter}
@@ -436,13 +414,28 @@ export default function SysadConcernsPage() {
               ]}
             />
           )}
+
+          {/* Date Range */}
           <DateRangeFilter
             startDate={startDate}
             endDate={endDate}
             onStartChange={setStartDate}
             onEndChange={setEndDate}
           />
-          <ExportButton onClick={handleExport} disabled={filteredConcerns.length === 0} />
+
+          {/* Export CSV Button */}
+          <button
+            onClick={handleExport}
+            disabled={filteredConcerns.length === 0}
+            style={{  background: 'rgba(16,185,129,0.15)',
+                      color: '#10B981',
+                      borderColor: 'rgba(16,185,129,0.3)'
+                  }}
+            className="px-4 py-2 rounded-xl font-semibold text-sm border flex items-center gap-2 hover:opacity-80 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Download className="w-4 h-4" />
+            Export
+          </button>
         </div>
       </div>
 
