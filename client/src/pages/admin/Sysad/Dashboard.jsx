@@ -173,74 +173,7 @@ export default function SysadDashboard() {
       </div>
 
       {/* Recent Admin Activity */}
-      <div className="flex-1">
-        <h3 style={{ color: theme.text.primary }} className="text-lg font-bold mb-4 flex items-center gap-2">
-          <Clock className="w-5 h-5" style={{ color: theme.accent.primary }} />
-          Recent Admin Activity
-        </h3>
-        <div
-          style={{ background: theme.bg.card, borderColor: theme.border.primary }}
-          className="rounded-2xl border p-4"
-        >
-          {metrics.recentLogins && metrics.recentLogins.length > 0 ? (
-            <div className="space-y-3">
-              {metrics.recentLogins.map((login, index) => (
-                <div
-                  key={index}
-                  style={{
-                    background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB',
-                    borderColor: theme.border.primary
-                  }}
-                  className="p-4 rounded-xl border flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-4">
-                    <div
-                      style={{
-                        background: login.eventType === 'login' ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'
-                      }}
-                      className="w-10 h-10 rounded-full flex items-center justify-center"
-                    >
-                      {login.eventType === 'login' ? (
-                        <UserCheck className="w-5 h-5 text-emerald-500" />
-                      ) : (
-                        <UserX className="w-5 h-5 text-red-500" />
-                      )}
-                    </div>
-                    <div>
-                      <p style={{ color: theme.text.primary }} className="font-semibold">
-                        {login.adminName || 'Admin'}
-                      </p>
-                      <p style={{ color: theme.text.secondary }} className="text-xs">
-                        {login.metadata?.adminRole || 'Admin'} • {login.adminId || 'N/A'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span
-                      style={{
-                        background: login.eventType === 'login' ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)',
-                        color: login.eventType === 'login' ? '#10B981' : '#EF4444'
-                      }}
-                      className="px-3 py-1 rounded-full text-xs font-bold uppercase"
-                    >
-                      {login.eventType}
-                    </span>
-                    <p style={{ color: theme.text.muted }} className="text-xs mt-1">
-                      {new Date(login.timestamp).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div style={{ color: theme.text.tertiary }} className="text-center py-10">
-              <Clock className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p className="font-semibold">No recent admin activity</p>
-              <p className="text-sm mt-1">Admin logins and logouts will appear here</p>
-            </div>
-          )}
-        </div>
-      </div>
+      
 
       {/* Add User Modal */}
       {showAddUserModal && (
