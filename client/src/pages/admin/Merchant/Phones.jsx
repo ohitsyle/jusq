@@ -43,7 +43,7 @@ export default function MerchantPhonesList() {
   const loadMerchants = async () => {
     try {
       const data = await api.get('/merchant/merchants');
-      setMerchants(Array.isArray(data) ? data : []);
+      setMerchants(data.merchants || []);
     } catch (error) {
       console.error('Error loading merchants:', error);
     }
