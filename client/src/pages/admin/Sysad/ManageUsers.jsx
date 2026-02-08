@@ -128,6 +128,7 @@ export default function ManageUsers() {
     total: 0,
     active: 0,
     inactive: 0,
+    deactivated: 0,
     admins: 0,
     employees: 0,
     students: 0
@@ -202,6 +203,7 @@ export default function ManageUsers() {
       'Email': user.email || 'N/A',
       'Role': user.role || 'user',
       'Status': user.isActive ? 'Active' : 'Inactive',
+      'Deactivated': user.isDeactivated ? 'Yes' : 'No',
       'Balance': user.balance || 0,
       'Created': new Date(user.createdAt).toLocaleDateString()
     }));
@@ -228,11 +230,11 @@ export default function ManageUsers() {
     );
   };
 
-  const handleToggleStatus = async (userId, currentStatus) => {
+  const handleToggleStatus = async (userId, isDeactivated) => {
     try {
-      // Backend uses toggle-status endpoint, not status
+      // Backend uses toggle-status endpoint to toggle isDeactivated
       await api.patch(`/admin/sysad/users/${userId}/toggle-status`);
-      showNotification('success', 'Status Updated', `User has been ${currentStatus ? 'deactivated' : 'activated'} successfully.`);
+      showNotification('success', 'Status Updated', `User has been ${isDeactivated ? 'undeactivated' : 'deactivated'} successfully.`);
       fetchUsers(true);
     } catch (error) {
       showNotification('error', 'Update Failed', 'Failed to update user status. Please try again.');
@@ -258,10 +260,11 @@ export default function ManageUsers() {
       </div>
 
       {/* Metrics Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-5">
         <MetricCard icon={<Users className="w-5 h-5" />} label="Total Users" value={metrics.total} color="#3B82F6" theme={theme} />
         <MetricCard icon={<UserCheck className="w-5 h-5" />} label="Active" value={metrics.active} color="#10B981" theme={theme} />
         <MetricCard icon={<UserX className="w-5 h-5" />} label="Inactive" value={metrics.inactive} color="#EF4444" theme={theme} />
+        <MetricCard icon={<UserX className="w-5 h-5" />} label="Deactivated" value={metrics.deactivated} color="#F97316" theme={theme} />
         <MetricCard icon={<Shield className="w-5 h-5" />} label="Admins" value={metrics.admins} color={isDarkMode ? '#FFD41C' : '#3B82F6'} theme={theme} />
         <MetricCard icon={<Briefcase className="w-5 h-5" />} label="Employees" value={metrics.employees} color="#F59E0B" theme={theme} />
         <MetricCard icon={<GraduationCap className="w-5 h-5" />} label="Students" value={metrics.students} color="#06B6D4" theme={theme} />
@@ -318,7 +321,8 @@ export default function ManageUsers() {
               {[
                 { value: 'all', label: 'All', color: null },
                 { value: 'active', label: 'Active', color: '#10B981' },
-                { value: 'inactive', label: 'Inactive', color: '#EF4444' }
+                { value: 'inactive', label: 'Inactive', color: '#EF4444' },
+                { value: 'deactivated', label: 'Deactivated', color: '#F97316' }
               ].map((option) => (
                 <button
                   key={option.value}
@@ -414,7 +418,7 @@ export default function ManageUsers() {
                     <th style={{ color: theme.accent.primary, borderColor: theme.border.primary }} className="text-left p-4 text-xs font-bold uppercase border-b-2">Name</th>
                     <th style={{ color: theme.accent.primary, borderColor: theme.border.primary }} className="text-left p-4 text-xs font-bold uppercase border-b-2">Email</th>
                     <th style={{ color: theme.accent.primary, borderColor: theme.border.primary }} className="text-left p-4 text-xs font-bold uppercase border-b-2">Role</th>
-                    <th style={{ color: theme.accent.primary, borderColor: theme.border.primary }} className="text-left p-4 text-xs font-bold uppercase border-b-2">Status</th>
+                    <th style={{ color: theme.accent.primary, borderColor: theme.border.primary }} className="text-left p-4 text-xs font-bold uppercase border-b-2">Deactivated</th>
                     <th style={{ color: theme.accent.primary, borderColor: theme.border.primary }} className="text-center p-4 text-xs font-bold uppercase border-b-2">Actions</th>
                   </tr>
                 </thead>
@@ -441,7 +445,7 @@ export default function ManageUsers() {
                         <RoleBadge role={user.role} isDarkMode={isDarkMode} />
                       </td>
                       <td className="p-4">
-                        <StatusBadge isActive={user.isActive} />
+                        <DeactivatedBadge isDeactivated={user.isDeactivated} />
                       </td>
                       <td className="p-4">
                         <div className="flex items-center justify-center gap-2">
@@ -453,15 +457,15 @@ export default function ManageUsers() {
                             Edit
                           </button>
                           <button
-                            onClick={() => handleToggleStatus(user._id, user.isActive)}
+                            onClick={() => handleToggleStatus(user._id, user.isDeactivated)}
                             style={{
-                              background: user.isActive ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.15)',
-                              color: user.isActive ? '#EF4444' : '#10B981',
-                              borderColor: user.isActive ? 'rgba(239,68,68,0.3)' : 'rgba(16,185,129,0.3)'
+                              background: user.isDeactivated ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
+                              color: user.isDeactivated ? '#10B981' : '#EF4444',
+                              borderColor: user.isDeactivated ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'
                             }}
                             className="px-3 py-1.5 rounded-lg hover:opacity-80 transition-all text-xs font-semibold border"
                           >
-                            {user.isActive ? 'Deactivate' : 'Activate'}
+                            {user.isDeactivated ? 'Undeactivate' : 'Deactivate'}
                           </button>
                           <button
                             onClick={() => handleDeleteUser(user._id)}
@@ -610,19 +614,19 @@ function RoleBadge({ role, isDarkMode }) {
   );
 }
 
-// Status Badge Component - Enhanced styling
-function StatusBadge({ isActive }) {
+// Deactivated Badge Component - Shows Yes/No for isDeactivated
+function DeactivatedBadge({ isDeactivated }) {
   return (
     <span
       style={{
-        background: isActive ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
-        color: isActive ? '#10B981' : '#EF4444',
-        borderColor: isActive ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)'
+        background: isDeactivated ? 'rgba(249,115,22,0.12)' : 'rgba(16,185,129,0.12)',
+        color: isDeactivated ? '#F97316' : '#10B981',
+        borderColor: isDeactivated ? 'rgba(249,115,22,0.25)' : 'rgba(16,185,129,0.25)'
       }}
       className="px-2.5 py-1 rounded-lg text-xs font-semibold border inline-flex items-center gap-1"
     >
-      <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
-      {isActive ? 'Active' : 'Inactive'}
+      <span className={`w-1.5 h-1.5 rounded-full ${isDeactivated ? 'bg-orange-500' : 'bg-emerald-500'}`}></span>
+      {isDeactivated ? 'Yes' : 'No'}
     </span>
   );
 }

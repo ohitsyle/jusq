@@ -134,9 +134,14 @@ router.get('/users', async (req, res) => {
     }
 
     if (status && status !== 'all') {
-      // User model uses isActive (boolean) not status (string)
-      userFilter.isActive = status === 'active';
-      adminFilter.isActive = status === 'active';
+      if (status === 'deactivated') {
+        // Filter for deactivated users only
+        userFilter.isDeactivated = true;
+      } else {
+        // User model uses isActive (boolean) not status (string)
+        userFilter.isActive = status === 'active';
+        adminFilter.isActive = status === 'active';
+      }
     }
 
     if (search) {
@@ -241,10 +246,11 @@ router.get('/users', async (req, res) => {
 router.get('/users/metrics', async (req, res) => {
   try {
     // Count users and admins separately then combine
-    const [userTotal, userActive, userInactive, students, employees, adminTotal, adminActive, adminInactive] = await Promise.all([
+    const [userTotal, userActive, userInactive, userDeactivated, students, employees, adminTotal, adminActive, adminInactive] = await Promise.all([
       User.countDocuments(),
       User.countDocuments({ isActive: true }),
       User.countDocuments({ isActive: { $ne: true } }),
+      User.countDocuments({ isDeactivated: true }),
       User.countDocuments({ role: 'student' }),
       User.countDocuments({ role: 'employee' }),
       Admin.countDocuments(),
@@ -258,6 +264,7 @@ router.get('/users/metrics', async (req, res) => {
         total: userTotal + adminTotal,
         active: userActive + adminActive,
         inactive: userInactive + adminInactive,
+        deactivated: userDeactivated,
         students,
         employees,
         admins: adminTotal
@@ -712,22 +719,27 @@ router.patch('/users/:userId/toggle-status', async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    // Toggle isActive (boolean field)
-    user.isActive = !user.isActive;
-    
-    // For User model, also update isDeactivated field to keep them in sync
+    // Toggle isDeactivated for Users, isActive for Admins
     if (!isAdmin) {
-      user.isDeactivated = !user.isActive;
+      // For users: toggle isDeactivated
+      user.isDeactivated = !user.isDeactivated;
       if (user.isDeactivated) {
+        // Deactivating: also set isActive to false
+        user.isActive = false;
         user.deactivatedAt = new Date();
       } else {
+        // Un-deactivating: clear deactivatedAt, keep isActive as-is
+        // User may need to go through activation flow if isActive was false
         user.deactivatedAt = null;
       }
+    } else {
+      // For admins: toggle isActive directly (admins don't have isDeactivated)
+      user.isActive = !user.isActive;
     }
-    
+
     await user.save();
 
-    const statusText = user.isActive ? 'activated' : 'deactivated';
+    const statusText = (!isAdmin ? user.isDeactivated : !user.isActive) ? 'deactivated' : 'undeactivated';
     const userName = user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim();
 
     // Log action
@@ -738,6 +750,7 @@ router.patch('/users/:userId/toggle-status', async (req, res) => {
       metadata: {
         userId: user._id,
         isActive: user.isActive,
+        isDeactivated: user.isDeactivated,
         role: user.role || (isAdmin ? 'admin' : 'user'),
         adminAction: true
       }
@@ -746,12 +759,12 @@ router.patch('/users/:userId/toggle-status', async (req, res) => {
       adminId: req.adminId || 'sysad',
       adminRole: 'sysad',
       department: 'system',
-      action: `${isAdmin ? 'Admin' : 'User'} Status Toggled`,
+      action: `${isAdmin ? 'Admin' : 'User'} ${statusText}`,
       description: `${statusText} ${isAdmin ? 'admin' : 'user'}: ${userName}`,
       targetEntity: 'user',
       targetId: user._id?.toString(),
       crudOperation: 'crud_update',
-      changes: { isActive: user.isActive, statusText },
+      changes: { isActive: user.isActive, isDeactivated: user.isDeactivated, statusText },
       ipAddress: req.ip
     }).catch(() => {});
 

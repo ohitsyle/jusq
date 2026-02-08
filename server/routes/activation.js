@@ -56,6 +56,14 @@ router.post('/check-account', async (req, res) => {
       return res.status(401).json({ error: 'Invalid PIN' });
     }
 
+    // Block deactivated users entirely — they cannot activate
+    if (account.isDeactivated) {
+      return res.status(403).json({
+        error: 'Your account has been deactivated. Please visit ITSO to reactivate your account.',
+        deactivated: true
+      });
+    }
+
     // Check if account is already active
     if (account.isActive) {
       return res.json({
@@ -260,6 +268,14 @@ router.post('/verify-otp', async (req, res) => {
     // Verify OTP
     if (storedOtp !== otp) {
       return res.status(401).json({ error: 'Invalid OTP' });
+    }
+
+    // Block deactivated users from activating
+    if (account.isDeactivated) {
+      return res.status(403).json({
+        error: 'Your account has been deactivated. Please visit ITSO to reactivate your account.',
+        deactivated: true
+      });
     }
 
     // Activate account - update only these fields (avoids full-doc save)

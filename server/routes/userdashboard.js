@@ -44,12 +44,21 @@ router.post('/auth/login', async (req, res) => {
       });
     }
 
-    // Check if account is deactivated
-    if (!user.isActive) {
-      console.log('⚠️  Account is deactivated:', email);
+    // Check if account is deactivated (admin or self-deactivated)
+    if (user.isDeactivated) {
+      console.log('⚠️  Account is deactivated (isDeactivated=true):', email);
       return res.status(403).json({
         error: 'Your account has been deactivated. Please visit ITSO to reactivate your account.',
         deactivated: true
+      });
+    }
+
+    // Check if account is not yet activated (new account, hasn't changed PIN)
+    if (!user.isActive) {
+      console.log('⚠️  Account is not yet activated:', email);
+      return res.status(403).json({
+        error: 'Your account is not yet activated. Please go through the activation process first.',
+        needsActivation: true
       });
     }
 
