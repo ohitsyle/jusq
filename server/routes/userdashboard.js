@@ -44,9 +44,9 @@ router.post('/auth/login', async (req, res) => {
       });
     }
 
-    // Check if account is deactivated (admin or self-deactivated)
-    if (user.isDeactivated) {
-      console.log('⚠️  Account is deactivated (isDeactivated=true):', email);
+    // Check if account is deactivated or inactive
+    if (!user.isActive || user.isDeactivated) {
+      console.log('⚠️  Account is deactivated/inactive:', email);
       return res.status(403).json({
         error: 'Your account has been deactivated. Please visit ITSO to reactivate your account.',
         deactivated: true
@@ -127,17 +127,33 @@ const verifyUserToken = async (req, res, next) => {
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, getJWTSecret());
 
-    // Find the user
-    const user = await User.findById(decoded.id);
+    // Get user from database
+    const User = (await import('../models/User.js')).default;
+    const user = await User.findOne({ email: decoded.email });
+
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(401).json({ error: 'User not found' });
+    }
+
+    // Check if account is deactivated or inactive
+    if (!user.isActive || user.isDeactivated) {
+      console.log('⚠️  Account is deactivated/inactive:', user.email);
+      return res.status(403).json({
+        error: 'Your account has been deactivated. Please visit ITSO to reactivate your account.',
+        deactivated: true
+      });
     }
 
     req.user = user;
     next();
   } catch (error) {
-    console.error('Token verification error:', error.message);
-    return res.status(401).json({ error: 'Invalid or expired token' });
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'Token expired' });
+    }
+    return res.status(500).json({ error: 'Server error' });
   }
 };
 
@@ -742,8 +758,10 @@ router.post('/deactivate-account', verifyUserToken, async (req, res) => {
     // Clear OTP
     deactivationOtpStore.delete(user.email);
 
-    // 🔥 FREEZE ACCOUNT - Set isActive to false AND isDeactivated to true (preserves all data)
+    // 🔥 FREEZE ACCOUNT - Set both isActive and isDeactivated to false/true
     user.isActive = false;
+    user.isDeactivated = true;
+    user.deactivatedAt = new Date();
     user.isDeactivated = true;
     user.deactivatedAt = new Date();
     await user.save();
@@ -961,7 +979,7 @@ router.post('/request-transaction-history', async (req, res) => {
           </p>
           <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
           <p style="color: #999; font-size: 11px;">NUCash System - National University, Laguna Campus</p>
-        </div>
+    </div>
       `,
       attachments: [{
         filename: `NUCash_TransactionHistory_${new Date().toISOString().split('T')[0]}.pdf`,

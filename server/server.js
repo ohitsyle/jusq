@@ -60,6 +60,7 @@ import accountingRoutes from './routes/accounting.js';
 import sysadRoutes, { getSystemConfig, setSchedulerExecuted } from './routes/sysad.js';
 import websocketRoutes from './routes/websocket.js';
 import { initializeAutoExportCron } from './jobs/autoExportCron.js';
+import { initializeStudentDeactivationCron } from './jobs/studentDeactivationCron.js';
 import { initializeDeactivationCron } from './jobs/deactivationCron.js';
 import { checkMaintenanceMode } from './middlewares/maintenanceMode.js';
 import websocketService from './services/websocketService.js';

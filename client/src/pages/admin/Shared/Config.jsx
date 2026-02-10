@@ -112,6 +112,29 @@ export default function ConfigPage() {
         customEndDate
       });
 
+      try {
+        const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+        
+        await logDataExport({
+          adminId: adminData._id || adminData.adminId,
+          adminName: `${adminData.firstName || ''} ${adminData.lastName || ''}`.trim(),
+          exportType: 'accounting_manual_export',
+          dataTypes: configurations.autoExport.exportTypes,
+          dateRange: {
+            type: dateRange,
+            start: customStartDate || null,
+            end: customEndDate || null
+          },
+          format: 'ZIP',
+          recordCount: result.totalRecords || 0,
+          fileName: result.fileName || `accounting_export_${new Date().toISOString().split('T')[0]}.zip`
+        });
+        
+        console.log('✅ Export logged successfully');
+      } catch (logError) {
+        console.error('Failed to log export:', logError);
+      }
+
       toast.success(`Accounting data exported successfully! (${result.totalRecords || 0} total records)`);
 
       if (result.downloadUrl) {

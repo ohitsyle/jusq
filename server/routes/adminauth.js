@@ -162,26 +162,19 @@ router.post('/login', async (req, res) => {
 // ============================================================================
 router.post('/logout', authenticateAdmin, async (req, res) => {
   try {
-    const decoded = req.admin;
+    const admin = req.admin;
 
-    // Fetch full admin data from database for proper logging
-    const admin = await Admin.findOne({ adminId: decoded.adminId });
-    const adminName = admin
-      ? `${admin.firstName} ${admin.lastName}`.trim() || admin.email || 'Admin'
-      : (decoded.adminId || 'Unknown');
-    const adminRole = admin?.role || decoded.role || 'admin';
-
-    // Log the logout event with proper department tracking
+    // Log the logout event
     await logLogout({
-      adminId: decoded.adminId,
-      adminName: adminName,
-      userType: `Admin (${adminRole})`,
-      adminRole: adminRole,
-      department: adminRole,
+      adminId: admin.adminId,
+      adminName: `${admin.firstName} ${admin.lastName}`,
+      userType: `Admin (${admin.role})`,
+      adminRole: admin.role,
+      department: admin.role,
       sessionDuration: req.body.sessionDuration || null
     });
 
-    console.log(`👋 Admin logout: ${adminName}`);
+    console.log(`👋 Admin logout: ${admin.email}`);
 
     res.json({
       message: 'Logout successful'

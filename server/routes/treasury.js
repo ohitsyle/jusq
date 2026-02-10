@@ -686,17 +686,20 @@ router.post('/cash-in', async (req, res) => {
     user.balance += parseFloat(amount);
     await user.save();
 
-    // Log cash-in transaction with proper department tracking
-    await logCashIn({
-      adminId: req.adminInfo?.adminId || adminId || 'treasury',
-      adminName: req.adminInfo?.adminName || 'Treasury Admin',
-      amount: parseFloat(amount),
-      userId: user._id,
-      userName: `${user.firstName} ${user.lastName}`,
-      paymentMethod: 'cash',
-      transactionId: transaction.transactionId,
-      timestamp: new Date()
-    });
+    // Log admin action
+    logAdminAction({
+      action: 'Cash-In Processed',
+      description: `processed cash-in of ₱${amount} for user ${user.schoolUId}`,
+      adminId: req.adminId || adminId || 'treasury',
+      adminName: req.adminName || 'Treasury Admin',
+      adminRole: req.adminRole || 'treasury',
+      department: req.department || 'treasury',
+      targetEntity: 'transaction',
+      targetId: transactionId,
+      crudOperation: 'cash_in',
+      changes: { amount, newBalance: user.balance },
+      ipAddress: req.ip
+    }).catch(() => {});
 
     // TODO: Send receipt email to user
     let receiptSent = false;
