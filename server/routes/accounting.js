@@ -1,6 +1,11 @@
 // server/routes/accounting.js
 // Accounting admin routes - reuses some treasury functionality with accounting-specific endpoints
 
+import express from 'express';
+const router = express.Router();
+import Transaction from '../models/Transaction.js';
+import User from '../models/User.js';
+import Merchant from '../models/Merchant.js';
 import { logAdminAction, logAutoExportConfigChange, logManualExport } from '../utils/logger.js';
 import { extractAdminInfo } from '../middlewares/extractAdminInfo.js';
 
