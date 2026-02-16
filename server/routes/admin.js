@@ -12,6 +12,7 @@ import User from '../models/User.js';
 import EventLog from '../models/EventLog.js';
 import UserConcern from '../models/UserConcern.js';
 import Trip from '../models/Trip.js';
+import ShuttleTransaction from '../models/ShuttleTransaction.js';
 import { logAdminAction, logError, logDriverLogin, logDriverLogout, logDriverShuttleSelection, logDriverRouteChange, logMerchantLogin, logMerchantLogout, logCashIn, logAutoExportConfigChange, logManualExport, logMaintenanceMode, logStudentDeactivation } from '../utils/logger.js';
 import { extractAdminInfo } from '../middlewares/extractAdminInfo.js';
 import { broadcastChanges, forceMobileRefresh } from '../middlewares/realtimeMiddleware.js';
@@ -1053,6 +1054,25 @@ router.get('/trips/:id', async (req, res) => {
     const trip = await Trip.findById(req.params.id);
     if (!trip) return res.status(404).json({ error: 'Trip not found' });
     res.json(trip);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /admin/trips/:id/passengers
+ * Get list of passengers for a specific trip
+ */
+router.get('/trips/:id/passengers', async (req, res) => {
+  try {
+    const trip = await Trip.findById(req.params.id);
+    if (!trip) return res.status(404).json({ error: 'Trip not found' });
+
+    const passengers = await ShuttleTransaction.find({ tripId: trip._id })
+      .sort({ timestamp: 1 })
+      .select('userName userEmail fareCharged paymentMethod timestamp status');
+
+    res.json(passengers);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

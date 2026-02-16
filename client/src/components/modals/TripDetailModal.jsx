@@ -9,6 +9,9 @@ export default function TripDetailModal({ trip, onClose, onUpdate }) {
   const [noteContent, setNoteContent] = useState('');
   const [submittingNote, setSubmittingNote] = useState(false);
   const [localTrip, setLocalTrip] = useState(trip);
+  const [passengersOpen, setPassengersOpen] = useState(false);
+  const [passengers, setPassengers] = useState([]);
+  const [loadingPassengers, setLoadingPassengers] = useState(false);
 
   useEffect(() => {
     setLocalTrip(trip);
@@ -123,6 +126,22 @@ export default function TripDetailModal({ trip, onClose, onUpdate }) {
       }
     };
   }, [localTrip]);
+
+  const handleTogglePassengers = async () => {
+    const opening = !passengersOpen;
+    setPassengersOpen(opening);
+    if (opening && passengers.length === 0) {
+      setLoadingPassengers(true);
+      try {
+        const data = await api.get(`/admin/trips/${localTrip._id}/passengers`);
+        setPassengers(data);
+      } catch (error) {
+        console.error('Error fetching passengers:', error);
+      } finally {
+        setLoadingPassengers(false);
+      }
+    }
+  };
 
   const handleAddNote = async () => {
     if (!noteContent.trim()) return;
@@ -413,6 +432,99 @@ export default function TripDetailModal({ trip, onClose, onUpdate }) {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Passenger List (Collapsible) */}
+          <div style={{
+            background: 'rgba(14,165,233,0.05)',
+            border: '1px solid rgba(14,165,233,0.2)',
+            borderRadius: '12px',
+            marginBottom: '20px',
+            overflow: 'hidden'
+          }}>
+            <button
+              onClick={handleTogglePassengers}
+              style={{
+                width: '100%',
+                padding: '16px',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}
+            >
+              <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0EA5E9', textTransform: 'uppercase', margin: 0 }}>
+                Passenger List ({localTrip.passengerCount || 0})
+              </h3>
+              <span style={{
+                color: '#0EA5E9',
+                fontSize: '18px',
+                transition: 'transform 0.2s ease',
+                transform: passengersOpen ? 'rotate(180deg)' : 'rotate(0deg)'
+              }}>
+                &#9660;
+              </span>
+            </button>
+
+            {passengersOpen && (
+              <div style={{ padding: '0 16px 16px' }}>
+                {loadingPassengers ? (
+                  <div style={{ textAlign: 'center', padding: '20px', color: 'rgba(251,251,251,0.5)', fontSize: '13px' }}>
+                    Loading passengers...
+                  </div>
+                ) : passengers.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '20px', color: 'rgba(251,251,251,0.5)', fontSize: '13px' }}>
+                    No passenger records found for this trip.
+                  </div>
+                ) : (
+                  <div style={{ maxHeight: '250px', overflowY: 'auto' }}>
+                    {/* Table Header */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: '0.5fr 2fr 1fr 1fr',
+                      gap: '8px',
+                      padding: '8px 12px',
+                      borderBottom: '1px solid rgba(14,165,233,0.2)',
+                      marginBottom: '4px'
+                    }}>
+                      <div style={{ fontSize: '10px', fontWeight: 700, color: '#0EA5E9', textTransform: 'uppercase' }}>#</div>
+                      <div style={{ fontSize: '10px', fontWeight: 700, color: '#0EA5E9', textTransform: 'uppercase' }}>Name</div>
+                      <div style={{ fontSize: '10px', fontWeight: 700, color: '#0EA5E9', textTransform: 'uppercase' }}>Fare</div>
+                      <div style={{ fontSize: '10px', fontWeight: 700, color: '#0EA5E9', textTransform: 'uppercase' }}>Time</div>
+                    </div>
+                    {/* Rows */}
+                    {passengers.map((p, idx) => (
+                      <div key={p._id || idx} style={{
+                        display: 'grid',
+                        gridTemplateColumns: '0.5fr 2fr 1fr 1fr',
+                        gap: '8px',
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        background: idx % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'transparent'
+                      }}>
+                        <div style={{ fontSize: '12px', color: 'rgba(251,251,251,0.5)' }}>{idx + 1}</div>
+                        <div>
+                          <div style={{ fontSize: '13px', color: 'rgba(251,251,251,0.9)', fontWeight: 600 }}>
+                            {p.userName || 'Unknown'}
+                          </div>
+                          {p.userEmail && (
+                            <div style={{ fontSize: '10px', color: 'rgba(251,251,251,0.4)' }}>{p.userEmail}</div>
+                          )}
+                        </div>
+                        <div style={{ fontSize: '13px', color: 'rgba(251,251,251,0.8)' }}>
+                          P{p.fareCharged}
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'rgba(251,251,251,0.5)' }}>
+                          {new Date(p.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Notes/Comments Section */}

@@ -70,7 +70,7 @@ export default function TreasuryHeader({ adminData, onLogout, onOpenProfile }) {
             NUCash System
           </h1>
           <p style={{ fontSize: '12px', color: theme.accent.primary, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', margin: '2px 0 0 0' }}>
-            Treasury Management
+            Treasury Management 
           </p>
         </div>
       </div>

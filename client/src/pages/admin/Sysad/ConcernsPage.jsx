@@ -363,7 +363,17 @@ export default function SysadConcernsPage() {
           </div>
         </div>
       </div>
-
+<div className="flex gap-2 mb-5">
+          <button onClick={() => setActiveTab('all')} style={{ padding: '10px 20px', background: activeTab === 'all' ? 'rgba(255,212,28,0.2)' : 'transparent', border: `2px solid ${activeTab === 'all' ? theme.accent.primary : 'rgba(255,212,28,0.3)'}`, borderRadius: '8px', color: activeTab === 'all' ? theme.accent.primary : theme.text.secondary, fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>
+            All ({concerns.length})
+          </button>
+          <button onClick={() => setActiveTab('assistance')} style={{ padding: '10px 20px', background: activeTab === 'assistance' ? 'rgba(59,130,246,0.2)' : 'transparent', border: `2px solid ${activeTab === 'assistance' ? '#3B82F6' : 'rgba(59,130,246,0.3)'}`, borderRadius: '8px', color: activeTab === 'assistance' ? '#3B82F6' : theme.text.secondary, fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>
+            🆘 Assistance ({concerns.filter(c => c.submissionType === 'assistance' || !c.submissionType).length})
+          </button>
+          <button onClick={() => setActiveTab('feedback')} style={{ padding: '10px 20px', background: activeTab === 'feedback' ? 'rgba(34,197,94,0.2)' : 'transparent', border: `2px solid ${activeTab === 'feedback' ? '#22C55E' : 'rgba(34,197,94,0.3)'}`, borderRadius: '8px', color: activeTab === 'feedback' ? '#22C55E' : theme.text.secondary, fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>
+            💬 Feedback ({concerns.filter(c => c.submissionType === 'feedback').length})
+          </button>
+        </div>
       {/* Actions Bar */}
       <div
         style={{
@@ -373,27 +383,6 @@ export default function SysadConcernsPage() {
         className="rounded-xl border-2 p-4 mb-5"
       >
         <div className="flex flex-wrap gap-3 items-center">
-          {/* Sort Tabs - All/Assistance/Feedback */}
-          <div className="flex gap-1 p-1 rounded-xl" style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F3F4F6' }}>
-            {[
-              { value: 'all', label: `All (${concerns.length})` },
-              { value: 'assistance', label: `Assistance (${concerns.filter(c => c.submissionType === 'assistance' || !c.submissionType).length})` },
-              { value: 'feedback', label: `Feedback (${concerns.filter(c => c.submissionType === 'feedback').length})` }
-            ].map((option) => (
-              <button
-                key={option.value}
-                onClick={() => setActiveTab(option.value)}
-                style={{
-                  background: activeTab === option.value ? theme.accent.primary : 'transparent',
-                  color: activeTab === option.value ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.secondary
-                }}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-
           {/* Search */}
           <SearchBar
             value={searchQuery}
@@ -406,7 +395,6 @@ export default function SysadConcernsPage() {
             <StatusFilter
               value={statusFilter}
               onChange={setStatusFilter}
-              label="Status"
               options={[
                 { value: 'pending', label: 'Pending' },
                 { value: 'in_progress', label: 'In Progress' },
