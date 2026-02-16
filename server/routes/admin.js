@@ -1042,7 +1042,27 @@ router.patch('/user-concerns/:id/status', async (req, res) => {
 
 router.get('/trips', async (req, res) => {
   try {
-    const trips = await Trip.find().sort({ departureTime: -1 }).limit(500);
+    const trips = await Trip.find().sort({ departureTime: -1 }).limit(500).lean();
+
+    // For in-progress trips, get live passenger count and revenue from ShuttleTransaction
+    const inProgressTrips = trips.filter(t => t.status === 'in_progress');
+    if (inProgressTrips.length > 0) {
+      await Promise.all(inProgressTrips.map(async (trip) => {
+        const windowStart = new Date(trip.departureTime.getTime() - 10 * 60 * 1000);
+        const match = {
+          shuttleId: trip.shuttleId,
+          driverId: trip.driverId,
+          timestamp: { $gte: windowStart }
+        };
+        const result = await ShuttleTransaction.aggregate([
+          { $match: match },
+          { $group: { _id: null, count: { $sum: 1 }, total: { $sum: '$fareCharged' } } }
+        ]);
+        trip.passengerCount = result[0]?.count || 0;
+        trip.totalCollections = result[0]?.total || 0;
+      }));
+    }
+
     res.json(trips);
   } catch (error) {
     res.status(500).json({ error: error.message });
