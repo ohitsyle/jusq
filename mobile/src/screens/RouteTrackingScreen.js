@@ -544,6 +544,27 @@ export default function RouteTrackingScreen({ navigation, route }) {
           <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
             <Text style={styles.cancelButtonText}>Cancel</Text>
           </TouchableOpacity>
+          {/* TODO: REMOVE - Testing only */}
+          <TouchableOpacity
+            style={{
+              marginTop: 15,
+              paddingVertical: 10,
+              paddingHorizontal: 30,
+              backgroundColor: '#ff4444',
+              borderRadius: 8,
+              borderWidth: 1,
+              borderColor: '#ff6666',
+              borderStyle: 'dashed',
+            }}
+            onPress={() => {
+              const dummyCoords = { latitude: 14.1634, longitude: 121.2413 };
+              setCurrentLocation(dummyCoords);
+              setStartingLocation(dummyCoords);
+              setLocationReady(true);
+            }}
+          >
+            <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>⚠️ Skip GPS (Testing)</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );

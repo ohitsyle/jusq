@@ -1062,13 +1062,24 @@ router.get('/trips/:id', async (req, res) => {
 /**
  * GET /admin/trips/:id/passengers
  * Get list of passengers for a specific trip
+ * Matches by shuttleId + driverId within the trip's time window
  */
 router.get('/trips/:id/passengers', async (req, res) => {
   try {
     const trip = await Trip.findById(req.params.id);
     if (!trip) return res.status(404).json({ error: 'Trip not found' });
 
-    const passengers = await ShuttleTransaction.find({ tripId: trip._id })
+    // Build time-window query: from 10 min before departure to arrival (or now if still in progress)
+    const windowStart = new Date(trip.departureTime.getTime() - 10 * 60 * 1000);
+    const windowEnd = trip.arrivalTime || new Date();
+
+    const query = {
+      shuttleId: trip.shuttleId,
+      driverId: trip.driverId,
+      timestamp: { $gte: windowStart, $lte: windowEnd }
+    };
+
+    const passengers = await ShuttleTransaction.find(query)
       .sort({ timestamp: 1 })
       .select('userName userEmail fareCharged paymentMethod timestamp status');
 
