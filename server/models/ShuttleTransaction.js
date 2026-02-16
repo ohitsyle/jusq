@@ -4,11 +4,11 @@
 import mongoose from 'mongoose';
 
 const ShuttleTransactionSchema = new mongoose.Schema({
-  // Trip reference
+  // Trip reference (optional - passengers may be scanned before trip is created)
   tripId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: mongoose.Schema.Types.Mixed,
     ref: 'Trip',
-    required: true,
+    default: null,
     index: true
   },
   
@@ -36,7 +36,7 @@ const ShuttleTransactionSchema = new mongoose.Schema({
   },
   cardUid: {
     type: String,
-    required: true
+    default: ''
   },
   userName: {
     type: String,

@@ -193,27 +193,24 @@ router.post('/pay', async (req, res) => {
       deviceTimestamp: req.body.deviceTimestamp || null
     });
 
-    // Create detailed shuttle transaction if tripId provided
-    if (tripId) {
-      try {
-        await ShuttleTransaction.create({
-          tripId: tripId,
-          shuttleId: shuttleId,
-          driverId: driverId,
-          routeId: routeId,
-          userId: user._id,
-          rfidUId: user.rfidUId,
-          userName: user.fullName,
-          userEmail: user.email,
-          fareCharged: fare,
-          balanceBefore: balanceBefore,
-          balanceAfter: balanceAfter,
-          status: 'completed',
-          timestamp: new Date()
-        });
-      } catch (stErr) {
-        console.warn('⚠️ ShuttleTransaction creation failed:', stErr.message);
-      }
+    // Always create detailed shuttle transaction for passenger tracking
+    try {
+      await ShuttleTransaction.create({
+        tripId: tripId || null,
+        shuttleId: shuttleId,
+        driverId: driverId,
+        routeId: routeId,
+        userId: user._id,
+        cardUid: user.rfidUId || '',
+        userName: user.fullName,
+        userEmail: user.email,
+        fareCharged: fare,
+        balanceBefore: balanceBefore,
+        status: 'completed',
+        timestamp: new Date()
+      });
+    } catch (stErr) {
+      console.warn('⚠️ ShuttleTransaction creation failed:', stErr.message);
     }
 
     console.log(`✅ Payment processed: ${user.fullName} - ₱${fare} (${balanceBefore} → ${balanceAfter})`);
