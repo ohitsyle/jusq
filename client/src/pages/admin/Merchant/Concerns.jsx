@@ -1,5 +1,5 @@
 // src/pages/admin/Merchant/Concerns.jsx
-// Merchant-specific concerns - matches Treasury/Motorpool style with modern UI
+// Merchant-specific concerns - matches Sysad style with metric cards, aging, notes footer
 import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
@@ -9,6 +9,7 @@ import StatusFilter from '../../../components/shared/StatusFilter';
 import DateRangeFilter from '../../../components/shared/DateRangeFilter';
 import ExportButton from '../../../components/shared/ExportButton';
 import { exportToCSV } from '../../../utils/csvExport';
+import { Clock, Loader2, CheckCircle } from 'lucide-react';
 
 export default function MerchantConcerns() {
   const { theme, isDarkMode } = useTheme();
@@ -58,16 +59,42 @@ export default function MerchantConcerns() {
 
   useEffect(() => {
     fetchConcerns(false);
-    intervalRef.current = setInterval(() => fetchConcerns(true), 10000);
+    intervalRef.current = setInterval(() => fetchConcerns(true), 30000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [statusFilter, searchQuery]);
 
-  const handleViewDetails = (concern) => {
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, activeTab, startDate, endDate]);
+
+  const handleViewDetails = async (concern) => {
+    // Auto-change status to in_progress if it's pending and not feedback type
+    if (concern.status === 'pending' && concern.submissionType !== 'feedback') {
+      try {
+        const adminData = JSON.parse(localStorage.getItem('merchantAdminData') || localStorage.getItem('adminData') || '{}');
+        await api.patch(`/admin/user-concerns/${concern.concernId || concern._id}/status`, {
+          status: 'in_progress',
+          adminName: adminData.firstName ? `${adminData.firstName} ${adminData.lastName || ''}`.trim() : 'Merchant Admin'
+        });
+        concern.status = 'in_progress';
+      } catch (error) {
+        console.error('Failed to update status:', error);
+      }
+    }
+
     setSelectedConcern(concern);
     setShowDetailsModal(true);
     setModalTab('details');
+    setNoteText('');
+  };
+
+  const handleOpenResolve = (concern) => {
+    setResolution('');
+    setShowDetailsModal(false);
+    setShowResolveModal(true);
   };
 
   const handleStatusChange = async (concern, newStatus) => {
@@ -123,9 +150,9 @@ export default function MerchantConcerns() {
     }
   };
 
-  const handleAddNote = async () => {
+  const handleSendNote = async () => {
     if (!noteText.trim()) {
-      toast.error('Please enter a note');
+      toast.error('Please enter a note message');
       return;
     }
 
@@ -133,34 +160,84 @@ export default function MerchantConcerns() {
     try {
       const adminData = JSON.parse(localStorage.getItem('merchantAdminData') || localStorage.getItem('adminData') || '{}');
       const adminName = adminData.firstName ? `${adminData.firstName} ${adminData.lastName || ''}`.trim() : 'Merchant Admin';
-      const data = await api.post(`/admin/user-concerns/${selectedConcern.concernId || selectedConcern._id}/note`, {
+
+      const result = await api.post(`/admin/user-concerns/${selectedConcern.concernId || selectedConcern._id}/note`, {
         note: noteText.trim(),
         adminName
       });
 
-      if (data?.success) {
-        toast.success('Note added successfully');
+      const response = result?.data || result;
+
+      if (response?.success) {
+        toast.success('Note sent successfully!');
         setNoteText('');
-        const updatedConcern = { ...selectedConcern };
-        updatedConcern.notes = updatedConcern.notes || [];
-        updatedConcern.notes.push({
-          message: noteText.trim(),
-          adminName,
-          timestamp: new Date().toISOString()
-        });
-        setSelectedConcern(updatedConcern);
+
+        if (response.concern) {
+          setSelectedConcern(response.concern);
+          setModalTab('notes');
+        } else {
+          const updatedConcern = { ...selectedConcern };
+          updatedConcern.notes = updatedConcern.notes || [];
+          updatedConcern.notes.push({ message: noteText.trim(), adminName, timestamp: new Date().toISOString() });
+          setSelectedConcern(updatedConcern);
+          setModalTab('notes');
+        }
+
         fetchConcerns(true);
+      } else {
+        toast.error(response?.message || 'Failed to send note');
       }
     } catch (error) {
-      toast.error(error.message || 'Failed to add note');
+      toast.error(error?.response?.data?.message || error?.message || 'Failed to send note');
     } finally {
       setSendingNote(false);
     }
   };
 
   const handleExport = () => {
-    exportToCSV(filteredConcerns || [], 'merchant-concerns');
+    const dataToExport = filteredConcerns.map(c => ({
+      ID: c.concernId || c._id?.slice(-8) || '',
+      Type: c.submissionType || 'assistance',
+      User: c.userName || '',
+      Subject: c.subject || '',
+      Status: c.status || 'pending',
+      Date: c.createdAt || c.submittedAt ? new Date(c.createdAt || c.submittedAt).toLocaleDateString() : ''
+    }));
+    exportToCSV(dataToExport, 'merchant_concerns');
   };
+
+  // Filter concerns
+  const filteredConcerns = (concerns || []).filter(concern => {
+    if (activeTab === 'assistance' && concern.submissionType !== 'assistance') return false;
+    if (activeTab === 'feedback' && concern.submissionType !== 'feedback') return false;
+
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const matchesSearch = (
+        concern._id?.toLowerCase().includes(query) ||
+        concern.concernId?.toLowerCase().includes(query) ||
+        concern.subject?.toLowerCase().includes(query) ||
+        concern.feedbackText?.toLowerCase().includes(query) ||
+        concern.userName?.toLowerCase().includes(query)
+      );
+      if (!matchesSearch) return false;
+    }
+
+    if (statusFilter && concern.status !== statusFilter) return false;
+
+    if (startDate || endDate) {
+      const concernDate = new Date(concern.createdAt || concern.submittedAt);
+      if (startDate && concernDate < new Date(startDate)) return false;
+      if (endDate && concernDate > new Date(endDate + 'T23:59:59')) return false;
+    }
+
+    return true;
+  });
+
+  // Pagination
+  const totalPages = Math.ceil(filteredConcerns.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const currentItems = filteredConcerns.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -171,41 +248,44 @@ export default function MerchantConcerns() {
     }
   };
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'pending': return '⏳';
-      case 'in_progress': return '🔄';
-      case 'resolved': return '✅';
-      default: return '📋';
+  // Aging system - matches Sysad style
+  const calculateAging = (concern) => {
+    if (concern.submissionType !== 'assistance' || concern.status === 'resolved') {
+      return null;
     }
+
+    const now = new Date();
+    const createdDate = new Date(concern.createdAt || concern.submittedAt);
+    const ageInDays = Math.floor((now - createdDate) / (1000 * 60 * 60 * 24));
+
+    let color = 'transparent';
+    let badgeText = '';
+    let badgeColor = '';
+
+    if (ageInDays < 1) {
+      color = 'transparent';
+      badgeText = 'New';
+      badgeColor = '#10B981';
+    } else if (ageInDays >= 1 && ageInDays < 3) {
+      color = 'rgba(251, 191, 36, 0.1)';
+      badgeText = `${ageInDays}d old`;
+      badgeColor = '#FBBF24';
+    } else if (ageInDays >= 3 && ageInDays < 5) {
+      color = 'rgba(249, 115, 22, 0.15)';
+      badgeText = `${ageInDays}d old`;
+      badgeColor = '#F97316';
+    } else if (ageInDays >= 5 && ageInDays < 7) {
+      color = 'rgba(234, 88, 12, 0.2)';
+      badgeText = `${ageInDays}d old`;
+      badgeColor = '#EA580C';
+    } else {
+      color = 'rgba(239, 68, 68, 0.25)';
+      badgeText = `${ageInDays}d old`;
+      badgeColor = '#EF4444';
+    }
+
+    return { ageInDays, backgroundColor: color, badgeText, badgeColor };
   };
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return 'N/A';
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-PH', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  // Filter concerns based on active tab
-  const filteredConcerns = (concerns || []).filter(concern => {
-    if (activeTab === 'all') return true;
-    if (activeTab === 'assistance') return concern.submissionType === 'assistance';
-    if (activeTab === 'feedback') return concern.submissionType === 'feedback';
-    return true;
-  });
-
-  // Pagination
-  const totalPages = Math.ceil((filteredConcerns || []).length / ITEMS_PER_PAGE);
-  const paginatedConcerns = (filteredConcerns || []).slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
 
   if (loading) {
     return (
@@ -217,327 +297,253 @@ export default function MerchantConcerns() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-220px)] flex flex-col">
+    <div className="h-full flex flex-col">
       {/* Header */}
       <div style={{ borderColor: theme.border.primary }} className="mb-6 border-b-2 pb-5">
         <h2 style={{ color: theme.accent.primary }} className="text-2xl font-bold m-0 mb-2 flex items-center gap-[10px]">
-          <span>🏪</span> Merchant Concerns
+          <span>🏪</span> Concerns & Feedback
         </h2>
         <p style={{ color: theme.text.secondary }} className="text-[13px] m-0">
-          Manage concerns reported to Merchant Office
+          {filteredConcerns.length > 0
+            ? `Showing ${startIndex + 1}-${Math.min(startIndex + ITEMS_PER_PAGE, filteredConcerns.length)} of ${filteredConcerns.length} • Page ${currentPage} of ${totalPages}`
+            : `Manage merchant concerns and feedback • Total: ${concerns.length}`
+          }
         </p>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+      {/* Metrics Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
         <div
           style={{ background: theme.bg.card, borderColor: 'rgba(251, 191, 36, 0.3)' }}
-          className="p-4 rounded-xl border flex items-center gap-4"
+          className="p-4 rounded-xl border flex items-center gap-4 transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
         >
-          <div style={{ background: 'rgba(251, 191, 36, 0.2)' }} className="w-12 h-12 rounded-full flex items-center justify-center">
-            <span className="text-2xl">⏳</span>
+          <div style={{ background: 'rgba(251, 191, 36, 0.2)' }} className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0">
+            <Clock style={{ color: '#FBBF24' }} className="w-6 h-6" />
           </div>
           <div>
-            <p style={{ color: theme.text.secondary }} className="text-xs font-semibold uppercase">Pending</p>
-            <p className="text-2xl font-bold text-yellow-500">
-              {(concerns || []).filter(c => c.status === 'pending').length}
+            <p style={{ color: theme.text.secondary }} className="text-[10px] font-semibold uppercase tracking-wide">Pending</p>
+            <p style={{ color: '#FBBF24' }} className="text-2xl font-bold">
+              {concerns.filter(c => c.status === 'pending' && c.submissionType !== 'feedback').length}
             </p>
           </div>
         </div>
 
         <div
           style={{ background: theme.bg.card, borderColor: 'rgba(59, 130, 246, 0.3)' }}
-          className="p-4 rounded-xl border flex items-center gap-4"
+          className="p-4 rounded-xl border flex items-center gap-4 transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
         >
-          <div style={{ background: 'rgba(59, 130, 246, 0.2)' }} className="w-12 h-12 rounded-full flex items-center justify-center">
-            <span className="text-2xl">🔄</span>
+          <div style={{ background: 'rgba(59, 130, 246, 0.2)' }} className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0">
+            <Loader2 style={{ color: '#3B82F6' }} className="w-6 h-6 animate-spin" />
           </div>
           <div>
-            <p style={{ color: theme.text.secondary }} className="text-xs font-semibold uppercase">In Progress</p>
-            <p className="text-2xl font-bold text-blue-500">
-              {(concerns || []).filter(c => c.status === 'in_progress').length}
+            <p style={{ color: theme.text.secondary }} className="text-[10px] font-semibold uppercase tracking-wide">In Progress</p>
+            <p style={{ color: '#3B82F6' }} className="text-2xl font-bold">
+              {concerns.filter(c => c.status === 'in_progress').length}
             </p>
           </div>
         </div>
 
         <div
           style={{ background: theme.bg.card, borderColor: 'rgba(16, 185, 129, 0.3)' }}
-          className="p-4 rounded-xl border flex items-center gap-4"
+          className="p-4 rounded-xl border flex items-center gap-4 transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
         >
-          <div style={{ background: 'rgba(16, 185, 129, 0.2)' }} className="w-12 h-12 rounded-full flex items-center justify-center">
-            <span className="text-2xl">✅</span>
+          <div style={{ background: 'rgba(16, 185, 129, 0.2)' }} className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0">
+            <CheckCircle style={{ color: '#10B981' }} className="w-6 h-6" />
           </div>
           <div>
-            <p style={{ color: theme.text.secondary }} className="text-xs font-semibold uppercase">Resolved</p>
-            <p className="text-2xl font-bold text-emerald-500">
-              {(concerns || []).filter(c => c.status === 'resolved').length}
+            <p style={{ color: theme.text.secondary }} className="text-[10px] font-semibold uppercase tracking-wide">Resolved</p>
+            <p style={{ color: '#10B981' }} className="text-2xl font-bold">
+              {concerns.filter(c => c.status === 'resolved').length}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Tabs */}
+      <div className="flex gap-2 mb-5">
+        <button onClick={() => setActiveTab('all')} style={{ padding: '10px 20px', background: activeTab === 'all' ? 'rgba(255,212,28,0.2)' : 'transparent', border: `2px solid ${activeTab === 'all' ? theme.accent.primary : 'rgba(255,212,28,0.3)'}`, borderRadius: '8px', color: activeTab === 'all' ? theme.accent.primary : theme.text.secondary, fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>
+          All ({concerns.length})
+        </button>
+        <button onClick={() => setActiveTab('assistance')} style={{ padding: '10px 20px', background: activeTab === 'assistance' ? 'rgba(59,130,246,0.2)' : 'transparent', border: `2px solid ${activeTab === 'assistance' ? '#3B82F6' : 'rgba(59,130,246,0.3)'}`, borderRadius: '8px', color: activeTab === 'assistance' ? '#3B82F6' : theme.text.secondary, fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>
+          🆘 Assistance ({concerns.filter(c => c.submissionType === 'assistance' || !c.submissionType).length})
+        </button>
+        <button onClick={() => setActiveTab('feedback')} style={{ padding: '10px 20px', background: activeTab === 'feedback' ? 'rgba(34,197,94,0.2)' : 'transparent', border: `2px solid ${activeTab === 'feedback' ? '#22C55E' : 'rgba(34,197,94,0.3)'}`, borderRadius: '8px', color: activeTab === 'feedback' ? '#22C55E' : theme.text.secondary, fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>
+          💬 Feedback ({concerns.filter(c => c.submissionType === 'feedback').length})
+        </button>
+      </div>
+
+      {/* Actions Bar */}
       <div
         style={{
           background: isDarkMode ? 'rgba(15,18,39,0.8)' : theme.bg.card,
           borderColor: theme.accent.primary
         }}
-        className="rounded-xl border-2 p-4 mb-5 flex flex-col lg:flex-row gap-4"
+        className="rounded-xl border-2 p-4 mb-5"
       >
-        <div className="flex-1 flex flex-col sm:flex-row gap-3">
-          <SearchBar
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder="Search concerns..."
-            theme={theme}
-            isDarkMode={isDarkMode}
-          />
-          <StatusFilter
-            value={statusFilter}
-            onChange={setStatusFilter}
-            theme={theme}
-            isDarkMode={isDarkMode}
-            options={[
-              { value: 'pending', label: 'Pending' },
-              { value: 'in_progress', label: 'In Progress' },
-              { value: 'resolved', label: 'Resolved' }
-            ]}
-          />
-          <DateRangeFilter
-            startDate={startDate}
-            endDate={endDate}
-            onStartChange={setStartDate}
-            onEndChange={setEndDate}
-            theme={theme}
-            isDarkMode={isDarkMode}
-          />
+        <div className="flex flex-wrap gap-3 items-center">
+          <SearchBar value={searchQuery} onChange={setSearchQuery} placeholder="Search by ID, user, subject..." />
+          {activeTab !== 'feedback' && (
+            <StatusFilter
+              value={statusFilter}
+              onChange={setStatusFilter}
+              options={[
+                { value: 'pending', label: 'Pending' },
+                { value: 'in_progress', label: 'In Progress' },
+                { value: 'resolved', label: 'Resolved' }
+              ]}
+            />
+          )}
+          <DateRangeFilter startDate={startDate} endDate={endDate} onStartChange={setStartDate} onEndChange={setEndDate} />
+          <ExportButton onClick={handleExport} disabled={filteredConcerns.length === 0} />
         </div>
-        <ExportButton
-          onClick={handleExport}
-          disabled={!filteredConcerns || filteredConcerns.length === 0}
-        />
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2 mb-5">
-        {[
-          { value: 'all', label: 'All Concerns' },
-          { value: 'assistance', label: 'Assistance' },
-          { value: 'feedback', label: 'Feedback' }
-        ].map((tab) => (
-          <button
-            key={tab.value}
-            onClick={() => setActiveTab(tab.value)}
-            style={{
-              background: activeTab === tab.value ? theme.accent.primary : (isDarkMode ? 'rgba(30,35,71,0.8)' : '#F9FAFB'),
-              color: activeTab === tab.value ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.primary,
-              borderColor: theme.border.primary
-            }}
-            className="px-4 py-2 rounded-lg font-semibold text-sm border hover:opacity-80 transition"
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Results Count */}
-      <div className="mb-4">
-        <p style={{ color: theme.text.secondary }} className="text-sm">
-          Showing <span style={{ color: theme.accent.primary }} className="font-bold">{(filteredConcerns || []).length}</span> concerns
-        </p>
-      </div>
-
-      {/* Concerns Table */}
-      <div className="flex-1">
-        <div style={{ background: theme.bg.card, borderColor: theme.border.primary }} className="rounded-2xl border overflow-hidden">
-          {!(filteredConcerns || []).length ? (
-            <div style={{ color: theme.text.tertiary }} className="text-center py-20">
-              <div className="text-5xl mb-4">📋</div>
-              <p className="font-semibold">No concerns found</p>
-              <p className="text-sm mt-2">
-                {!(concerns || []).length
-                  ? "No concerns have been reported to Merchant Office"
-                  : "Try adjusting your filters"
-                }
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead style={{ background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB' }}>
-                  <tr style={{ borderColor: theme.border.primary }} className="border-b">
-                    <th style={{ color: theme.accent.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2">ID</th>
-                    <th style={{ color: theme.accent.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2">User</th>
-                    <th style={{ color: theme.accent.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2">Subject</th>
-                    <th style={{ color: theme.accent.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2">Status</th>
-                    <th style={{ color: theme.accent.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2">Date</th>
-                    <th style={{ color: theme.accent.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(paginatedConcerns || []).map((concern) => (
-                    <tr
-                      key={concern._id}
-                      style={{ borderColor: theme.border.primary }}
-                      className="border-b hover:bg-white/5 transition"
-                    >
-                      <td style={{ color: theme.text.primary }} className="p-4">
-                        <span className="font-mono text-xs">{concern.concernId || 'N/A'}</span>
+      {/* Table */}
+      <div className="flex-1 overflow-y-auto">
+        {filteredConcerns.length === 0 ? (
+          <div style={{ color: theme.text.tertiary }} className="text-center py-20">
+            <div className="text-5xl mb-4">🏪</div>
+            <p>No concerns found</p>
+          </div>
+        ) : (
+          <div style={{ background: theme.bg.card, borderColor: theme.border.primary }} className="rounded-2xl border overflow-hidden">
+            <table className="w-full border-collapse text-[13px]">
+              <thead>
+                <tr style={{ background: isDarkMode ? 'rgba(255,212,28,0.1)' : 'rgba(59,130,246,0.1)' }}>
+                  <th style={{ borderColor: isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)', color: theme.accent.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2">ID</th>
+                  <th style={{ borderColor: isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)', color: theme.accent.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2">User</th>
+                  <th style={{ borderColor: isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)', color: theme.accent.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2">Subject</th>
+                  {activeTab === 'all' && (
+                    <th style={{ borderColor: isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)', color: theme.accent.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2">Type</th>
+                  )}
+                  {activeTab === 'feedback' ? (
+                    <th style={{ borderColor: isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)', color: theme.accent.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2">Rating</th>
+                  ) : (
+                    <th style={{ borderColor: isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)', color: theme.accent.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2">Status</th>
+                  )}
+                  <th style={{ borderColor: isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)', color: theme.accent.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2">Date</th>
+                  <th style={{ borderColor: isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)', color: theme.accent.primary }} className="text-right p-4 text-[11px] font-extrabold uppercase border-b-2">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentItems.map((concern) => {
+                  const aging = calculateAging(concern);
+                  return (
+                    <tr key={concern._id} style={{ borderBottom: `1px solid ${theme.border.primary}`, background: aging ? aging.backgroundColor : 'transparent' }} className="hover:bg-white/5 transition">
+                      <td style={{ color: theme.text.primary }} className="p-4 font-mono text-xs">
+                        {concern.concernId || concern._id?.slice(-8)}
+                        {aging && aging.badgeText && (
+                          <span style={{ background: aging.badgeColor, color: '#FFFFFF', fontSize: '9px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', textTransform: 'uppercase', whiteSpace: 'nowrap', marginLeft: '8px' }}>
+                            {aging.badgeText}
+                          </span>
+                        )}
                       </td>
                       <td style={{ color: theme.text.primary }} className="p-4">
-                        <div>
-                          <p className="font-semibold text-sm">{concern.userName || 'Unknown'}</p>
-                          <p style={{ color: theme.text.secondary }} className="text-xs">{concern.userEmail || 'No email'}</p>
-                        </div>
+                        {concern.userName || 'N/A'}
                       </td>
-                      <td style={{ color: theme.text.primary }} className="p-4">
-                        <p className="font-semibold text-sm">{concern.subject || 'No subject'}</p>
-                        <p style={{ color: theme.text.secondary }} className="text-xs line-clamp-2">
-                          {concern.feedbackText || concern.otherConcern || 'No details'}
-                        </p>
+                      <td style={{ color: theme.text.primary }} className="p-4 max-w-[200px] truncate">
+                        {concern.subject || 'No subject'}
                       </td>
-                      <td className="p-4">
-                        <span
+                      {activeTab === 'all' && (
+                        <td className="p-4">
+                          <span style={{
+                            display: 'inline-block', padding: '4px 12px', borderRadius: '20px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase',
+                            background: concern.submissionType === 'feedback' ? 'rgba(34,197,94,0.2)' : 'rgba(59,130,246,0.2)',
+                            color: concern.submissionType === 'feedback' ? '#22C55E' : '#3B82F6',
+                            border: `1px solid ${concern.submissionType === 'feedback' ? 'rgba(34,197,94,0.3)' : 'rgba(59,130,246,0.3)'}`,
+                          }}>
+                            {concern.submissionType === 'feedback' ? '💬 Feedback' : '🆘 Assistance'}
+                          </span>
+                        </td>
+                      )}
+                      {activeTab === 'feedback' ? (
+                        <td className="p-4">
+                          <div className="flex items-center gap-1">
+                            {[...Array(5)].map((_, i) => (
+                              <span key={i} style={{ fontSize: '14px', color: i < (concern.rating || 0) ? '#FFD41C' : 'rgba(255,212,28,0.2)' }}>★</span>
+                            ))}
+                            <span style={{ color: theme.text.muted, marginLeft: '8px', fontSize: '11px' }}>({concern.rating || 0}/5)</span>
+                          </div>
+                        </td>
+                      ) : (
+                        <td className="p-4">
+                          <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '20px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', background: `${getStatusColor(concern.status)}20`, color: getStatusColor(concern.status) }}>
+                            {concern.status?.replace('_', ' ') || 'Pending'}
+                          </span>
+                        </td>
+                      )}
+                      <td style={{ color: theme.text.secondary }} className="p-4 text-sm">
+                        {concern.createdAt || concern.submittedAt ? new Date(concern.createdAt || concern.submittedAt).toLocaleDateString() : ''}
+                      </td>
+                      <td className="p-4 text-right">
+                        <button
+                          onClick={() => handleViewDetails(concern)}
                           style={{
-                            background: `${getStatusColor(concern.status)}20`,
-                            color: getStatusColor(concern.status)
+                            padding: '6px 12px',
+                            background: isDarkMode ? 'rgba(255,212,28,0.2)' : 'rgba(59,130,246,0.2)',
+                            color: theme.accent.primary,
+                            border: `1px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}`,
+                            borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: 600
                           }}
-                          className="px-2 py-1 rounded-full text-xs font-semibold capitalize flex items-center gap-1 w-fit"
                         >
-                          <span>{getStatusIcon(concern.status)}</span>
-                          {concern.status?.replace('_', ' ')}
-                        </span>
-                      </td>
-                      <td style={{ color: theme.text.secondary }} className="p-4">
-                        <p className="text-xs">{formatDate(concern.createdAt || concern.submittedAt)}</p>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleViewDetails(concern)}
-                            style={{
-                              background: 'rgba(59,130,246,0.1)',
-                              color: '#3B82F6'
-                            }}
-                            className="px-3 py-1 rounded text-xs font-semibold hover:opacity-80 transition"
-                          >
-                            View
-                          </button>
-                          {concern.status !== 'resolved' && (
-                            <button
-                              onClick={() => handleStatusChange(concern, 'in_progress')}
-                              style={{
-                                background: 'rgba(251,191,36,0.1)',
-                                color: '#F59E0B'
-                              }}
-                              className="px-3 py-1 rounded text-xs font-semibold hover:opacity-80 transition"
-                            >
-                              Progress
-                            </button>
-                          )}
-                          {concern.status !== 'resolved' && (
-                            <button
-                              onClick={() => handleStatusChange(concern, 'resolved')}
-                              style={{
-                                background: 'rgba(16,185,129,0.1)',
-                                color: '#10B981'
-                              }}
-                              className="px-3 py-1 rounded text-xs font-semibold hover:opacity-80 transition"
-                            >
-                              Resolve
-                            </button>
-                          )}
-                        </div>
+                          View
+                        </button>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </div>
+                  );
+                })}
+              </tbody>
+            </table>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex justify-center items-center gap-2 mt-5">
-          <button
-            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-            disabled={currentPage === 1}
-            style={{
-              background: currentPage === 1 ? 'rgba(0,0,0,0.1)' : theme.accent.primary,
-              color: currentPage === 1 ? theme.text.secondary : (isDarkMode ? '#181D40' : '#FFFFFF'),
-              cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
-            }}
-            className="px-3 py-1 rounded text-sm font-semibold transition"
-          >
-            Previous
-          </button>
-          <span style={{ color: theme.text.primary }} className="text-sm">
-            Page {currentPage} of {totalPages}
-          </span>
-          <button
-            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-            disabled={currentPage === totalPages}
-            style={{
-              background: currentPage === totalPages ? 'rgba(0,0,0,0.1)' : theme.accent.primary,
-              color: currentPage === totalPages ? theme.text.secondary : (isDarkMode ? '#181D40' : '#FFFFFF'),
-              cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'
-            }}
-            className="px-3 py-1 rounded text-sm font-semibold transition"
-          >
-            Next
-          </button>
-        </div>
-      )}
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div style={{ borderColor: theme.border.primary }} className="p-4 border-t flex items-center justify-center gap-3">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  style={{ padding: '8px 16px', background: currentPage === 1 ? 'rgba(100,100,100,0.2)' : theme.bg.tertiary, color: currentPage === 1 ? theme.text.muted : theme.accent.primary, border: `2px solid ${currentPage === 1 ? 'transparent' : theme.accent.primary}`, borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
+                >
+                  ← Previous
+                </button>
+                <span style={{ color: theme.text.secondary, fontSize: '13px', fontWeight: 600 }}>Page {currentPage} of {totalPages}</span>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  style={{ padding: '8px 16px', background: currentPage === totalPages ? 'rgba(100,100,100,0.2)' : theme.bg.tertiary, color: currentPage === totalPages ? theme.text.muted : theme.accent.primary, border: `2px solid ${currentPage === totalPages ? 'transparent' : theme.accent.primary}`, borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}
+                >
+                  Next →
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Details Modal */}
       {showDetailsModal && selectedConcern && (
         <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
-          onClick={() => setShowDetailsModal(false)}
+          onClick={() => { setShowDetailsModal(false); setSelectedConcern(null); }}
+          style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(15,18,39,0.9)', backdropFilter: 'blur(8px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         >
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
           <div
-            style={{
-              background: isDarkMode ? '#1E2347' : '#FFFFFF',
-              borderColor: theme.border.primary
-            }}
-            className="relative rounded-2xl shadow-2xl border w-full max-w-4xl max-h-[85vh] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
+            style={{ background: isDarkMode ? 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)' : '#FFFFFF', borderRadius: '16px', maxWidth: '700px', width: '90%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', border: `2px solid ${theme.border.primary}`, boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}
           >
             {/* Header */}
-            <div
-              style={{
-                background: isDarkMode
-                  ? `linear-gradient(135deg, ${getStatusColor(selectedConcern.status)}30 0%, ${getStatusColor(selectedConcern.status)}10 100%)`
-                  : `linear-gradient(135deg, ${getStatusColor(selectedConcern.status)}20 0%, ${getStatusColor(selectedConcern.status)}10 100%)`,
-                borderColor: `${getStatusColor(selectedConcern.status)}50`
-              }}
-              className="px-6 py-4 flex items-center justify-between border-b"
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  style={{ background: `${getStatusColor(selectedConcern.status)}30` }}
-                  className="w-10 h-10 rounded-full flex items-center justify-center"
-                >
-                  <span>{getStatusIcon(selectedConcern.status)}</span>
-                </div>
-                <div>
-                  <h2 style={{ color: getStatusColor(selectedConcern.status) }} className="text-xl font-bold">
-                    Concern Details
-                  </h2>
-                  <p style={{ color: theme.text.secondary }} className="text-sm">
-                    {selectedConcern.concernId || 'No ID'}
-                  </p>
-                </div>
+            <div style={{ padding: '24px', borderBottom: `2px solid ${theme.border.primary}`, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '20px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', background: `${getStatusColor(selectedConcern.status)}20`, color: getStatusColor(selectedConcern.status), marginBottom: '8px' }}>
+                  {selectedConcern.status?.replace('_', ' ') || 'Pending'}
+                </span>
+                <h2 style={{ fontSize: '20px', fontWeight: 700, color: theme.text.primary, margin: 0 }}>
+                  {selectedConcern.subject || 'No Subject'}
+                </h2>
               </div>
               <button
-                onClick={() => setShowDetailsModal(false)}
-                style={{ color: theme.text.secondary }}
-                className="hover:opacity-70 transition-colors"
+                onClick={() => { setShowDetailsModal(false); setSelectedConcern(null); }}
+                style={{ background: 'rgba(239,68,68,0.2)', border: 'none', color: '#EF4444', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', fontSize: '18px' }}
               >
-                ✕
+                ×
               </button>
             </div>
 
@@ -545,236 +551,145 @@ export default function MerchantConcerns() {
             <div style={{ padding: '0 24px', borderBottom: `2px solid ${theme.border.primary}`, display: 'flex', gap: '8px' }}>
               <button
                 onClick={() => setModalTab('details')}
-                style={{
-                  padding: '12px 20px',
-                  background: 'transparent',
-                  border: 'none',
-                  borderBottom: `3px solid ${modalTab === 'details' ? theme.accent.primary : 'transparent'}`,
-                  color: modalTab === 'details' ? theme.accent.primary : theme.text.secondary,
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}
+                style={{ padding: '12px 20px', background: 'transparent', border: 'none', borderBottom: `3px solid ${modalTab === 'details' ? theme.accent.primary : 'transparent'}`, color: modalTab === 'details' ? theme.accent.primary : theme.text.secondary, fontSize: '14px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
               >
                 📋 Details
               </button>
               <button
                 onClick={() => setModalTab('notes')}
-                style={{
-                  padding: '12px 20px',
-                  background: 'transparent',
-                  border: 'none',
-                  borderBottom: `3px solid ${modalTab === 'notes' ? theme.accent.primary : 'transparent'}`,
-                  color: modalTab === 'notes' ? theme.accent.primary : theme.text.secondary,
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}
+                style={{ padding: '12px 20px', background: 'transparent', border: 'none', borderBottom: `3px solid ${modalTab === 'notes' ? theme.accent.primary : 'transparent'}`, color: modalTab === 'notes' ? theme.accent.primary : theme.text.secondary, fontSize: '14px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
               >
-                📝 Notes {selectedConcern.notes?.length > 0 && `(${selectedConcern.notes.length})`}
+                📝 Notes History {selectedConcern.notes?.length > 0 && `(${selectedConcern.notes.length})`}
               </button>
             </div>
 
             {/* Tab Content */}
-            <div style={{ flex: 1, overflow: 'auto', padding: '24px', maxHeight: '60vh' }}>
+            <div style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
               {modalTab === 'details' ? (
                 <>
-                  {/* Status Badge */}
-                  <div className="flex items-center gap-3 mb-5">
-                    <span
-                      style={{
-                        background: `${getStatusColor(selectedConcern.status)}20`,
-                        color: getStatusColor(selectedConcern.status)
-                      }}
-                      className="px-3 py-1.5 rounded-full text-sm font-bold capitalize flex items-center gap-2"
-                    >
-                      <span>{getStatusIcon(selectedConcern.status)}</span>
-                      {selectedConcern.status?.replace('_', ' ')}
-                    </span>
-                  </div>
-
-                  {/* Info Grid */}
-                  <div
-                    style={{
-                      background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB',
-                      borderColor: theme.border.primary
-                    }}
-                    className="rounded-xl border p-4 space-y-3 mb-5"
-                  >
-                    <div className="flex justify-between">
-                      <span style={{ color: theme.text.secondary }} className="text-sm">Submitted By</span>
-                      <span style={{ color: theme.text.primary }} className="text-sm font-semibold text-right">
-                        {selectedConcern.userName || 'Unknown'}
-                      </span>
+                  {/* User Info */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                    <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: theme.accent.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '18px', color: theme.accent.secondary, flexShrink: 0 }}>
+                      {selectedConcern.userName?.[0] || '?'}
                     </div>
-                    <div className="flex justify-between">
-                      <span style={{ color: theme.text.secondary }} className="text-sm">Email</span>
-                      <span style={{ color: theme.text.primary }} className="text-sm font-semibold">
-                        {selectedConcern.userEmail || 'N/A'}
-                      </span>
+                    <div>
+                      <p style={{ color: theme.text.primary, fontWeight: 600, margin: 0 }}>{selectedConcern.userName || 'Unknown User'}</p>
+                      <p style={{ color: theme.text.secondary, fontSize: '13px', margin: 0 }}>{selectedConcern.userEmail || 'No email provided'}</p>
                     </div>
-                    <div className="flex justify-between">
-                      <span style={{ color: theme.text.secondary }} className="text-sm">Subject</span>
-                      <span style={{ color: theme.text.primary }} className="text-sm font-semibold text-right max-w-[60%]">
-                        {selectedConcern.subject || 'N/A'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span style={{ color: theme.text.secondary }} className="text-sm">Submitted To</span>
-                      <span style={{ color: theme.text.primary }} className="text-sm font-semibold">
-                        {selectedConcern.reportTo || 'N/A'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span style={{ color: theme.text.secondary }} className="text-sm">Date</span>
-                      <span style={{ color: theme.text.primary }} className="text-sm font-semibold">
-                        {formatDate(selectedConcern.createdAt || selectedConcern.submittedAt)}
-                      </span>
+                    <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
+                      <p style={{ color: theme.text.muted, fontSize: '12px', margin: 0 }}>
+                        {selectedConcern.createdAt || selectedConcern.submittedAt ? new Date(selectedConcern.createdAt || selectedConcern.submittedAt).toLocaleString() : ''}
+                      </p>
                     </div>
                   </div>
 
                   {/* Message */}
-                  <div className="mb-5">
-                    <p style={{ color: theme.text.secondary }} className="text-sm font-semibold mb-2">Message</p>
-                    <div
-                      style={{
-                        background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB',
-                        borderColor: theme.border.primary
-                      }}
-                      className="rounded-xl border p-4"
-                    >
-                      <p style={{ color: theme.text.primary }} className="whitespace-pre-wrap">
-                        {selectedConcern.feedbackText || selectedConcern.otherConcern || 'No message provided'}
-                      </p>
-                    </div>
+                  <div style={{ background: theme.bg.tertiary, borderRadius: '12px', padding: '16px', marginBottom: '20px', border: `1px solid ${theme.border.primary}` }}>
+                    <p style={{ color: theme.text.primary, whiteSpace: 'pre-wrap', margin: 0, lineHeight: '1.6' }}>
+                      {selectedConcern.feedbackText || selectedConcern.otherConcern || selectedConcern.description || 'No message provided'}
+                    </p>
                   </div>
 
-                  {/* Actions */}
-                  {selectedConcern.status !== 'resolved' && (
-                    <div className="flex gap-3">
-                      <button
-                        onClick={() => {
-                          setShowDetailsModal(false);
-                          handleStatusChange(selectedConcern, 'in_progress');
-                        }}
-                        style={{
-                          background: 'rgba(251,191,36,0.1)',
-                          color: '#F59E0B'
-                        }}
-                        className="px-4 py-2 rounded-lg font-semibold hover:opacity-80 transition"
-                      >
-                        Mark as In Progress
-                      </button>
-                      <button
-                        onClick={() => {
-                          setShowDetailsModal(false);
-                          handleStatusChange(selectedConcern, 'resolved');
-                        }}
-                        style={{
-                          background: 'rgba(16,185,129,0.1)',
-                          color: '#10B981'
-                        }}
-                        className="px-4 py-2 rounded-lg font-semibold hover:opacity-80 transition"
-                      >
-                        Resolve
-                      </button>
+                  {/* Rating if feedback */}
+                  {selectedConcern.submissionType === 'feedback' && selectedConcern.rating && (
+                    <div style={{ marginBottom: '20px' }}>
+                      <p style={{ color: theme.text.secondary, fontSize: '12px', marginBottom: '8px', fontWeight: 600 }}>Rating</p>
+                      <div className="flex items-center gap-1">
+                        {[...Array(5)].map((_, i) => (
+                          <span key={i} style={{ fontSize: '24px', color: i < selectedConcern.rating ? '#FFD41C' : 'rgba(255,212,28,0.2)' }}>⭐</span>
+                        ))}
+                        <span style={{ color: theme.text.secondary, marginLeft: '8px' }}>({selectedConcern.rating}/5)</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Resolution if resolved */}
+                  {(selectedConcern.resolution || selectedConcern.adminResponse) && (
+                    <div style={{ background: 'rgba(16,185,129,0.1)', borderRadius: '12px', padding: '16px', border: '1px solid rgba(16,185,129,0.3)' }}>
+                      <p style={{ color: '#10B981', fontSize: '12px', marginBottom: '8px', fontWeight: 700 }}>✓ Resolution</p>
+                      <p style={{ color: theme.text.primary, margin: 0 }}>{selectedConcern.resolution || selectedConcern.adminResponse}</p>
                     </div>
                   )}
                 </>
               ) : (
-                /* Notes Tab */
+                /* Notes History Tab */
                 <div>
-                  {/* Add Note */}
-                  <div className="mb-5">
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={noteText}
-                        onChange={(e) => setNoteText(e.target.value)}
-                        placeholder="Add a note..."
-                        style={{
-                          flex: 1,
-                          background: isDarkMode ? 'rgba(15,18,39,0.6)' : '#F9FAFB',
-                          border: `2px solid ${theme.border.primary}`,
-                          borderRadius: '12px',
-                          color: theme.text.primary,
-                          padding: '12px 16px',
-                          outline: 'none'
-                        }}
-                      />
-                      <button
-                        onClick={handleAddNote}
-                        disabled={sendingNote}
-                        style={{
-                          background: theme.accent.primary,
-                          color: isDarkMode ? '#181D40' : '#FFFFFF',
-                          borderRadius: '12px',
-                          padding: '12px 20px',
-                          fontWeight: 600,
-                          cursor: sendingNote ? 'not-allowed' : 'pointer',
-                          opacity: sendingNote ? 0.6 : 1
-                        }}
-                      >
-                        {sendingNote ? 'Adding...' : 'Add Note'}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Notes List */}
-                  {(!selectedConcern.notes || selectedConcern.notes.length === 0) ? (
+                  {(!selectedConcern.notes || selectedConcern.notes.length === 0) && selectedConcern.status !== 'resolved' ? (
                     <div style={{ textAlign: 'center', padding: '40px 20px', color: theme.text.tertiary }}>
                       <div style={{ fontSize: '48px', marginBottom: '16px' }}>📝</div>
-                      <p style={{ fontSize: '14px', margin: 0 }}>No notes yet</p>
-                      <p style={{ fontSize: '12px', color: theme.text.muted, marginTop: '8px' }}>
-                        Add notes to track progress on this concern
-                      </p>
+                      <p style={{ fontSize: '14px', margin: 0 }}>No notes sent yet</p>
+                      <p style={{ fontSize: '12px', color: theme.text.muted, marginTop: '8px' }}>Use the note field below to send updates to the user</p>
                     </div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                      {selectedConcern.notes.slice().reverse().map((note, index) => (
-                        <div
-                          key={index}
-                          style={{
-                            background: theme.bg.tertiary,
-                            borderRadius: '12px',
-                            padding: '16px',
-                            border: `1px solid ${theme.border.primary}`
-                          }}
-                        >
+                      {selectedConcern.notes?.slice().reverse().map((note, index) => (
+                        <div key={index} style={{ background: theme.bg.tertiary, borderRadius: '12px', padding: '16px', border: `1px solid ${theme.border.primary}` }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                            <span style={{ color: theme.accent.primary, fontSize: '12px', fontWeight: 700 }}>
-                              📨 {note.adminName || 'Admin'}
-                            </span>
-                            <span style={{ color: theme.text.muted, fontSize: '11px' }}>
-                              {note.timestamp ? formatDate(note.timestamp) : ''}
-                            </span>
+                            <span style={{ color: theme.accent.primary, fontSize: '12px', fontWeight: 700 }}>📨 {note.adminName || 'Merchant Admin'}</span>
+                            <span style={{ color: theme.text.muted, fontSize: '11px' }}>{note.timestamp ? new Date(note.timestamp).toLocaleString() : ''}</span>
                           </div>
-                          <p style={{ color: theme.text.primary, margin: 0, lineHeight: '1.5' }}>
-                            {note.message}
-                          </p>
+                          <p style={{ color: theme.text.primary, margin: 0, lineHeight: '1.5' }}>{note.message}</p>
                         </div>
                       ))}
+
+                      {/* Show resolution as final entry if resolved */}
+                      {selectedConcern.status === 'resolved' && (selectedConcern.resolution || selectedConcern.adminResponse) && (
+                        <div style={{ background: 'rgba(16,185,129,0.1)', borderRadius: '12px', padding: '16px', border: '2px solid rgba(16,185,129,0.3)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <span style={{ color: '#10B981', fontSize: '12px', fontWeight: 700 }}>✓ RESOLVED by {selectedConcern.resolvedBy || 'Merchant Admin'}</span>
+                            <span style={{ color: '#10B981', fontSize: '11px', fontWeight: 600 }}>{selectedConcern.resolvedAt ? new Date(selectedConcern.resolvedAt).toLocaleString() : ''}</span>
+                          </div>
+                          <p style={{ color: theme.text.primary, margin: 0, lineHeight: '1.5', fontWeight: 500 }}>{selectedConcern.resolution || selectedConcern.adminResponse}</p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
               )}
             </div>
 
-            {/* Footer */}
-            <div className="px-6 py-4 flex justify-end border-t" style={{ borderColor: theme.border.primary }}>
-              <button
-                onClick={() => setShowDetailsModal(false)}
-                style={{
-                  background: isDarkMode ? 'rgba(71,85,105,0.5)' : '#E5E7EB',
-                  color: theme.text.primary
-                }}
-                className="px-6 py-2.5 rounded-xl font-semibold transition-all hover:opacity-80"
-              >
-                Close
-              </button>
-            </div>
+            {/* Footer - Note Input & Actions (for in_progress assistance concerns) */}
+            {selectedConcern.status === 'in_progress' && selectedConcern.submissionType !== 'feedback' && (
+              <div style={{ borderTop: `2px solid ${theme.border.primary}`, padding: '20px 24px' }}>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ color: theme.text.primary, fontWeight: 600, fontSize: '13px', display: 'block', marginBottom: '8px' }}>💬 Send Note to User</label>
+                  <textarea
+                    value={noteText}
+                    onChange={(e) => setNoteText(e.target.value)}
+                    placeholder="Type your message here... The user will receive this via email."
+                    rows={3}
+                    style={{ width: '100%', padding: '12px', borderRadius: '8px', border: `2px solid ${theme.border.primary}`, background: theme.bg.tertiary, color: theme.text.primary, fontSize: '14px', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button
+                    onClick={handleSendNote}
+                    disabled={sendingNote || !noteText.trim()}
+                    style={{ flex: 1, padding: '12px 24px', background: sendingNote || !noteText.trim() ? 'rgba(59,130,246,0.3)' : 'rgba(59,130,246,0.2)', color: sendingNote || !noteText.trim() ? 'rgba(59,130,246,0.5)' : '#3B82F6', border: `2px solid ${sendingNote || !noteText.trim() ? 'rgba(59,130,246,0.3)' : '#3B82F6'}`, borderRadius: '8px', cursor: sendingNote || !noteText.trim() ? 'not-allowed' : 'pointer', fontSize: '14px', fontWeight: 700, opacity: sendingNote || !noteText.trim() ? 0.6 : 1 }}
+                  >
+                    {sendingNote ? '⏳ Sending...' : '📨 Send Note'}
+                  </button>
+                  <button
+                    onClick={() => handleOpenResolve(selectedConcern)}
+                    style={{ flex: 1, padding: '12px 24px', background: '#10B981', color: '#FFFFFF', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: 700, boxShadow: '0 4px 12px rgba(16,185,129,0.4)' }}
+                  >
+                    ✓ Resolve Concern
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Show resolve button for pending concerns */}
+            {selectedConcern.status === 'pending' && selectedConcern.submissionType !== 'feedback' && (
+              <div style={{ borderTop: `2px solid ${theme.border.primary}`, padding: '20px 24px', display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => handleOpenResolve(selectedConcern)}
+                  style={{ padding: '12px 24px', background: '#10B981', color: '#FFFFFF', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: 700, boxShadow: '0 4px 12px rgba(16,185,129,0.4)' }}
+                >
+                  ✓ Resolve Concern
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -782,96 +697,65 @@ export default function MerchantConcerns() {
       {/* Resolve Modal */}
       {showResolveModal && selectedConcern && (
         <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
           onClick={() => setShowResolveModal(false)}
+          style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(15,18,39,0.9)', backdropFilter: 'blur(8px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         >
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
           <div
-            style={{
-              background: isDarkMode ? '#1E2347' : '#FFFFFF',
-              borderColor: theme.border.primary
-            }}
-            className="relative rounded-2xl shadow-2xl border w-full max-w-lg"
             onClick={(e) => e.stopPropagation()}
+            style={{ background: isDarkMode ? 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)' : '#FFFFFF', borderRadius: '16px', maxWidth: '500px', width: '90%', border: `2px solid ${theme.border.primary}`, boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}
           >
-            {/* Header */}
-            <div
-              style={{
-                background: 'rgba(16,185,129,0.1)',
-                borderColor: 'rgba(16,185,129,0.3)'
-              }}
-              className="px-6 py-5 flex items-center justify-between border-b"
-            >
-              <div className="flex items-center gap-3">
-                <div style={{ background: 'rgba(16,185,129,0.2)' }} className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl">
-                  ✅
-                </div>
+            <div style={{ padding: '24px', borderBottom: '2px solid rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.1)', borderRadius: '16px 16px 0 0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
-                  <h2 style={{ color: '#10B981' }} className="text-xl font-bold">Resolve Concern</h2>
-                  <p style={{ color: theme.text.secondary }} className="text-sm">
-                    {selectedConcern.concernId || 'No ID'}
-                  </p>
+                  <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#10B981', margin: 0, marginBottom: '8px' }}>Resolve Concern</h2>
+                  <p style={{ fontSize: '13px', color: theme.text.secondary, margin: 0 }}>Mark this concern as resolved and notify the user</p>
                 </div>
+                <button onClick={() => setShowResolveModal(false)} style={{ background: 'rgba(239,68,68,0.2)', border: 'none', color: '#EF4444', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', fontSize: '18px' }}>×</button>
               </div>
-              <button
-                onClick={() => setShowResolveModal(false)}
-                style={{ color: theme.text.secondary }}
-                className="hover:opacity-70 transition"
-              >
-                ✕
-              </button>
             </div>
 
-            {/* Content */}
-            <div className="p-6">
-              <div className="mb-5">
-                <label style={{ color: theme.text.primary }} className="block font-semibold mb-2">
-                  Resolution Message <span className="text-red-400">*</span>
+            <div style={{ padding: '24px' }}>
+              <div style={{ background: theme.bg.tertiary, borderRadius: '12px', padding: '16px', marginBottom: '20px', border: `1px solid ${theme.border.primary}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span style={{ color: theme.text.secondary, fontSize: '12px' }}>From</span>
+                  <span style={{ color: theme.text.primary, fontSize: '14px', fontWeight: 600 }}>{selectedConcern.userName || 'Unknown User'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: theme.text.secondary, fontSize: '12px' }}>Subject</span>
+                  <span style={{ color: theme.text.primary, fontSize: '14px', fontWeight: 600, maxWidth: '60%', textAlign: 'right' }}>{selectedConcern.subject || 'No Subject'}</span>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ color: theme.text.primary, fontWeight: 600, display: 'block', marginBottom: '8px' }}>
+                  Resolution Message <span style={{ color: '#EF4444' }}>*</span>
                 </label>
+                <p style={{ color: theme.text.secondary, fontSize: '13px', marginBottom: '12px' }}>This final message will be sent to the user via email and mark the concern as resolved.</p>
                 <textarea
                   value={resolution}
                   onChange={(e) => setResolution(e.target.value)}
-                  placeholder="Please provide details about how this concern was resolved..."
+                  placeholder="Enter your resolution response..."
                   rows={5}
-                  style={{
-                    width: '100%',
-                    background: isDarkMode ? 'rgba(15,18,39,0.6)' : '#F9FAFB',
-                    border: `2px solid ${theme.border.primary}`,
-                    borderRadius: '12px',
-                    color: theme.text.primary,
-                    padding: '14px 16px',
-                    outline: 'none',
-                    resize: 'none',
-                    fontSize: '14px'
-                  }}
+                  style={{ width: '100%', padding: '12px', borderRadius: '8px', border: `2px solid ${theme.border.primary}`, background: theme.bg.tertiary, color: theme.text.primary, fontSize: '14px', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }}
+                  autoFocus
                 />
               </div>
             </div>
 
-            {/* Footer */}
-            <div className="px-6 py-4 flex justify-end gap-3 border-t" style={{ borderColor: theme.border.primary }}>
+            <div style={{ padding: '20px 24px', borderTop: `2px solid ${theme.border.primary}`, display: 'flex', gap: '12px' }}>
               <button
                 onClick={() => setShowResolveModal(false)}
-                style={{
-                  background: isDarkMode ? 'rgba(71,85,105,0.5)' : '#E5E7EB',
-                  color: theme.text.primary
-                }}
-                className="px-6 py-2.5 rounded-xl font-semibold transition-all hover:opacity-80"
+                disabled={resolving}
+                style={{ flex: 1, padding: '14px', background: theme.bg.tertiary, color: theme.text.primary, border: `1px solid ${theme.border.primary}`, borderRadius: '8px', cursor: resolving ? 'not-allowed' : 'pointer', fontSize: '14px', fontWeight: 600, opacity: resolving ? 0.5 : 1 }}
               >
                 Cancel
               </button>
               <button
                 onClick={handleResolve}
-                disabled={resolving}
-                style={{
-                  background: '#10B981',
-                  color: '#FFFFFF',
-                  cursor: resolving ? 'not-allowed' : 'pointer',
-                  opacity: resolving ? 0.6 : 1
-                }}
-                className="px-6 py-2.5 rounded-xl font-semibold transition-all"
+                disabled={resolving || !resolution.trim()}
+                style={{ flex: 1, padding: '14px', background: resolving || !resolution.trim() ? 'rgba(16,185,129,0.3)' : '#10B981', color: '#FFFFFF', border: 'none', borderRadius: '8px', cursor: resolving || !resolution.trim() ? 'not-allowed' : 'pointer', fontSize: '14px', fontWeight: 700, opacity: resolving || !resolution.trim() ? 0.6 : 1, boxShadow: resolving || !resolution.trim() ? 'none' : '0 4px 12px rgba(16,185,129,0.4)' }}
               >
-                {resolving ? 'Resolving...' : 'Resolve Concern'}
+                {resolving ? '⏳ Resolving...' : '✓ Resolve & Notify User'}
               </button>
             </div>
           </div>
