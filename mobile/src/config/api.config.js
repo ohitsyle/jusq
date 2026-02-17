@@ -11,11 +11,14 @@ const SERVER_PORT_KEY = '@nucash_server_port';
 // Default port
 const DEFAULT_PORT = 3000;
 
-// Development/Production API URLs
+// Default server (AWS) - used when no custom IP is configured
+const DEFAULT_SERVER_URL = 'http://18.166.29.239:3000/api';
+
+// Development/Production API URLs — all point to AWS by default
 const API_URLS = {
-  development: 'http://18.166.29.239:3000/api', // AWS server
-  staging: 'https://staging-api.nucash.com/api',
-  production: 'https://api.nucash.com/api'
+  development: DEFAULT_SERVER_URL,
+  staging: DEFAULT_SERVER_URL,
+  production: DEFAULT_SERVER_URL
 };
 
 // Get current environment
@@ -253,18 +256,18 @@ export const initializeAPIConfig = async () => {
     if (storedURL) {
       currentBaseURL = storedURL;
       console.log(`✅ API Config initialized with stored URL: ${currentBaseURL}`);
-    } else if (ENV !== 'development') {
-      // Use production/staging URL
-      currentBaseURL = API_URLS[ENV];
-      console.log(`✅ API Config initialized with ${ENV} URL: ${currentBaseURL}`);
     } else {
-      console.log('⚠️ No server URL configured. Please configure in settings.');
+      // Always default to the AWS server
+      currentBaseURL = DEFAULT_SERVER_URL;
+      console.log(`✅ API Config initialized with default server: ${currentBaseURL}`);
     }
 
     return currentBaseURL;
   } catch (error) {
     console.error('Error initializing API config:', error);
-    return null;
+    // Fall back to default even on error
+    currentBaseURL = DEFAULT_SERVER_URL;
+    return currentBaseURL;
   }
 };
 

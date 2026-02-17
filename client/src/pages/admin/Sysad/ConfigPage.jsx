@@ -597,7 +597,7 @@ export default function SysadConfigPage() {
             <div>
               <h3 style={{ color: theme.text.primary }} className="font-bold text-lg">User Deactivation Scheduler</h3>
               <p style={{ color: theme.text.secondary }} className="text-sm">
-                Schedule a one-time batch deactivation of all student and employee accounts.
+                Schedule a one-time batch deactivation of all student accounts.
               </p>
             </div>
           </div>
@@ -610,7 +610,7 @@ export default function SysadConfigPage() {
             >
               <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
               <span className="text-red-500 text-sm font-semibold">
-                Deactivation scheduled — all users will be deactivated on{' '}
+                Deactivation scheduled — all student accounts will be deactivated on{' '}
                 {sysadConfig.deactivationScheduler.date} at {sysadConfig.deactivationScheduler.time}
               </span>
             </div>
@@ -623,7 +623,7 @@ export default function SysadConfigPage() {
           >
             <p style={{ color: theme.text.secondary }} className="text-sm leading-relaxed">
               <span style={{ color: '#EF4444' }} className="font-bold">⚠️ What this does: </span>
-              At the scheduled date and time, all user accounts with role <span style={{ color: theme.text.primary }} className="font-mono font-bold">student</span> or <span style={{ color: theme.text.primary }} className="font-mono font-bold">employee</span> will have <span style={{ color: theme.text.primary }} className="font-mono font-bold">isDeactivated</span> set to <span style={{ color: '#EF4444' }} className="font-mono font-bold">true</span> and <span style={{ color: theme.text.primary }} className="font-mono font-bold">isActive</span> set to <span style={{ color: '#EF4444' }} className="font-mono font-bold">false</span>. This action cannot be undone automatically.
+              At the scheduled date and time, all user accounts with role <span style={{ color: theme.text.primary }} className="font-mono font-bold">student</span> will have <span style={{ color: theme.text.primary }} className="font-mono font-bold">isDeactivated</span> set to <span style={{ color: '#EF4444' }} className="font-mono font-bold">true</span> and <span style={{ color: theme.text.primary }} className="font-mono font-bold">isActive</span> set to <span style={{ color: '#EF4444' }} className="font-mono font-bold">false</span>. This action cannot be undone automatically.
             </p>
           </div>
 

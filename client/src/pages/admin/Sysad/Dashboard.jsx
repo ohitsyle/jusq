@@ -6,6 +6,7 @@ import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { toast } from 'react-toastify';
 import { Users, UserCheck, UserX, Shield, GraduationCap, Briefcase, Clock, Plus, CreditCard, Search, Check, Loader2, AlertCircle, X, ArrowRight, CheckCircle } from 'lucide-react';
+import { convertToHexLittleEndian } from '../../../utils/rfidConverter';
 
 export default function SysadDashboard() {
   const { theme, isDarkMode } = useTheme();
@@ -499,14 +500,7 @@ function DashboardTransferModal({ theme, isDarkMode, onClose }) {
   const [newRfid, setNewRfid] = useState('');
   const [processing, setProcessing] = useState(false);
 
-  const convertToHex = (rfid) => {
-    if (!rfid) return '';
-    const upper = rfid.toUpperCase();
-    if (/^[0-9A-F]+$/.test(upper)) return upper;
-    const dec = parseInt(upper, 10);
-    if (!isNaN(dec)) return dec.toString(16).toUpperCase();
-    return upper;
-  };
+  const convertToHex = convertToHexLittleEndian;
 
   useEffect(() => {
     loadUsers();

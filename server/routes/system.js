@@ -33,19 +33,23 @@ router.get('/config', async (req, res) => {
 // Update settings
 router.put('/config', async (req, res) => {
   try {
-    const { currentFare, negativeLimit } = req.body;
-    
+    const { currentFare } = req.body;
+
     let setting = await Setting.findOne();
-    
+
+    const fare = currentFare !== undefined ? currentFare : (setting?.currentFare || 15);
+    // negativeLimit is always -(fare - 1): student needs ₱1 minimum to ride
+    const computedNegativeLimit = -(fare - 1);
+
     if (!setting) {
       setting = new Setting({
-        currentFare: currentFare || 15,
-        negativeLimit: negativeLimit || -14,
+        currentFare: fare,
+        negativeLimit: computedNegativeLimit,
         updatedBy: 'Admin'
       });
     } else {
       if (currentFare !== undefined) setting.currentFare = currentFare;
-      if (negativeLimit !== undefined) setting.negativeLimit = negativeLimit;
+      setting.negativeLimit = computedNegativeLimit;
       setting.updatedBy = 'Admin';
       setting.updatedAt = new Date();
     }

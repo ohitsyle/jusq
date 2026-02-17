@@ -619,9 +619,16 @@ router.post('/sync', async (req, res) => {
         // Use fare from transaction, or default
         const fare = tx.fareAmount || 15;
 
-        // Deduct balance
+        // Deduct balance (apply negativeLimit: student needs ₱1 minimum)
         const balanceBefore = user.balance;
         const balanceAfter = balanceBefore - fare;
+        const setting = await Setting.findOne();
+        const negativeLimit = setting?.negativeLimit ?? -(fare - 1);
+
+        if (balanceAfter < negativeLimit) {
+          rejected.push({ rfidUId: tx.rfidUId, error: 'Insufficient balance' });
+          continue;
+        }
 
         user.balance = balanceAfter;
         await user.save();

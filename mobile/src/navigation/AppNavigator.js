@@ -38,18 +38,17 @@ export default function AppNavigator() {
   useEffect(() => {
     const init = async () => {
       try {
-        // Initialize API configuration
+        // Initialize API configuration (defaults to AWS server if not custom-configured)
         await initializeAPIConfig();
         await initializeAPI();
 
-        // Check if server is configured
-        const configured = isServerConfigured();
-        setNeedsConfig(!configured);
+        // Always go to Login — server defaults to AWS, no setup screen needed on first launch
+        setNeedsConfig(false);
 
-        console.log('📱 App initialized, server configured:', configured);
+        console.log('📱 App initialized, server configured:', isServerConfigured());
       } catch (error) {
         console.error('Initialization error:', error);
-        setNeedsConfig(true);
+        setNeedsConfig(false); // Still go to Login, not ServerConfig
       } finally {
         setIsReady(true);
       }
