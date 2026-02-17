@@ -99,7 +99,7 @@ export default function PhonesList() {
         await api.put(`/admin/phones/${editingPhone._id}`, formData);
         setAlert({ type: 'success', message: 'Phone updated successfully!' });
       } else {
-        await api.post('/admin/phones', { ...formData, phoneId: getNextPhoneId() });
+        await api.post('/admin/phones', formData);
         setAlert({ type: 'success', message: 'Phone created successfully!' });
       }
       setShowModal(false);

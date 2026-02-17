@@ -444,16 +444,28 @@ router.delete('/shuttles/:id', async (req, res) => {
 
 router.post('/phones', async (req, res) => {
   try {
-    const { phoneId, phoneModel, phoneType, serialNumber, imei, notes, status } = req.body;
+    const { phoneModel, phoneType, serialNumber, imei, notes, status } = req.body;
 
-    if (!phoneId || !phoneModel) {
-      return res.status(400).json({ error: 'Phone ID and Phone Model are required' });
+    if (!phoneModel) {
+      return res.status(400).json({ error: 'Phone Model is required' });
     }
 
-    // Check if phoneId already exists
+    // Auto-generate a unique phoneId server-side
+    const allPhones = await Phone.find({}, 'phoneId').lean();
+    let highestNum = 0;
+    for (const p of allPhones) {
+      const match = p.phoneId?.match(/PHONE_(\d+)/i);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num > highestNum) highestNum = num;
+      }
+    }
+    const phoneId = `PHONE_${String(highestNum + 1).padStart(3, '0')}`;
+
+    // Safety check (should never hit, but guards against race conditions)
     const existing = await Phone.findOne({ phoneId });
     if (existing) {
-      return res.status(409).json({ error: 'Phone ID already exists' });
+      return res.status(409).json({ error: 'Phone ID already exists, please try again' });
     }
 
     const phone = new Phone({
