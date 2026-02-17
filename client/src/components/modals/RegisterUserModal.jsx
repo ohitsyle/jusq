@@ -10,17 +10,30 @@ import { toast } from 'react-toastify';
 import { convertToHexLittleEndian } from '../../utils/rfidConverter';
 const normalizeRfidHex = convertToHexLittleEndian;
 
-// Format school ID for display (####-######)
-const formatSchoolIdDisplay = (value) => {
+// Format school ID for display based on role
+// student: ####-###### (10 digits total)
+// employee: ##-###### (8 digits total)
+const formatSchoolIdDisplay = (value, role) => {
   const cleaned = value.replace(/\D/g, '');
+  if (role === 'employee') {
+    if (cleaned.length <= 2) return cleaned;
+    return `${cleaned.slice(0, 2)}-${cleaned.slice(2, 8)}`;
+  }
+  // student (default)
   if (cleaned.length <= 4) return cleaned;
   return `${cleaned.slice(0, 4)}-${cleaned.slice(4, 10)}`;
 };
 
-// Clean school ID for storage (##########)
+// Clean school ID for storage (digits only)
 const cleanSchoolId = (value) => {
-  return value.replace(/\D/g, '').slice(0, 10);
+  return value.replace(/\D/g, '');
 };
+
+// Get expected raw digit length for role
+const getSchoolIdLength = (role) => role === 'employee' ? 8 : 10;
+
+// Get max display length for role (includes dash)
+const getSchoolIdMaxLength = (role) => role === 'employee' ? 9 : 11;
 
 // Mask RFID for display
 const maskRfid = (rfid) => {
@@ -138,8 +151,14 @@ export default function RegisterUserModal({ isOpen, onClose, onSuccess, prefillR
 
   // Handle school ID input with formatting
   const handleSchoolIdChange = (e) => {
-    const formatted = formatSchoolIdDisplay(e.target.value);
+    const formatted = formatSchoolIdDisplay(e.target.value, formData.role);
     setFormData(prev => ({ ...prev, schoolUId: formatted }));
+  };
+
+  // When role changes, reformat existing school ID
+  const handleRoleChange = (newRole) => {
+    const reformatted = formatSchoolIdDisplay(cleanSchoolId(formData.schoolUId), newRole);
+    setFormData(prev => ({ ...prev, role: newRole, schoolUId: reformatted }));
   };
 
   // Validate form before proceeding to summary
@@ -152,8 +171,11 @@ export default function RegisterUserModal({ isOpen, onClose, onSuccess, prefillR
       toast.error('Last name is required');
       return false;
     }
-    if (!formData.schoolUId || cleanSchoolId(formData.schoolUId).length !== 10) {
-      toast.error('Please enter a valid 10-digit School ID');
+    const expectedLen = getSchoolIdLength(formData.role);
+    if (!formData.schoolUId || cleanSchoolId(formData.schoolUId).length !== expectedLen) {
+      toast.error(formData.role === 'employee'
+        ? 'Please enter a valid 8-digit Employee ID (##-######)'
+        : 'Please enter a valid 10-digit School ID (####-######)');
       return false;
     }
     if (!formData.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
@@ -429,6 +451,34 @@ export default function RegisterUserModal({ isOpen, onClose, onSuccess, prefillR
                 <CheckCircle className="w-5 h-5 text-green-500" />
               </div>
 
+              {/* Role Selection - FIRST before other fields */}
+              <div>
+                <label style={{ color: theme.text.primary }} className="font-semibold mb-1.5 block text-sm">
+                  User Type <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  {['student', 'employee'].map((role) => (
+                    <button
+                      key={role}
+                      type="button"
+                      onClick={() => handleRoleChange(role)}
+                      style={{
+                        background: formData.role === role
+                          ? theme.accent.primary
+                          : isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB',
+                        color: formData.role === role
+                          ? (isDarkMode ? '#181D40' : '#FFFFFF')
+                          : theme.text.primary,
+                        borderColor: formData.role === role ? theme.accent.primary : theme.border.primary
+                      }}
+                      className="py-2.5 rounded-xl border font-semibold capitalize transition-all hover:opacity-90"
+                    >
+                      {role === 'student' ? '🎓 ' : '👔 '}{role}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Name Fields */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
@@ -484,38 +534,10 @@ export default function RegisterUserModal({ isOpen, onClose, onSuccess, prefillR
                 </div>
               </div>
 
-              {/* Role Selection */}
-              <div>
-                <label style={{ color: theme.text.primary }} className="font-semibold mb-1.5 block text-sm">
-                  User Type <span className="text-red-500">*</span>
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  {['student', 'employee'].map((role) => (
-                    <button
-                      key={role}
-                      type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, role }))}
-                      style={{
-                        background: formData.role === role
-                          ? theme.accent.primary
-                          : isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB',
-                        color: formData.role === role
-                          ? (isDarkMode ? '#181D40' : '#FFFFFF')
-                          : theme.text.primary,
-                        borderColor: formData.role === role ? theme.accent.primary : theme.border.primary
-                      }}
-                      className="py-2.5 rounded-xl border font-semibold capitalize transition-all hover:opacity-90"
-                    >
-                      {role === 'student' ? '🎓 ' : '👔 '}{role}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               {/* School ID */}
               <div>
                 <label style={{ color: theme.text.primary }} className="font-semibold mb-1.5 block text-sm">
-                  School ID <span className="text-red-500">*</span>
+                  {formData.role === 'employee' ? 'Employee ID' : 'School ID'} <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <IdCard style={{ color: theme.text.tertiary }} className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5" />
@@ -523,8 +545,8 @@ export default function RegisterUserModal({ isOpen, onClose, onSuccess, prefillR
                     type="text"
                     value={formData.schoolUId}
                     onChange={handleSchoolIdChange}
-                    placeholder="2024-123456"
-                    maxLength={11}
+                    placeholder={formData.role === 'employee' ? '24-123456' : '2024-123456'}
+                    maxLength={getSchoolIdMaxLength(formData.role)}
                     style={{
                       background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB',
                       color: theme.text.primary,
@@ -534,7 +556,9 @@ export default function RegisterUserModal({ isOpen, onClose, onSuccess, prefillR
                   />
                 </div>
                 <p style={{ color: theme.text.tertiary }} className="text-xs mt-1">
-                  Format: ####-###### (will be stored as 10 digits)
+                  {formData.role === 'employee'
+                    ? 'Format: ##-###### (stored as 8 digits)'
+                    : 'Format: ####-###### (stored as 10 digits)'}
                 </p>
               </div>
 
@@ -631,7 +655,7 @@ export default function RegisterUserModal({ isOpen, onClose, onSuccess, prefillR
                   { label: 'RFID Tag', value: maskRfid(normalizedRfid) },
                   { label: 'Full Name', value: `${formData.firstName} ${formData.middleName ? formData.middleName + ' ' : ''}${formData.lastName}` },
                   { label: 'User Type', value: formData.role, badge: true },
-                  { label: 'School ID', value: formData.schoolUId },
+                  { label: formData.role === 'employee' ? 'Employee ID' : 'School ID', value: formData.schoolUId },
                   { label: 'Email', value: formData.email }
                 ].map((item, idx) => (
                   <div

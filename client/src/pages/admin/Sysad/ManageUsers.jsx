@@ -634,6 +634,24 @@ function DeactivatedBadge({ isDeactivated }) {
 // RFID Hex conversion utility
 const normalizeRfidHex = convertToHexLittleEndian;
 
+// Format school ID for display based on role
+// student: ####-###### (10 digits)
+// employee/admin: ##-###### (8 digits)
+const formatSchoolIdDisplay = (value, role) => {
+  const cleaned = value.replace(/\D/g, '');
+  if (role === 'employee' || role === 'admin') {
+    if (cleaned.length <= 2) return cleaned;
+    return `${cleaned.slice(0, 2)}-${cleaned.slice(2, 8)}`;
+  }
+  // student (default)
+  if (cleaned.length <= 4) return cleaned;
+  return `${cleaned.slice(0, 4)}-${cleaned.slice(4, 10)}`;
+};
+
+const cleanSchoolId = (value) => value.replace(/\D/g, '');
+
+const getSchoolIdMaxLength = (role) => (role === 'employee' || role === 'admin') ? 9 : 11;
+
 // Add User Modal - Updated with selection buttons and custom notifications
 function AddUserModal({ theme, isDarkMode, onClose, onSuccess, showNotification }) {
   const [formData, setFormData] = useState({
@@ -721,20 +739,21 @@ function AddUserModal({ theme, isDarkMode, onClose, onSuccess, showNotification 
   };
 
   const handleSchoolIdChange = async (e) => {
-    const value = e.target.value;
-    setFormData({ ...formData, schoolUId: value });
+    const formatted = formatSchoolIdDisplay(e.target.value, formData.role);
+    setFormData({ ...formData, schoolUId: formatted });
     setSchoolIdStatus(null);
     setValidationError(null);
 
-    if (!value.trim()) return;
+    const rawDigits = cleanSchoolId(formatted);
+    if (!rawDigits.trim()) return;
 
     // Debounce the check
     if (schoolIdTimer.current) clearTimeout(schoolIdTimer.current);
     schoolIdTimer.current = setTimeout(async () => {
-      if (value.length >= 6) {
+      if (rawDigits.length >= 6) {
         setCheckingSchoolId(true);
         try {
-          const response = await api.get(`/admin/sysad/users/check-schoolid?schoolUId=${encodeURIComponent(value.trim())}`);
+          const response = await api.get(`/admin/sysad/users/check-schoolid?schoolUId=${encodeURIComponent(rawDigits)}`);
           setSchoolIdStatus(response.available === true ? 'available' : 'taken');
         } catch (error) {
           console.error('School ID check error:', error);
@@ -744,6 +763,12 @@ function AddUserModal({ theme, isDarkMode, onClose, onSuccess, showNotification 
         }
       }
     }, 300);
+  };
+
+  const handleRoleChange = (newRole) => {
+    const reformatted = formatSchoolIdDisplay(cleanSchoolId(formData.schoolUId), newRole);
+    setFormData({ ...formData, role: newRole, adminRole: '', schoolUId: reformatted });
+    setSchoolIdStatus(null);
   };
 
   // Generate random 6-digit PIN
@@ -800,6 +825,7 @@ function AddUserModal({ theme, isDarkMode, onClose, onSuccess, showNotification 
       const payload = {
         ...formData,
         rfidUId: isAdminRole ? undefined : normalizeRfidHex(formData.rfidUId.trim()),
+        schoolUId: cleanSchoolId(formData.schoolUId), // strip formatting dashes
         pin: temporaryPin,
         // If it's an admin user, use the adminRole as the actual role
         role: isAdminRole ? formData.adminRole : formData.role
@@ -847,6 +873,72 @@ function AddUserModal({ theme, isDarkMode, onClose, onSuccess, showNotification 
             <div style={{ background: 'rgba(239,68,68,0.15)', borderColor: 'rgba(239,68,68,0.3)' }} className="p-3 rounded-xl border flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
               <p className="text-red-500 text-sm">{validationError}</p>
+            </div>
+          )}
+
+          {/* Role Selection - FIRST before everything else */}
+          <div>
+            <label style={{ color: theme.text.secondary }} className="block text-xs font-semibold uppercase mb-2">User Role *</label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { value: 'student', label: 'Student', icon: '🎓' },
+                { value: 'employee', label: 'Employee', icon: '👔' },
+                { value: 'admin', label: 'Admin', icon: '🛡️' }
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => handleRoleChange(option.value)}
+                  style={{
+                    background: formData.role === option.value
+                      ? theme.accent.primary
+                      : isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB',
+                    color: formData.role === option.value
+                      ? (isDarkMode ? '#181D40' : '#FFFFFF')
+                      : theme.text.primary,
+                    borderColor: formData.role === option.value ? theme.accent.primary : theme.border.primary
+                  }}
+                  className="py-3 rounded-xl border font-semibold text-sm transition-all hover:opacity-90 flex items-center justify-center gap-2"
+                >
+                  <span>{option.icon}</span> {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Admin Type Selection - Shows when role is 'admin' */}
+          {formData.role === 'admin' && (
+            <div>
+              <label style={{ color: theme.text.secondary }} className="block text-xs font-semibold uppercase mb-2">
+                Admin Type <span className="text-red-500">*</span>
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {[
+                  { value: 'sysad', label: 'System Admin', color: '#8B5CF6' },
+                  { value: 'treasury', label: 'Treasury', color: '#10B981' },
+                  { value: 'accounting', label: 'Accounting', color: '#A855F7' },
+                  { value: 'motorpool', label: 'Motorpool', color: '#F59E0B' },
+                  { value: 'merchant', label: 'Merchant', color: '#EC4899' }
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, adminRole: option.value })}
+                    style={{
+                      background: formData.adminRole === option.value
+                        ? option.color
+                        : isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB',
+                      color: formData.adminRole === option.value
+                        ? '#FFFFFF'
+                        : theme.text.primary,
+                      borderColor: formData.adminRole === option.value ? option.color : theme.border.primary
+                    }}
+                    className="py-2.5 rounded-xl border font-semibold text-xs transition-all hover:opacity-90"
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
@@ -968,18 +1060,22 @@ function AddUserModal({ theme, isDarkMode, onClose, onSuccess, showNotification 
             )}
           </div>
           <div>
-            <label style={{ color: theme.text.secondary }} className="block text-xs font-semibold uppercase mb-2">School ID *</label>
+            <label style={{ color: theme.text.secondary }} className="block text-xs font-semibold uppercase mb-2">
+              {formData.role === 'student' ? 'School ID' : 'Employee/Admin ID'} *
+            </label>
             <div className="relative">
               <input
                 type="text"
                 value={formData.schoolUId}
                 onChange={handleSchoolIdChange}
+                placeholder={formData.role === 'student' ? '2024-123456' : '24-123456'}
+                maxLength={getSchoolIdMaxLength(formData.role)}
                 style={{
                   background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB',
                   color: theme.text.primary,
                   borderColor: schoolIdStatus === 'taken' ? '#EF4444' : schoolIdStatus === 'available' ? '#10B981' : theme.border.primary
                 }}
-                className="w-full px-4 pr-10 py-2.5 rounded-xl border text-sm focus:outline-none transition-all"
+                className="w-full px-4 pr-10 py-2.5 rounded-xl border text-sm focus:outline-none transition-all font-mono"
                 required
               />
               {checkingSchoolId && (
@@ -993,78 +1089,17 @@ function AddUserModal({ theme, isDarkMode, onClose, onSuccess, showNotification 
               )}
             </div>
             {schoolIdStatus === 'taken' && (
-              <p className="text-red-500 text-xs mt-1">This School ID is already registered</p>
+              <p className="text-red-500 text-xs mt-1">This ID is already registered</p>
             )}
             {schoolIdStatus === 'available' && (
-              <p className="text-green-500 text-xs mt-1">School ID is available</p>
+              <p className="text-green-500 text-xs mt-1">ID is available</p>
             )}
+            <p style={{ color: theme.text.tertiary }} className="text-xs mt-1">
+              {formData.role === 'student'
+                ? 'Format: ####-###### (stored as 10 digits)'
+                : 'Format: ##-###### (stored as 8 digits)'}
+            </p>
           </div>
-
-          {/* Role Selection - Selection Buttons like Treasury */}
-          <div>
-            <label style={{ color: theme.text.secondary }} className="block text-xs font-semibold uppercase mb-2">User Role *</label>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { value: 'student', label: 'Student', icon: '🎓' },
-                { value: 'employee', label: 'Employee', icon: '👔' },
-                { value: 'admin', label: 'Admin', icon: '🛡️' }
-              ].map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setFormData({ ...formData, role: option.value, adminRole: '' })}
-                  style={{
-                    background: formData.role === option.value
-                      ? theme.accent.primary
-                      : isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB',
-                    color: formData.role === option.value
-                      ? (isDarkMode ? '#181D40' : '#FFFFFF')
-                      : theme.text.primary,
-                    borderColor: formData.role === option.value ? theme.accent.primary : theme.border.primary
-                  }}
-                  className="py-3 rounded-xl border font-semibold text-sm transition-all hover:opacity-90 flex items-center justify-center gap-2"
-                >
-                  <span>{option.icon}</span> {option.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Admin Type Selection - Shows when role is 'admin' */}
-          {formData.role === 'admin' && (
-            <div>
-              <label style={{ color: theme.text.secondary }} className="block text-xs font-semibold uppercase mb-2">
-                Admin Type <span className="text-red-500">*</span>
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {[
-                  { value: 'sysad', label: 'System Admin', color: '#8B5CF6' },
-                  { value: 'treasury', label: 'Treasury', color: '#10B981' },
-                  { value: 'accounting', label: 'Accounting', color: '#A855F7' },
-                  { value: 'motorpool', label: 'Motorpool', color: '#F59E0B' },
-                  { value: 'merchant', label: 'Merchant', color: '#EC4899' }
-                ].map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setFormData({ ...formData, adminRole: option.value })}
-                    style={{
-                      background: formData.adminRole === option.value
-                        ? option.color
-                        : isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB',
-                      color: formData.adminRole === option.value
-                        ? '#FFFFFF'
-                        : theme.text.primary,
-                      borderColor: formData.adminRole === option.value ? option.color : theme.border.primary
-                    }}
-                    className="py-2.5 rounded-xl border font-semibold text-xs transition-all hover:opacity-90"
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Actions */}
           <div className="flex gap-3 pt-4">
