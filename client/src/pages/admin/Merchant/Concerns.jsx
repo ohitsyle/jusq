@@ -79,16 +79,18 @@ export default function MerchantConcerns() {
         return;
       }
 
-      const response = await api.put(`/admin/concerns/${concern._id}/status`, {
-        status: newStatus
+      const adminData = JSON.parse(localStorage.getItem('merchantAdminData') || localStorage.getItem('adminData') || '{}');
+      const data = await api.patch(`/admin/user-concerns/${concern.concernId || concern._id}/status`, {
+        status: newStatus,
+        adminName: adminData.firstName ? `${adminData.firstName} ${adminData.lastName || ''}`.trim() : 'Merchant Admin'
       });
 
-      if (response.success) {
-        toast.success('Status updated successfully');
+      if (data?.success) {
+        toast.success('Status updated! User has been notified.');
         fetchConcerns(true);
       }
     } catch (error) {
-      toast.error('Failed to update status');
+      toast.error(error.message || 'Failed to update status');
     }
   };
 
@@ -100,21 +102,22 @@ export default function MerchantConcerns() {
 
     setResolving(true);
     try {
-      const response = await api.put(`/admin/concerns/${selectedConcern._id}/status`, {
+      const adminData = JSON.parse(localStorage.getItem('merchantAdminData') || localStorage.getItem('adminData') || '{}');
+      const data = await api.patch(`/admin/user-concerns/${selectedConcern.concernId || selectedConcern._id}/status`, {
         status: 'resolved',
-        adminResponse: resolution,
-        resolvedDate: new Date().toISOString()
+        resolution: resolution.trim(),
+        adminName: adminData.firstName ? `${adminData.firstName} ${adminData.lastName || ''}`.trim() : 'Merchant Admin'
       });
 
-      if (response.success) {
-        toast.success('Concern resolved successfully');
+      if (data?.success) {
+        toast.success('Concern resolved! User has been notified via email.');
         setShowResolveModal(false);
         setResolution('');
         setSelectedConcern(null);
         fetchConcerns(true);
       }
     } catch (error) {
-      toast.error('Failed to resolve concern');
+      toast.error(error.message || 'Failed to resolve concern');
     } finally {
       setResolving(false);
     }
@@ -128,27 +131,28 @@ export default function MerchantConcerns() {
 
     setSendingNote(true);
     try {
-      const response = await api.post(`/admin/concerns/${selectedConcern._id}/notes`, {
-        message: noteText,
-        adminName: 'Merchant Admin'
+      const adminData = JSON.parse(localStorage.getItem('merchantAdminData') || localStorage.getItem('adminData') || '{}');
+      const adminName = adminData.firstName ? `${adminData.firstName} ${adminData.lastName || ''}`.trim() : 'Merchant Admin';
+      const data = await api.post(`/admin/user-concerns/${selectedConcern.concernId || selectedConcern._id}/note`, {
+        note: noteText.trim(),
+        adminName
       });
 
-      if (response.success) {
+      if (data?.success) {
         toast.success('Note added successfully');
         setNoteText('');
-        // Refresh the concern details
         const updatedConcern = { ...selectedConcern };
         updatedConcern.notes = updatedConcern.notes || [];
         updatedConcern.notes.push({
-          message: noteText,
-          adminName: 'Merchant Admin',
+          message: noteText.trim(),
+          adminName,
           timestamp: new Date().toISOString()
         });
         setSelectedConcern(updatedConcern);
         fetchConcerns(true);
       }
     } catch (error) {
-      toast.error('Failed to add note');
+      toast.error(error.message || 'Failed to add note');
     } finally {
       setSendingNote(false);
     }

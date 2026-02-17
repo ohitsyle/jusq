@@ -99,8 +99,7 @@ export default function PhonesList() {
         await api.put(`/admin/phones/${editingPhone._id}`, formData);
         setAlert({ type: 'success', message: 'Phone updated successfully!' });
       } else {
-        const newPhoneId = getNextPhoneId();
-        await api.post('/admin/phones', { ...formData, phoneId: newPhoneId });
+        await api.post('/admin/phones', { ...formData, phoneId: getNextPhoneId() });
         setAlert({ type: 'success', message: 'Phone created successfully!' });
       }
       setShowModal(false);
@@ -275,12 +274,12 @@ export default function PhonesList() {
       {/* Table - Scrollable Area */}
       <div className="flex-1 overflow-y-auto pr-2">
       {phones.length === 0 ? (
-        <div className="text-center py-[60px] text-[rgba(251,251,251,0.5)]">
+        <div className="text-center py-[60px]" style={{ color: theme.text.tertiary }}>
           <div className="text-5xl mb-4">📱</div>
           <div>No phones found</div>
         </div>
       ) : filteredPhones.length === 0 ? (
-        <div className="text-center py-[60px] text-[rgba(251,251,251,0.5)]">
+        <div className="text-center py-[60px]" style={{ color: theme.text.tertiary }}>
           <div className="text-5xl mb-4">🔍</div>
           <div style={{ marginBottom: '12px' }}>No phones match your search</div>
           <button onClick={() => setSearchQuery('')} style={{
@@ -421,7 +420,7 @@ export default function PhonesList() {
               ← Previous
             </button>
             <span style={{
-              color: 'rgba(251,251,251,0.8)',
+              color: theme.text.secondary,
               fontSize: '14px',
               fontWeight: 600,
               minWidth: '120px',
@@ -467,7 +466,7 @@ export default function PhonesList() {
           animation: 'fadeIn 0.2s ease'
         }}>
           <div onClick={(e) => e.stopPropagation()} style={{
-            background: 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)',
+            background: isDarkMode ? 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)' : '#FFFFFF',
             borderRadius: '16px',
             maxWidth: '600px',
             width: '90%',
@@ -518,12 +517,12 @@ export default function PhonesList() {
                     padding: '12px',
                     border: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.2)' : 'rgba(59,130,246,0.2)'}`,
                     borderRadius: '8px',
-                    background: 'rgba(100,100,100,0.2)',
-                    color: 'rgba(251,251,251,0.5)',
+                    background: isDarkMode ? 'rgba(100,100,100,0.2)' : 'rgba(0,0,0,0.05)',
+                    color: isDarkMode ? 'rgba(251,251,251,0.5)' : 'rgba(0,0,0,0.4)',
                     fontSize: '14px',
                     boxSizing: 'border-box',
                     cursor: 'not-allowed'
-                  }} 
+                  }}
                 />
               </div>
 
@@ -534,8 +533,8 @@ export default function PhonesList() {
                   padding: '12px',
                   border: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}`,
                   borderRadius: '8px',
-                  background: 'rgba(251,251,251,0.05)',
-                  color: 'rgba(251,251,251,0.9)',
+                  background: isDarkMode ? 'rgba(251,251,251,0.05)' : 'rgba(0,0,0,0.03)',
+                  color: theme.text.primary,
                   fontSize: '14px',
                   boxSizing: 'border-box'
                 }} placeholder="e.g., Samsung Galaxy A14" />
@@ -548,8 +547,8 @@ export default function PhonesList() {
                   padding: '12px',
                   border: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}`,
                   borderRadius: '8px',
-                  background: 'rgba(251,251,251,0.05)',
-                  color: 'rgba(251,251,251,0.9)',
+                  background: isDarkMode ? 'rgba(251,251,251,0.05)' : 'rgba(0,0,0,0.03)',
+                  color: theme.text.primary,
                   fontSize: '14px',
                   boxSizing: 'border-box',
                   cursor: 'pointer'
@@ -567,8 +566,8 @@ export default function PhonesList() {
                   padding: '12px',
                   border: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}`,
                   borderRadius: '8px',
-                  background: 'rgba(251,251,251,0.05)',
-                  color: 'rgba(251,251,251,0.9)',
+                  background: isDarkMode ? 'rgba(251,251,251,0.05)' : 'rgba(0,0,0,0.03)',
+                  color: theme.text.primary,
                   fontSize: '14px',
                   boxSizing: 'border-box',
                   cursor: 'pointer'
@@ -589,8 +588,8 @@ export default function PhonesList() {
                   padding: '12px',
                   border: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}`,
                   borderRadius: '8px',
-                  background: 'rgba(251,251,251,0.05)',
-                  color: 'rgba(251,251,251,0.9)',
+                  background: isDarkMode ? 'rgba(251,251,251,0.05)' : 'rgba(0,0,0,0.03)',
+                  color: theme.text.primary,
                   fontSize: '14px',
                   boxSizing: 'border-box',
                   fontFamily: 'inherit',
@@ -602,9 +601,9 @@ export default function PhonesList() {
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', paddingTop: '20px', borderTop: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.2)' : 'rgba(59,130,246,0.2)'}` }}>
                 <button type="button" onClick={() => setShowModal(false)} style={{
                   padding: '12px 24px',
-                  background: 'rgba(251,251,251,0.1)',
-                  color: 'rgba(251,251,251,0.7)',
-                  border: '1px solid rgba(251,251,251,0.2)',
+                  background: isDarkMode ? 'rgba(251,251,251,0.1)' : '#E5E7EB',
+                  color: theme.text.secondary,
+                  border: `1px solid ${theme.border.primary}`,
                   borderRadius: '8px',
                   fontSize: '14px',
                   fontWeight: 600,

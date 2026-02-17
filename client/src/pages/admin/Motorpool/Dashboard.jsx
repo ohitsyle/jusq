@@ -45,52 +45,57 @@ export default function Dashboard() {
     }
   };
 
+  // Light mode map styles (always)
+  const lightMapStyles = [
+    { elementType: 'geometry', stylers: [{ color: '#f5f5f5' }] },
+    { elementType: 'labels.text.stroke', stylers: [{ color: '#ffffff' }] },
+    { elementType: 'labels.text.fill', stylers: [{ color: '#616161' }] },
+    { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
+    { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#e0e0e0' }] },
+    { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#757575' }] },
+    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#c9d9f1' }] },
+    { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#eeeeee' }] },
+  ];
+
+  // Initialize the map (called once google maps is ready and DOM node exists)
+  const initMap = (node) => {
+    if (!node || mapInstanceRef.current) return;
+    try {
+      const nuLagunaCenter = { lat: 14.17815, lng: 121.1359 };
+      console.log('🗺️ Initializing map...');
+      mapInstanceRef.current = new window.google.maps.Map(node, {
+        center: nuLagunaCenter,
+        zoom: 15,
+        styles: lightMapStyles,
+        disableDefaultUI: true,
+        zoomControl: true,
+      });
+      console.log('✅ Map initialized successfully');
+      setMapError(null);
+      loadShuttlePositions();
+    } catch (err) {
+      console.error('❌ Map initialization error:', err);
+      setMapError(`Failed to initialize map: ${err.message}`);
+    }
+  };
+
   // Callback ref to initialize map when element is ready
   const mapCallbackRef = useCallback((node) => {
-    if (node && window.google && window.google.maps && !mapInstanceRef.current) {
-      try {
-        const nuLagunaCenter = { lat: 14.17815, lng: 121.1359 };
-
-        console.log('🗺️ Initializing map...');
-
-        // Dark or Light map styles based on theme
-        const mapStyles = isDarkMode ? [
-          { elementType: 'geometry', stylers: [{ color: '#242f3e' }] },
-          { elementType: 'labels.text.stroke', stylers: [{ color: '#242f3e' }] },
-          { elementType: 'labels.text.fill', stylers: [{ color: '#746855' }] },
-          { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#38414e' }] },
-          { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#212a37' }] },
-          { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#9ca5b3' }] },
-          { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#17263c' }] },
-        ] : [
-          { elementType: 'geometry', stylers: [{ color: '#f5f5f5' }] },
-          { elementType: 'labels.text.stroke', stylers: [{ color: '#ffffff' }] },
-          { elementType: 'labels.text.fill', stylers: [{ color: '#616161' }] },
-          { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
-          { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#e0e0e0' }] },
-          { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#757575' }] },
-          { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#c9d9f1' }] },
-          { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#eeeeee' }] },
-        ];
-
-        mapInstanceRef.current = new window.google.maps.Map(node, {
-          center: nuLagunaCenter,
-          zoom: 15,
-          styles: mapStyles,
-          disableDefaultUI: true,
-          zoomControl: true,
-        });
-
-        console.log('✅ Map initialized successfully');
-        setMapError(null);
-        loadShuttlePositions();
-      } catch (err) {
-        console.error('❌ Map initialization error:', err);
-        setMapError(`Failed to initialize map: ${err.message}`);
-      }
-    }
     mapRef.current = node;
-  }, [isDarkMode]);
+    if (!node) return;
+    if (window.google && window.google.maps) {
+      // Maps already loaded
+      initMap(node);
+    } else if (window.googleMapsLoadingPromise) {
+      // Maps is loading, wait for it
+      window.googleMapsLoadingPromise.then(() => {
+        initMap(node);
+      }).catch((err) => {
+        console.error('❌ Google Maps load failed:', err);
+        setMapError('Failed to load Google Maps. Please refresh the page.');
+      });
+    }
+  }, []);
 
   // Update map markers
   const updateMapMarkers = (positions) => {
@@ -111,9 +116,9 @@ export default function Dashboard() {
           icon: {
             path: window.google.maps.SymbolPath.CIRCLE,
             scale: 12,
-            fillColor: isDarkMode ? '#FFD41C' : '#3B82F6',
+            fillColor: '#3B82F6',
             fillOpacity: 1,
-            strokeColor: isDarkMode ? '#181D40' : '#FFFFFF',
+            strokeColor: '#FFFFFF',
             strokeWeight: 3,
           },
           label: {
@@ -191,39 +196,56 @@ export default function Dashboard() {
     loadStats();
 
     // Load Google Maps script only once globally
-    if (!window.googleMapsLoadingPromise && !window.google?.maps) {
-      if (!GOOGLE_MAPS_API_KEY) {
-        console.error('❌ Google Maps API key is missing');
-        setMapError('Google Maps API key not configured');
+    const ensureMapsLoaded = () => {
+      if (window.google?.maps) {
+        // Already loaded - try to init map if DOM node is ready
+        if (mapRef.current && !mapInstanceRef.current) {
+          initMap(mapRef.current);
+        }
         return;
       }
 
-      // Check if script already exists in DOM
-      const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
-      if (!existingScript) {
-        // Create a global promise for the script loading
-        // Include 'places' library for RoutesList component
-        window.googleMapsLoadingPromise = new Promise((resolve, reject) => {
-          window.initGoogleMaps = () => {
-            console.log('✅ Google Maps loaded successfully (with places library)');
-            resolve();
-          };
+      if (!window.googleMapsLoadingPromise) {
+        if (!GOOGLE_MAPS_API_KEY) {
+          console.error('❌ Google Maps API key is missing');
+          setMapError('Google Maps API key not configured');
+          return;
+        }
 
-          const script = document.createElement('script');
-          script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places&callback=initGoogleMaps`;
-          script.async = true;
-          script.defer = true;
-          script.onerror = (error) => {
-            console.error('❌ Failed to load Google Maps:', error);
-            setMapError('Failed to load Google Maps. Please check API key.');
-            reject(error);
-          };
-          document.head.appendChild(script);
-        });
-      } else {
-        console.log('✅ Google Maps script already in DOM');
+        const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
+        if (!existingScript) {
+          window.googleMapsLoadingPromise = new Promise((resolve, reject) => {
+            window.initGoogleMaps = () => {
+              console.log('✅ Google Maps loaded successfully (with places library)');
+              resolve();
+            };
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places&callback=initGoogleMaps`;
+            script.async = true;
+            script.defer = true;
+            script.onerror = (error) => {
+              console.error('❌ Failed to load Google Maps:', error);
+              setMapError('Failed to load Google Maps. Please check API key.');
+              reject(error);
+            };
+            document.head.appendChild(script);
+          });
+        }
       }
-    }
+
+      // Wait for the promise and init map when ready
+      if (window.googleMapsLoadingPromise) {
+        window.googleMapsLoadingPromise.then(() => {
+          if (mapRef.current && !mapInstanceRef.current) {
+            initMap(mapRef.current);
+          }
+        }).catch((err) => {
+          setMapError('Failed to load Google Maps. Please check API key.');
+        });
+      }
+    };
+
+    ensureMapsLoaded();
 
     // Auto-refresh every 2 seconds
     const interval = setInterval(() => {

@@ -25,6 +25,9 @@ export default function MotorpoolConcerns() {
   const [resolution, setResolution] = useState('');
   const [resolving, setResolving] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [modalTab, setModalTab] = useState('details'); // 'details' or 'notes'
+  const [noteText, setNoteText] = useState('');
+  const [sendingNote, setSendingNote] = useState(false);
   const ITEMS_PER_PAGE = 15;
   const intervalRef = useRef(null);
 
@@ -71,6 +74,8 @@ export default function MotorpoolConcerns() {
   const handleViewDetails = (concern) => {
     setSelectedConcern(concern);
     setShowDetailsModal(true);
+    setModalTab('details');
+    setNoteText('');
   };
 
   const handleOpenResolve = (concern) => {
@@ -127,6 +132,41 @@ export default function MotorpoolConcerns() {
       toast.error(error.message || 'Failed to resolve concern');
     } finally {
       setResolving(false);
+    }
+  };
+
+  const handleAddNote = async () => {
+    if (!noteText.trim()) {
+      toast.error('Please enter a note');
+      return;
+    }
+
+    setSendingNote(true);
+    try {
+      const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+      const adminName = adminData.firstName ? `${adminData.firstName} ${adminData.lastName || ''}`.trim() : 'Motorpool Admin';
+      const data = await api.post(`/admin/user-concerns/${selectedConcern.concernId || selectedConcern._id}/note`, {
+        note: noteText.trim(),
+        adminName
+      });
+
+      if (data?.success) {
+        toast.success('Note added successfully');
+        setNoteText('');
+        const updatedConcern = { ...selectedConcern };
+        updatedConcern.notes = updatedConcern.notes || [];
+        updatedConcern.notes.push({
+          message: noteText.trim(),
+          adminName,
+          timestamp: new Date().toISOString()
+        });
+        setSelectedConcern(updatedConcern);
+        fetchConcerns(true);
+      }
+    } catch (error) {
+      toast.error(error.message || 'Failed to add note');
+    } finally {
+      setSendingNote(false);
     }
   };
 
@@ -522,16 +562,18 @@ export default function MotorpoolConcerns() {
             style={{
               background: isDarkMode ? 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)' : '#FFFFFF',
               borderRadius: '16px',
-              maxWidth: '600px',
+              maxWidth: '640px',
               width: '90%',
               maxHeight: '85vh',
-              overflow: 'auto',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
               border: `2px solid ${theme.border.primary}`,
               boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
             }}
           >
             {/* Header */}
-            <div style={{ padding: '24px', borderBottom: `2px solid ${theme.border.primary}`, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div style={{ padding: '24px', borderBottom: `2px solid ${theme.border.primary}`, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexShrink: 0 }}>
               <div>
                 <span style={{
                   display: 'inline-block',
@@ -560,73 +602,195 @@ export default function MotorpoolConcerns() {
                   height: '32px',
                   borderRadius: '50%',
                   cursor: 'pointer',
-                  fontSize: '18px'
+                  fontSize: '18px',
+                  flexShrink: 0
                 }}
               >
                 ×
               </button>
             </div>
 
+            {/* Modal Tabs */}
+            <div style={{ padding: '0 24px', borderBottom: `2px solid ${theme.border.primary}`, display: 'flex', gap: '8px', flexShrink: 0 }}>
+              <button
+                onClick={() => setModalTab('details')}
+                style={{
+                  padding: '12px 20px',
+                  background: 'transparent',
+                  border: 'none',
+                  borderBottom: `3px solid ${modalTab === 'details' ? theme.accent.primary : 'transparent'}`,
+                  color: modalTab === 'details' ? theme.accent.primary : theme.text.secondary,
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                📋 Details
+              </button>
+              <button
+                onClick={() => setModalTab('notes')}
+                style={{
+                  padding: '12px 20px',
+                  background: 'transparent',
+                  border: 'none',
+                  borderBottom: `3px solid ${modalTab === 'notes' ? theme.accent.primary : 'transparent'}`,
+                  color: modalTab === 'notes' ? theme.accent.primary : theme.text.secondary,
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                📝 Notes {selectedConcern.notes?.length > 0 && `(${selectedConcern.notes.length})`}
+              </button>
+            </div>
+
             {/* Content */}
-            <div style={{ padding: '24px' }}>
-              {/* User Info */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-                <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: theme.accent.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '18px', color: theme.accent.secondary }}>
-                  {selectedConcern.userName?.[0] || '?'}
-                </div>
-                <div>
-                  <p style={{ color: theme.text.primary, fontWeight: 600, margin: 0 }}>
-                    {selectedConcern.userName || 'Unknown User'}
-                  </p>
-                  <p style={{ color: theme.text.secondary, fontSize: '13px', margin: 0 }}>
-                    {selectedConcern.userEmail || 'No email provided'}
-                  </p>
-                </div>
-                <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
-                  <p style={{ color: theme.text.muted, fontSize: '12px', margin: 0 }}>
-                    {selectedConcern.submittedAt || selectedConcern.createdAt ? new Date(selectedConcern.submittedAt || selectedConcern.createdAt).toLocaleString() : ''}
-                  </p>
-                </div>
-              </div>
-
-              {/* Message */}
-              <div style={{ background: theme.bg.tertiary, borderRadius: '12px', padding: '16px', marginBottom: '20px', border: `1px solid ${theme.border.primary}` }}>
-                <p style={{ color: theme.text.primary, whiteSpace: 'pre-wrap', margin: 0, lineHeight: '1.6' }}>
-                  {selectedConcern.feedbackText || selectedConcern.description || 'No message provided'}
-                </p>
-              </div>
-
-              {/* Rating if feedback */}
-              {selectedConcern.submissionType === 'feedback' && selectedConcern.rating && (
-                <div style={{ marginBottom: '20px' }}>
-                  <p style={{ color: theme.text.secondary, fontSize: '12px', marginBottom: '8px', fontWeight: 600 }}>Rating</p>
-                  <div className="flex items-center gap-1">
-                    {[...Array(5)].map((_, i) => (
-                      <span key={i} style={{ fontSize: '24px', color: i < selectedConcern.rating ? '#FFD41C' : 'rgba(255,212,28,0.2)' }}>
-                        ⭐
-                      </span>
-                    ))}
-                    <span style={{ color: theme.text.secondary, marginLeft: '8px' }}>
-                      ({selectedConcern.rating}/5)
-                    </span>
+            <div style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
+              {modalTab === 'details' ? (
+                <>
+                  {/* User Info */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                    <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: theme.accent.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '18px', color: theme.accent.secondary, flexShrink: 0 }}>
+                      {selectedConcern.userName?.[0] || '?'}
+                    </div>
+                    <div>
+                      <p style={{ color: theme.text.primary, fontWeight: 600, margin: 0 }}>
+                        {selectedConcern.userName || 'Unknown User'}
+                      </p>
+                      <p style={{ color: theme.text.secondary, fontSize: '13px', margin: 0 }}>
+                        {selectedConcern.userEmail || 'No email provided'}
+                      </p>
+                    </div>
+                    <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
+                      <p style={{ color: theme.text.muted, fontSize: '12px', margin: 0 }}>
+                        {selectedConcern.submittedAt || selectedConcern.createdAt ? new Date(selectedConcern.submittedAt || selectedConcern.createdAt).toLocaleString() : ''}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              )}
 
-              {/* Admin Response if exists */}
-              {(selectedConcern.resolution || selectedConcern.adminResponse) && (
-                <div style={{ background: 'rgba(16,185,129,0.1)', borderRadius: '12px', padding: '16px', border: '1px solid rgba(16,185,129,0.3)' }}>
-                  <p style={{ color: '#10B981', fontSize: '12px', marginBottom: '8px', fontWeight: 700 }}>Admin Response</p>
-                  <p style={{ color: theme.text.primary, margin: 0 }}>
-                    {selectedConcern.resolution || selectedConcern.adminResponse}
-                  </p>
+                  {/* Message */}
+                  <div style={{ background: theme.bg.tertiary, borderRadius: '12px', padding: '16px', marginBottom: '20px', border: `1px solid ${theme.border.primary}` }}>
+                    <p style={{ color: theme.text.primary, whiteSpace: 'pre-wrap', margin: 0, lineHeight: '1.6' }}>
+                      {selectedConcern.feedbackText || selectedConcern.description || 'No message provided'}
+                    </p>
+                  </div>
+
+                  {/* Rating if feedback */}
+                  {selectedConcern.submissionType === 'feedback' && selectedConcern.rating && (
+                    <div style={{ marginBottom: '20px' }}>
+                      <p style={{ color: theme.text.secondary, fontSize: '12px', marginBottom: '8px', fontWeight: 600 }}>Rating</p>
+                      <div className="flex items-center gap-1">
+                        {[...Array(5)].map((_, i) => (
+                          <span key={i} style={{ fontSize: '24px', color: i < selectedConcern.rating ? '#FFD41C' : 'rgba(255,212,28,0.2)' }}>
+                            ⭐
+                          </span>
+                        ))}
+                        <span style={{ color: theme.text.secondary, marginLeft: '8px' }}>
+                          ({selectedConcern.rating}/5)
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Admin Response if exists */}
+                  {(selectedConcern.resolution || selectedConcern.adminResponse) && (
+                    <div style={{ background: 'rgba(16,185,129,0.1)', borderRadius: '12px', padding: '16px', border: '1px solid rgba(16,185,129,0.3)' }}>
+                      <p style={{ color: '#10B981', fontSize: '12px', marginBottom: '8px', fontWeight: 700 }}>Admin Response</p>
+                      <p style={{ color: theme.text.primary, margin: 0 }}>
+                        {selectedConcern.resolution || selectedConcern.adminResponse}
+                      </p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                /* Notes Tab */
+                <div>
+                  {/* Add Note */}
+                  <div style={{ marginBottom: '20px' }}>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input
+                        type="text"
+                        value={noteText}
+                        onChange={(e) => setNoteText(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleAddNote()}
+                        placeholder="Add a note..."
+                        style={{
+                          flex: 1,
+                          background: isDarkMode ? 'rgba(15,18,39,0.6)' : '#F9FAFB',
+                          border: `2px solid ${theme.border.primary}`,
+                          borderRadius: '12px',
+                          color: theme.text.primary,
+                          padding: '12px 16px',
+                          outline: 'none',
+                          fontSize: '14px'
+                        }}
+                      />
+                      <button
+                        onClick={handleAddNote}
+                        disabled={sendingNote || !noteText.trim()}
+                        style={{
+                          background: sendingNote || !noteText.trim() ? 'rgba(255,212,28,0.3)' : theme.accent.primary,
+                          color: isDarkMode ? '#181D40' : '#FFFFFF',
+                          borderRadius: '12px',
+                          padding: '12px 20px',
+                          fontWeight: 600,
+                          cursor: sendingNote || !noteText.trim() ? 'not-allowed' : 'pointer',
+                          opacity: sendingNote || !noteText.trim() ? 0.6 : 1,
+                          border: 'none',
+                          fontSize: '14px',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        {sendingNote ? 'Sending...' : 'Send Note'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Notes List */}
+                  {(!selectedConcern.notes || selectedConcern.notes.length === 0) ? (
+                    <div style={{ textAlign: 'center', padding: '40px 20px', color: theme.text.tertiary }}>
+                      <div style={{ fontSize: '48px', marginBottom: '16px' }}>📝</div>
+                      <p style={{ fontSize: '14px', margin: 0 }}>No notes yet</p>
+                      <p style={{ fontSize: '12px', color: theme.text.muted, marginTop: '8px' }}>
+                        Add notes to track progress on this concern
+                      </p>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {selectedConcern.notes.slice().reverse().map((note, index) => (
+                        <div
+                          key={index}
+                          style={{
+                            background: theme.bg.tertiary,
+                            borderRadius: '12px',
+                            padding: '16px',
+                            border: `1px solid ${theme.border.primary}`
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <span style={{ color: theme.accent.primary, fontSize: '12px', fontWeight: 700 }}>
+                              📨 {note.adminName || 'Admin'}
+                            </span>
+                            <span style={{ color: theme.text.muted, fontSize: '11px' }}>
+                              {note.timestamp ? new Date(note.timestamp).toLocaleString() : ''}
+                            </span>
+                          </div>
+                          <p style={{ color: theme.text.primary, margin: 0, lineHeight: '1.5', fontSize: '14px' }}>
+                            {note.message}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
 
             {/* Footer Actions */}
             {selectedConcern.status !== 'resolved' && selectedConcern.submissionType !== 'feedback' && (
-              <div style={{ padding: '20px 24px', borderTop: `2px solid ${theme.border.primary}`, display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <div style={{ padding: '20px 24px', borderTop: `2px solid ${theme.border.primary}`, display: 'flex', gap: '12px', justifyContent: 'flex-end', flexShrink: 0 }}>
                 {selectedConcern.status !== 'in_progress' && (
                   <button
                     onClick={() => { handleStatusChange(selectedConcern, 'in_progress'); setShowDetailsModal(false); }}

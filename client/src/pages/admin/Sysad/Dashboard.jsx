@@ -77,6 +77,9 @@ export default function SysadDashboard() {
         </p>
       </div>
 
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-y-auto pr-2">
+
       {/* User Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
         <StatCard
@@ -172,8 +175,75 @@ export default function SysadDashboard() {
         </button>
       </div>
 
-      {/* Recent Admin Activity */}
-      
+      {/* Recent Admin Logs */}
+      <div style={{ background: theme.bg.card, borderColor: theme.border.primary }} className="rounded-2xl border overflow-hidden mb-6">
+        <div style={{ borderColor: theme.border.primary }} className="p-5 border-b flex justify-between items-center">
+          <div>
+            <h3 style={{ color: theme.accent.primary }} className="m-0 mb-1 text-lg font-bold flex items-center gap-2">
+              <span>📋</span> Recent Admin Logs
+            </h3>
+            <p style={{ color: theme.text.secondary }} className="m-0 text-xs">
+              Latest admin activity across the system
+            </p>
+          </div>
+        </div>
+        {metrics.recentLogins && metrics.recentLogins.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-[13px]">
+              <thead>
+                <tr style={{ background: isDarkMode ? `${theme.accent.primary}15` : `${theme.accent.primary}10` }}>
+                  <th style={{ color: theme.accent.primary, borderColor: theme.border.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b">Event</th>
+                  <th style={{ color: theme.accent.primary, borderColor: theme.border.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b">Details</th>
+                  <th style={{ color: theme.accent.primary, borderColor: theme.border.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b">Admin</th>
+                  <th style={{ color: theme.accent.primary, borderColor: theme.border.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b">Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {metrics.recentLogins.slice(0, 8).map((log, i) => (
+                  <tr key={log.id || i} style={{ borderBottom: `1px solid ${theme.border.primary}` }} className="hover:bg-white/5 transition">
+                    <td className="p-4">
+                      <span style={{
+                        display: 'inline-block',
+                        padding: '3px 10px',
+                        borderRadius: '20px',
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        background: log.action?.includes('login') ? 'rgba(16,185,129,0.2)' :
+                          log.action?.includes('logout') ? 'rgba(239,68,68,0.2)' :
+                          log.action?.includes('created') ? 'rgba(59,130,246,0.2)' :
+                          `${theme.accent.primary}20`,
+                        color: log.action?.includes('login') ? '#10B981' :
+                          log.action?.includes('logout') ? '#EF4444' :
+                          log.action?.includes('created') ? '#3B82F6' :
+                          theme.accent.primary
+                      }}>
+                        {log.action?.replace(/_/g, ' ') || 'event'}
+                      </span>
+                    </td>
+                    <td style={{ color: theme.text.primary }} className="p-4 max-w-[280px] truncate text-xs">
+                      {log.details || '—'}
+                    </td>
+                    <td style={{ color: theme.text.secondary }} className="p-4 text-xs font-semibold">
+                      {log.admin || 'System'}
+                    </td>
+                    <td style={{ color: theme.text.muted }} className="p-4 text-xs">
+                      {log.timestamp ? new Date(log.timestamp).toLocaleString() : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div style={{ color: theme.text.tertiary }} className="text-center py-12">
+            <div className="text-4xl mb-3">📋</div>
+            <p className="text-sm">No recent admin activity</p>
+          </div>
+        )}
+      </div>
+
+      </div>{/* end scrollable content */}
 
       {/* Add User Modal */}
       {showAddUserModal && (

@@ -1036,6 +1036,44 @@ router.patch('/user-concerns/:id/status', async (req, res) => {
   }
 });
 
+// Add a note to a concern
+router.post('/user-concerns/:id/note', async (req, res) => {
+  try {
+    const { note, adminName } = req.body;
+    const { id } = req.params;
+
+    if (!note?.trim()) {
+      return res.status(400).json({ success: false, error: 'Note message is required' });
+    }
+
+    const newNote = {
+      message: note.trim(),
+      adminName: adminName || req.adminName || 'Admin',
+      timestamp: new Date()
+    };
+
+    let concern = await UserConcern.findOneAndUpdate(
+      { concernId: id },
+      { $push: { notes: newNote } },
+      { new: true }
+    );
+
+    if (!concern) {
+      concern = await UserConcern.findByIdAndUpdate(
+        id,
+        { $push: { notes: newNote } },
+        { new: true }
+      );
+    }
+
+    if (!concern) return res.status(404).json({ success: false, error: 'Concern not found' });
+
+    res.json({ success: true, concern });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // ============================================================
 // TRIPS
 // ============================================================

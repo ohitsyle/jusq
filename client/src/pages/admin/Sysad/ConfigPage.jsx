@@ -580,7 +580,207 @@ export default function SysadConfigPage() {
         </div>
 
         {/* User Deactivation Scheduler */}
-      
+        <div
+          style={{
+            background: theme.bg.card,
+            borderColor: sysadConfig.deactivationScheduler?.enabled ? 'rgba(239,68,68,0.5)' : theme.border.primary
+          }}
+          className="p-6 rounded-2xl border-2"
+        >
+          <div className="flex items-center gap-3 mb-5">
+            <div
+              style={{ background: sysadConfig.deactivationScheduler?.enabled ? 'rgba(239,68,68,0.2)' : `${accentColor}20` }}
+              className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+            >
+              <Users className="w-5 h-5" style={{ color: sysadConfig.deactivationScheduler?.enabled ? '#EF4444' : accentColor }} />
+            </div>
+            <div>
+              <h3 style={{ color: theme.text.primary }} className="font-bold text-lg">User Deactivation Scheduler</h3>
+              <p style={{ color: theme.text.secondary }} className="text-sm">
+                Schedule a one-time batch deactivation of all student and employee accounts.
+              </p>
+            </div>
+          </div>
+
+          {/* Status Banner */}
+          {sysadConfig.deactivationScheduler?.enabled && (
+            <div
+              style={{ background: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.3)' }}
+              className="flex items-center gap-2 px-4 py-3 rounded-xl border mb-5"
+            >
+              <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
+              <span className="text-red-500 text-sm font-semibold">
+                Deactivation scheduled — all users will be deactivated on{' '}
+                {sysadConfig.deactivationScheduler.date} at {sysadConfig.deactivationScheduler.time}
+              </span>
+            </div>
+          )}
+
+          {/* What this does */}
+          <div
+            style={{ background: isDarkMode ? 'rgba(239,68,68,0.08)' : 'rgba(239,68,68,0.05)', borderColor: 'rgba(239,68,68,0.2)' }}
+            className="p-4 rounded-xl border mb-5"
+          >
+            <p style={{ color: theme.text.secondary }} className="text-sm leading-relaxed">
+              <span style={{ color: '#EF4444' }} className="font-bold">⚠️ What this does: </span>
+              At the scheduled date and time, all user accounts with role <span style={{ color: theme.text.primary }} className="font-mono font-bold">student</span> or <span style={{ color: theme.text.primary }} className="font-mono font-bold">employee</span> will have <span style={{ color: theme.text.primary }} className="font-mono font-bold">isDeactivated</span> set to <span style={{ color: '#EF4444' }} className="font-mono font-bold">true</span> and <span style={{ color: theme.text.primary }} className="font-mono font-bold">isActive</span> set to <span style={{ color: '#EF4444' }} className="font-mono font-bold">false</span>. This action cannot be undone automatically.
+            </p>
+          </div>
+
+          {/* Scheduler Form */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+            <div>
+              <label style={{ color: accentColor }} className="block text-xs font-bold uppercase mb-2">
+                Deactivation Date
+              </label>
+              <input
+                type="date"
+                value={sysadConfig.deactivationScheduler?.date || ''}
+                min={new Date().toISOString().split('T')[0]}
+                onChange={(e) => setSysadConfig(prev => ({
+                  ...prev,
+                  deactivationScheduler: { ...prev.deactivationScheduler, date: e.target.value }
+                }))}
+                style={{
+                  width: '100%',
+                  background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB',
+                  border: `2px solid ${theme.border.primary}`,
+                  borderRadius: '10px',
+                  color: theme.text.primary,
+                  padding: '10px 14px',
+                  outline: 'none',
+                  fontSize: '14px',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+            <div>
+              <label style={{ color: accentColor }} className="block text-xs font-bold uppercase mb-2">
+                Deactivation Time (24-hour)
+              </label>
+              <input
+                type="time"
+                value={sysadConfig.deactivationScheduler?.time || ''}
+                onChange={(e) => setSysadConfig(prev => ({
+                  ...prev,
+                  deactivationScheduler: { ...prev.deactivationScheduler, time: e.target.value }
+                }))}
+                style={{
+                  width: '100%',
+                  background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB',
+                  border: `2px solid ${theme.border.primary}`,
+                  borderRadius: '10px',
+                  color: theme.text.primary,
+                  padding: '10px 14px',
+                  outline: 'none',
+                  fontSize: '14px',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Enable Toggle + Save */}
+          <div className="flex items-center gap-4 flex-wrap">
+            {/* Toggle */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setSysadConfig(prev => ({
+                  ...prev,
+                  deactivationScheduler: {
+                    ...prev.deactivationScheduler,
+                    enabled: !prev.deactivationScheduler?.enabled
+                  }
+                }))}
+                style={{
+                  background: sysadConfig.deactivationScheduler?.enabled ? '#EF4444' : '#6B7280',
+                  width: '52px',
+                  height: '28px',
+                  borderRadius: '14px',
+                  position: 'relative',
+                  transition: 'all 0.2s ease',
+                  border: 'none',
+                  cursor: 'pointer',
+                  flexShrink: 0
+                }}
+              >
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '2px',
+                    left: sysadConfig.deactivationScheduler?.enabled ? '26px' : '2px',
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '12px',
+                    background: '#FFFFFF',
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                  }}
+                />
+              </button>
+              <span style={{ color: sysadConfig.deactivationScheduler?.enabled ? '#EF4444' : theme.text.secondary }} className="text-sm font-semibold">
+                {sysadConfig.deactivationScheduler?.enabled ? 'Scheduler Enabled' : 'Scheduler Disabled'}
+              </span>
+            </div>
+
+            {/* Save Button */}
+            <button
+              onClick={handleSaveDeactivationSchedule}
+              disabled={saving || !sysadConfig.deactivationScheduler?.date || !sysadConfig.deactivationScheduler?.time}
+              style={{
+                background: saving || !sysadConfig.deactivationScheduler?.date || !sysadConfig.deactivationScheduler?.time
+                  ? 'rgba(239,68,68,0.3)'
+                  : '#EF4444',
+                color: '#FFFFFF',
+                padding: '10px 24px',
+                borderRadius: '10px',
+                border: 'none',
+                cursor: saving || !sysadConfig.deactivationScheduler?.date || !sysadConfig.deactivationScheduler?.time ? 'not-allowed' : 'pointer',
+                fontSize: '14px',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                opacity: saving || !sysadConfig.deactivationScheduler?.date || !sysadConfig.deactivationScheduler?.time ? 0.6 : 1,
+                transition: 'all 0.2s'
+              }}
+            >
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calendar className="w-4 h-4" />}
+              {saving ? 'Saving...' : 'Save Schedule'}
+            </button>
+
+            {/* Clear Button */}
+            {(sysadConfig.deactivationScheduler?.date || sysadConfig.deactivationScheduler?.enabled) && (
+              <button
+                onClick={async () => {
+                  setSysadConfig(prev => ({
+                    ...prev,
+                    deactivationScheduler: { enabled: false, date: '', time: '' }
+                  }));
+                  try {
+                    await api.post('/admin/sysad/deactivation-scheduler', { enabled: false, date: '', time: '' });
+                    toast.success('Deactivation schedule cleared');
+                  } catch {
+                    toast.error('Failed to clear schedule');
+                  }
+                }}
+                style={{
+                  background: isDarkMode ? 'rgba(71,85,105,0.4)' : '#E5E7EB',
+                  color: theme.text.secondary,
+                  padding: '10px 20px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 600
+                }}
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+
       </div>
 
       {/* Manual Export Modal */}
