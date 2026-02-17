@@ -8,6 +8,7 @@ import Admin from '../models/Admin.js';
 import Transaction from '../models/Transaction.js';
 import Merchant from '../models/Merchant.js';
 import SystemLog from '../models/SystemLog.js';
+import EventLog from '../models/EventLog.js';
 import Concern from '../models/Concern.js';
 import Feedback from '../models/Feedback.js';
 import UserConcern from '../models/UserConcern.js';
@@ -62,13 +63,46 @@ router.get('/dashboard', async (req, res) => {
       Merchant.countDocuments({ isActive: true })
     ]);
 
-    // Recent admin activity
-    const recentActivity = await SystemLog.find({
-      eventType: { $in: ['admin_login', 'admin_logout', 'user_created', 'user_updated', 'config_changed'] }
-    })
-      .sort({ timestamp: -1 })
-      .limit(10)
-      .lean();
+    // Recent admin activity — pull from both SystemLog and EventLog collections
+    const SYSAD_EVENT_TYPES = [
+      // SystemLog events (written directly by sysad routes)
+      'user_created', 'user_updated', 'user_deleted', 'user_status_changed',
+      'admin_created', 'admin_login', 'admin_logout',
+      'card_transferred', 'config_changed', 'auto_export_configured', 'manual_export',
+      'concern_status_updated', 'concern_note_added', 'concern_resolved',
+      'scheduled_student_deactivation',
+      // EventLog events (written by logger.js utilities)
+      'login', 'logout', 'cash_in', 'registration',
+      'maintenance_mode', 'student_deactivation',
+      'crud_create', 'crud_update', 'crud_delete',
+    ];
+
+    const [systemLogs, eventLogs] = await Promise.all([
+      SystemLog.find({ eventType: { $in: SYSAD_EVENT_TYPES } })
+        .sort({ timestamp: -1 }).limit(10).lean(),
+      EventLog.find({ eventType: { $in: SYSAD_EVENT_TYPES } })
+        .sort({ timestamp: -1 }).limit(10).lean(),
+    ]);
+
+    // Merge, normalize, sort by timestamp desc, take top 10
+    const mergedActivity = [
+      ...systemLogs.map(log => ({
+        id: log._id,
+        action: log.eventType,
+        details: log.description,
+        admin: log.metadata?.adminName || log.metadata?.performedBy || 'System',
+        timestamp: log.timestamp || log.createdAt,
+      })),
+      ...eventLogs.map(log => ({
+        id: log._id,
+        action: log.eventType,
+        details: log.description || log.title,
+        admin: log.adminName || log.metadata?.adminName || 'System',
+        timestamp: log.timestamp || log.createdAt,
+      })),
+    ]
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+      .slice(0, 10);
 
     res.json({
       success: true,
@@ -86,13 +120,7 @@ router.get('/dashboard', async (req, res) => {
         todayCashIn: todayCashIn[0]?.total || 0,
         activeMerchants: merchantCount
       },
-      recentActivity: recentActivity.map(log => ({
-        id: log._id,
-        action: log.eventType,
-        details: log.description,
-        admin: log.metadata?.adminName || 'System',
-        timestamp: log.timestamp
-      }))
+      recentActivity: mergedActivity
     });
   } catch (error) {
     console.error('❌ Sysad dashboard error:', error);

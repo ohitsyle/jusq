@@ -200,7 +200,19 @@ export default function SysadDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {metrics.recentLogins.slice(0, 8).map((log, i) => (
+                {metrics.recentLogins.slice(0, 10).map((log, i) => {
+                  const action = log.action || '';
+                  const badgeColor =
+                    action.includes('login') ? { bg: 'rgba(16,185,129,0.2)', text: '#10B981' } :
+                    action.includes('logout') ? { bg: 'rgba(239,68,68,0.15)', text: '#EF4444' } :
+                    action.includes('created') || action.includes('registration') ? { bg: 'rgba(59,130,246,0.2)', text: '#3B82F6' } :
+                    action.includes('deleted') || action.includes('deactivat') ? { bg: 'rgba(239,68,68,0.2)', text: '#EF4444' } :
+                    action.includes('updated') || action.includes('status_changed') || action.includes('transferred') ? { bg: 'rgba(245,158,11,0.2)', text: '#F59E0B' } :
+                    action.includes('resolved') || action.includes('cash_in') ? { bg: 'rgba(16,185,129,0.15)', text: '#10B981' } :
+                    action.includes('config') || action.includes('maintenance') || action.includes('export') ? { bg: 'rgba(139,92,246,0.2)', text: '#8B5CF6' } :
+                    action.includes('concern') ? { bg: 'rgba(245,158,11,0.15)', text: '#F59E0B' } :
+                    { bg: `${theme.accent.primary}20`, text: theme.accent.primary };
+                  return (
                   <tr key={log.id || i} style={{ borderBottom: `1px solid ${theme.border.primary}` }} className="hover:bg-white/5 transition">
                     <td className="p-4">
                       <span style={{
@@ -210,16 +222,10 @@ export default function SysadDashboard() {
                         fontSize: '10px',
                         fontWeight: 700,
                         textTransform: 'uppercase',
-                        background: log.action?.includes('login') ? 'rgba(16,185,129,0.2)' :
-                          log.action?.includes('logout') ? 'rgba(239,68,68,0.2)' :
-                          log.action?.includes('created') ? 'rgba(59,130,246,0.2)' :
-                          `${theme.accent.primary}20`,
-                        color: log.action?.includes('login') ? '#10B981' :
-                          log.action?.includes('logout') ? '#EF4444' :
-                          log.action?.includes('created') ? '#3B82F6' :
-                          theme.accent.primary
+                        background: badgeColor.bg,
+                        color: badgeColor.text
                       }}>
-                        {log.action?.replace(/_/g, ' ') || 'event'}
+                        {action.replace(/_/g, ' ') || 'event'}
                       </span>
                     </td>
                     <td style={{ color: theme.text.primary }} className="p-4 max-w-[280px] truncate text-xs">
@@ -232,7 +238,8 @@ export default function SysadDashboard() {
                       {log.timestamp ? new Date(log.timestamp).toLocaleString() : '—'}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
