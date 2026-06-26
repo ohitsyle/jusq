@@ -6,7 +6,7 @@
 echo "🚀 Starting AWS deployment..."
 
 # SSH into AWS and deploy
-ssh -i "/Users/brylle/Downloads/nucash.pem" ubuntu@18.166.29.239 << 'EOF'
+ssh -i "/Users/brylle/Downloads/nucash.pem" ubuntu@54.251.11.39 << 'EOF'
 echo "📦 Pulling latest changes..."
 cd /var/www/nucash
 git pull origin main

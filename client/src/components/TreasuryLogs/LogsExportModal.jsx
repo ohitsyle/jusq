@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { Download, ChevronDown } from "lucide-react";
 import { toast } from "react-toastify";
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
 export default function LogsExportModal({ onClose, logs }) {
   const [exportFormat, setExportFormat] = useState("csv");
   const [exportDateRange, setExportDateRange] = useState({ start: "", end: "" });
@@ -149,7 +151,7 @@ export default function LogsExportModal({ onClose, logs }) {
     setIsExporting(true);
 
     try {
-      const response = await fetch('http://18.166.29.239:3000/api/treasury/logs/export', {
+      const response = await fetch(`${API_BASE}/treasury/logs/export`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

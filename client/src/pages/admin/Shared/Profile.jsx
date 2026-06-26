@@ -2,8 +2,13 @@
 // Full page for admin profile with personal info and password management
 
 import React, { useState, useEffect } from 'react';
+import { AlertTriangle, ClipboardList, Lock, Mail, Shield, User } from 'lucide-react';
+import { useTheme } from '../../../context/ThemeContext';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 export default function ProfilePage() {
+    const { theme, isDarkMode } = useTheme();
   const [adminData, setAdminData] = useState(() => {
     const data = localStorage.getItem('adminData');
     return data ? JSON.parse(data) : null;
@@ -14,24 +19,34 @@ export default function ProfilePage() {
   const [formData, setFormData] = useState({
     oldPin: '',
     newPin: '',
+    confirmPin: '',
     otp: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showOldPin, setShowOldPin] = useState(false);
+  const [showNewPin, setShowNewPin] = useState(false);
+  const [showConfirmPin, setShowConfirmPin] = useState(false);
+
+  // All admins (incl. the merchant department admin) are Admin records and
+  // are reached via /admin/auth/*. The merchant logs in under merchantToken,
+  // so fall back to it for the Authorization header.
+  const getAuthToken = () =>
+    localStorage.getItem('adminToken') || localStorage.getItem('merchantToken');
 
   // Fetch profile data from database on mount
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const token = localStorage.getItem('adminToken');
+        const token = getAuthToken();
         if (!token) {
           setProfileLoading(false);
           return;
         }
 
-        const response = await fetch('http://18.166.29.239:3000/api/admin/auth/me', {
+        const response = await fetch(`${API_BASE}/admin/auth/me`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -58,7 +73,7 @@ export default function ProfilePage() {
     if (field !== 'otp' && !/^\d*$/.test(value)) return;
 
     // Limit to 6 digits for PINs
-    if ((field === 'oldPin' || field === 'newPin') && value.length > 6) return;
+    if ((field === 'oldPin' || field === 'newPin' || field === 'confirmPin') && value.length > 6) return;
 
     // Limit to 6 digits for OTP
     if (field === 'otp' && value.length > 6) return;
@@ -86,15 +101,20 @@ export default function ProfilePage() {
       return;
     }
 
+    if (formData.newPin !== formData.confirmPin) {
+      setError('New PIN and confirmation do not match');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
     try {
-      const response = await fetch('http://18.166.29.239:3000/api/admin/auth/send-otp', {
+      const response = await fetch(`${API_BASE}/admin/auth/send-otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+          'Authorization': `Bearer ${getAuthToken()}`
         },
         body: JSON.stringify({
           email: adminData.email,
@@ -129,11 +149,11 @@ export default function ProfilePage() {
     setError('');
 
     try {
-      const response = await fetch('http://18.166.29.239:3000/api/admin/auth/change-password', {
+      const response = await fetch(`${API_BASE}/admin/auth/change-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+          'Authorization': `Bearer ${getAuthToken()}`
         },
         body: JSON.stringify({
           oldPin: formData.oldPin,
@@ -160,10 +180,13 @@ export default function ProfilePage() {
 
   const resetPasswordForm = () => {
     setStep(1);
-    setFormData({ oldPin: '', newPin: '', otp: '' });
+    setFormData({ oldPin: '', newPin: '', confirmPin: '', otp: '' });
     setError('');
     setOtpSent(false);
     setShowConfirm(false);
+    setShowOldPin(false);
+    setShowNewPin(false);
+    setShowConfirmPin(false);
   };
 
   const getInitials = () => {
@@ -186,9 +209,9 @@ export default function ProfilePage() {
 
   const renderPersonalInfo = () => (
     <div style={{
-      background: 'rgba(255,255,255,0.05)',
+      background: theme.bg.tertiary,
       borderRadius: '16px',
-      border: '1px solid rgba(255,212,28,0.2)',
+      border: `1px solid ${theme.border.primary}`,
       overflow: 'hidden'
     }}>
       {/* Profile Header */}
@@ -211,7 +234,7 @@ export default function ProfilePage() {
           justifyContent: 'center',
           fontSize: '40px',
           fontWeight: 800,
-          color: '#181D40',
+          color: theme.accent.secondary,
           boxShadow: '0 0 0 6px rgba(255,212,28,0.2)'
         }}>
           {getInitials()}
@@ -222,7 +245,7 @@ export default function ProfilePage() {
           <h2 style={{
             fontSize: '28px',
             fontWeight: 700,
-            color: '#FBFBFB',
+            color: theme.text.primary,
             margin: '0 0 8px 0'
           }}>
             {adminData?.firstName} {adminData?.lastName}
@@ -233,7 +256,7 @@ export default function ProfilePage() {
             background: 'rgba(255,212,28,0.2)',
             border: '1px solid rgba(255,212,28,0.4)',
             borderRadius: '20px',
-            color: '#FFD41C',
+            color: theme.accent.primary,
             fontSize: '13px',
             fontWeight: 700,
             textTransform: 'uppercase',
@@ -273,9 +296,9 @@ export default function ProfilePage() {
 
   const renderSecuritySettings = () => (
     <div style={{
-      background: 'rgba(255,255,255,0.05)',
+      background: theme.bg.tertiary,
       borderRadius: '16px',
-      border: '1px solid rgba(255,212,28,0.2)',
+      border: `1px solid ${theme.border.primary}`,
       overflow: 'hidden'
     }}>
       {/* Security Header */}
@@ -287,17 +310,17 @@ export default function ProfilePage() {
         <h3 style={{
           fontSize: '18px',
           fontWeight: 700,
-          color: '#FFD41C',
+          color: theme.accent.primary,
           margin: '0 0 8px 0',
           display: 'flex',
           alignItems: 'center',
           gap: '10px'
         }}>
-          <span>🔐</span> Security Settings
+          <Lock className="w-5 h-5" /> Security Settings
         </h3>
         <p style={{
           fontSize: '14px',
-          color: 'rgba(251,251,251,0.6)',
+          color: theme.text.secondary,
           margin: 0
         }}>
           Update your 6-digit PIN for enhanced security
@@ -321,138 +344,112 @@ export default function ProfilePage() {
           alignItems: 'center',
           gap: '10px'
         }}>
-          <span>⚠️</span>
+          <AlertTriangle className="w-5 h-5" />
           <span>{error}</span>
         </div>
       )}
 
       {step === 1 && (
-        <div style={{ maxWidth: '500px' }}>
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{
-              display: 'block',
-              marginBottom: '8px',
-              fontSize: '12px',
-              fontWeight: 700,
-              color: '#FFD41C',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px'
-            }}>
-              Enter Old PIN (6 digits) *
-            </label>
-            <input
-              type="password"
-              value={formData.oldPin}
-              onChange={(e) => handleChange('oldPin', e.target.value)}
-              disabled={loading}
-              placeholder="••••••"
-              maxLength="6"
-              style={{
-                width: '100%',
-                padding: '14px',
-                border: '2px solid rgba(255, 212, 28, 0.3)',
-                borderRadius: '10px',
-                background: 'rgba(251, 251, 251, 0.05)',
-                color: 'rgba(251, 251, 251, 0.9)',
-                fontSize: '24px',
-                fontWeight: 700,
-                letterSpacing: '12px',
-                textAlign: 'center',
-                boxSizing: 'border-box',
-                fontFamily: 'monospace'
-              }}
-            />
-          </div>
-
-          <div style={{ marginBottom: '24px' }}>
-            <label style={{
-              display: 'block',
-              marginBottom: '8px',
-              fontSize: '12px',
-              fontWeight: 700,
-              color: '#FFD41C',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px'
-            }}>
-              Enter New PIN (6 digits) *
-            </label>
-            <input
-              type="password"
-              value={formData.newPin}
-              onChange={(e) => handleChange('newPin', e.target.value)}
-              disabled={loading}
-              placeholder="••••••"
-              maxLength="6"
-              style={{
-                width: '100%',
-                padding: '14px',
-                border: '2px solid rgba(255, 212, 28, 0.3)',
-                borderRadius: '10px',
-                background: 'rgba(251, 251, 251, 0.05)',
-                color: 'rgba(251, 251, 251, 0.9)',
-                fontSize: '24px',
-                fontWeight: 700,
-                letterSpacing: '12px',
-                textAlign: 'center',
-                boxSizing: 'border-box',
-                fontFamily: 'monospace'
-              }}
-            />
-            <p style={{
-              fontSize: '11px',
-              color: 'rgba(251, 251, 251, 0.5)',
-              marginTop: '8px',
-              marginBottom: 0
-            }}>
-              Must be different from old PIN
-            </p>
-          </div>
+        <div style={{ maxWidth: '560px' }}>
+          {[
+            { key: 'oldPin', label: 'Current PIN (6 digits) *', show: showOldPin, setShow: setShowOldPin, hint: null },
+            { key: 'newPin', label: 'New PIN (6 digits) *', show: showNewPin, setShow: setShowNewPin, hint: 'Must be different from current PIN' },
+            { key: 'confirmPin', label: 'Confirm New PIN (6 digits) *', show: showConfirmPin, setShow: setShowConfirmPin, hint: 'Must match the new PIN above' }
+          ].map((field) => (
+            <div key={field.key} style={{ marginBottom: '18px' }}>
+              <label style={{
+                display: 'block', marginBottom: '8px', fontSize: '12px', fontWeight: 700,
+                color: theme.accent.primary, textTransform: 'uppercase', letterSpacing: '0.5px'
+              }}>
+                {field.label}
+              </label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={field.show ? 'text' : 'password'}
+                  value={formData[field.key]}
+                  onChange={(e) => handleChange(field.key, e.target.value)}
+                  disabled={loading}
+                  placeholder="••••••"
+                  maxLength="6"
+                  style={{
+                    width: '100%', padding: '14px 48px 14px 14px',
+                    border: `2px solid ${theme.border.primary}`, borderRadius: '10px',
+                    background: theme.bg.tertiary, color: theme.text.primary,
+                    fontSize: '24px', fontWeight: 700, letterSpacing: '12px',
+                    textAlign: 'center', boxSizing: 'border-box', fontFamily: 'monospace'
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => field.setShow(!field.show)}
+                  style={{
+                    position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)',
+                    background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px',
+                    color: theme.text.tertiary, padding: 0, lineHeight: 1
+                  }}
+                  aria-label={field.show ? 'Hide PIN' : 'Show PIN'}
+                >
+                  {field.show ? '🙈' : '👁️'}
+                </button>
+              </div>
+              {field.hint && (
+                <p style={{ fontSize: '11px', color: theme.text.tertiary, marginTop: '8px', marginBottom: 0 }}>
+                  {field.hint}
+                </p>
+              )}
+            </div>
+          ))}
 
           <button
             onClick={handleSendOTP}
-            disabled={loading || formData.oldPin.length !== 6 || formData.newPin.length !== 6}
+            disabled={loading || formData.oldPin.length !== 6 || formData.newPin.length !== 6 || formData.confirmPin.length !== 6}
             style={{
-              width: '100%',
-              padding: '14px',
-              background: loading || formData.oldPin.length !== 6 || formData.newPin.length !== 6
-                ? 'rgba(255, 212, 28, 0.3)'
-                : '#FFD41C',
-              color: '#181D40',
-              border: 'none',
-              borderRadius: '10px',
-              fontSize: '14px',
-              fontWeight: 700,
-              cursor: loading || formData.oldPin.length !== 6 || formData.newPin.length !== 6
-                ? 'not-allowed'
-                : 'pointer',
-              textTransform: 'uppercase',
-              letterSpacing: '1px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
+              width: '100%', padding: '14px', marginTop: '6px',
+              background: (loading || formData.oldPin.length !== 6 || formData.newPin.length !== 6 || formData.confirmPin.length !== 6)
+                ? (isDarkMode ? 'rgba(255, 212, 28, 0.3)' : 'rgba(59,130,246,0.3)')
+                : theme.accent.primary,
+              color: isDarkMode ? '#181D40' : '#FFFFFF',
+              border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: 700,
+              cursor: (loading || formData.oldPin.length !== 6 || formData.newPin.length !== 6 || formData.confirmPin.length !== 6) ? 'not-allowed' : 'pointer',
+              textTransform: 'uppercase', letterSpacing: '1px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
               transition: 'all 0.3s ease'
             }}
           >
             {loading ? (
               <>
                 <div style={{
-                  width: '16px',
-                  height: '16px',
-                  border: '2px solid rgba(24, 29, 64, 0.3)',
-                  borderTopColor: '#181D40',
-                  borderRadius: '50%',
+                  width: '16px', height: '16px', border: '2px solid rgba(24, 29, 64, 0.3)',
+                  borderTopColor: isDarkMode ? '#181D40' : '#FFFFFF', borderRadius: '50%',
                   animation: 'spin 0.8s linear infinite'
                 }} />
                 <span>Sending OTP...</span>
               </>
             ) : (
               <>
-                <span>📧</span>
+                <Mail className="w-5 h-5" />
                 <span>Send OTP to Email</span>
               </>
             )}
           </button>
+
+          {/* Security Tips */}
+          <div style={{
+            marginTop: '24px', padding: '16px 20px',
+            background: isDarkMode ? 'rgba(59,130,246,0.08)' : 'rgba(59,130,246,0.06)',
+            border: `1px solid ${isDarkMode ? 'rgba(59,130,246,0.25)' : 'rgba(59,130,246,0.2)'}`,
+            borderRadius: '12px'
+          }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: '#3B82F6', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Shield className="w-5 h-5" /> Security Tips
+            </div>
+            <ul style={{ margin: 0, paddingLeft: '18px', color: theme.text.secondary, fontSize: '12px', lineHeight: 1.7 }}>
+              <li>Never share your PIN with anyone</li>
+              <li>Change your PIN regularly (every 3 months recommended)</li>
+              <li>Use a PIN that's hard to guess (avoid birthdays, repeating numbers)</li>
+              <li>Report any suspicious activity immediately</li>
+            </ul>
+          </div>
         </div>
       )}
 
@@ -477,7 +474,7 @@ export default function ProfilePage() {
             </div>
             <div style={{
               fontSize: '12px',
-              color: 'rgba(251, 251, 251, 0.7)'
+              color: theme.text.secondary
             }}>
               Check your email: {adminData?.email}
             </div>
@@ -489,7 +486,7 @@ export default function ProfilePage() {
               marginBottom: '8px',
               fontSize: '12px',
               fontWeight: 700,
-              color: '#FFD41C',
+              color: theme.accent.primary,
               textTransform: 'uppercase',
               letterSpacing: '0.5px'
             }}>
@@ -507,8 +504,8 @@ export default function ProfilePage() {
                 padding: '14px',
                 border: '2px solid rgba(255, 212, 28, 0.3)',
                 borderRadius: '10px',
-                background: 'rgba(251, 251, 251, 0.05)',
-                color: 'rgba(251, 251, 251, 0.9)',
+                background: theme.bg.tertiary,
+                color: theme.text.primary,
                 fontSize: '24px',
                 fontWeight: 700,
                 letterSpacing: '12px',
@@ -519,7 +516,7 @@ export default function ProfilePage() {
             />
             <p style={{
               fontSize: '11px',
-              color: 'rgba(251, 251, 251, 0.5)',
+              color: theme.text.tertiary,
               marginTop: '8px',
               marginBottom: 0
             }}>
@@ -536,7 +533,7 @@ export default function ProfilePage() {
               background: loading || formData.otp.length !== 6
                 ? 'rgba(255, 212, 28, 0.3)'
                 : '#FFD41C',
-              color: '#181D40',
+              color: theme.accent.secondary,
               border: 'none',
               borderRadius: '10px',
               fontSize: '14px',
@@ -553,7 +550,7 @@ export default function ProfilePage() {
               transition: 'all 0.3s ease'
             }}
           >
-            <span>🔐</span>
+            <Lock className="w-5 h-5" />
             <span>Change Password</span>
           </button>
         </div>
@@ -572,7 +569,7 @@ export default function ProfilePage() {
           </h3>
           <p style={{
             fontSize: '14px',
-            color: 'rgba(251, 251, 251, 0.7)',
+            color: theme.text.secondary,
             marginBottom: '32px'
           }}>
             Your password has been updated. Please use your new PIN for future logins.
@@ -582,7 +579,7 @@ export default function ProfilePage() {
             style={{
               padding: '14px 32px',
               background: '#FFD41C',
-              color: '#181D40',
+              color: theme.accent.secondary,
               border: 'none',
               borderRadius: '10px',
               fontSize: '14px',
@@ -617,7 +614,7 @@ export default function ProfilePage() {
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: '#1a1f3a',
+              background: isDarkMode ? '#1a1f3a' : theme.bg.secondary,
               borderRadius: '16px',
               padding: '32px',
               maxWidth: '400px',
@@ -630,14 +627,14 @@ export default function ProfilePage() {
             <h3 style={{
               fontSize: '18px',
               fontWeight: 700,
-              color: '#FBFBFB',
+              color: theme.text.primary,
               marginBottom: '12px'
             }}>
               Confirm Password Change
             </h3>
             <p style={{
               fontSize: '14px',
-              color: 'rgba(251, 251, 251, 0.7)',
+              color: theme.text.secondary,
               marginBottom: '24px'
             }}>
               Are you sure you want to change your password? You will need to use the new PIN for future logins.
@@ -649,7 +646,7 @@ export default function ProfilePage() {
                   flex: 1,
                   padding: '12px',
                   background: 'rgba(251, 251, 251, 0.1)',
-                  color: 'rgba(251, 251, 251, 0.7)',
+                  color: theme.text.secondary,
                   border: '1px solid rgba(251, 251, 251, 0.2)',
                   borderRadius: '8px',
                   fontSize: '14px',
@@ -668,7 +665,7 @@ export default function ProfilePage() {
                   flex: 1,
                   padding: '12px',
                   background: '#FFD41C',
-                  color: '#181D40',
+                  color: theme.accent.secondary,
                   border: 'none',
                   borderRadius: '8px',
                   fontSize: '14px',
@@ -697,11 +694,11 @@ export default function ProfilePage() {
   return (
     <div>
       {/* Header */}
-      <div className="mb-[30px] border-b-2 border-[rgba(255,212,28,0.2)] pb-5">
-        <h2 className="text-2xl font-bold text-[#FFD41C] m-0 mb-2 flex items-center gap-[10px]">
-          <span>👤</span> My Profile
+      <div style={{ borderBottomColor: theme.border.primary }} className="mb-[30px] border-b-2 pb-5">
+        <h2 style={{ color: theme.accent.primary }} className="text-2xl font-bold m-0 mb-2 flex items-center gap-[10px]">
+          <User className="w-5 h-5" /> My Profile
         </h2>
-        <p className="text-[13px] text-[rgba(251,251,251,0.6)] m-0">
+        <p style={{ color: theme.text.secondary }} className="text-[13px] m-0">
           Manage your account information and security settings
         </p>
       </div>
@@ -735,7 +732,7 @@ export default function ProfilePage() {
             transition: 'all 0.2s ease'
           }}
         >
-          <span>📋</span>
+          <ClipboardList className="w-5 h-5" />
           <span>Personal Information</span>
         </button>
         <button
@@ -761,7 +758,7 @@ export default function ProfilePage() {
             transition: 'all 0.2s ease'
           }}
         >
-          <span>🔐</span>
+          <Lock className="w-5 h-5" />
           <span>Security Settings</span>
         </button>
       </div>
@@ -773,7 +770,7 @@ export default function ProfilePage() {
           justifyContent: 'center',
           alignItems: 'center',
           padding: '80px 20px',
-          color: 'rgba(251, 251, 251, 0.6)'
+          color: theme.text.secondary
         }}>
           <div style={{
             width: '40px',
@@ -796,6 +793,7 @@ export default function ProfilePage() {
 
 // Info Field Component
 function InfoField({ label, value, highlight, fullWidth }) {
+  const { theme, isDarkMode } = useTheme();
   const getHighlightColor = () => {
     if (highlight === 'success') return { bg: 'rgba(34, 197, 94, 0.15)', border: 'rgba(34, 197, 94, 0.3)', color: '#22C55E' };
     if (highlight === 'error') return { bg: 'rgba(239, 68, 68, 0.15)', border: 'rgba(239, 68, 68, 0.3)', color: '#EF4444' };
@@ -814,7 +812,7 @@ function InfoField({ label, value, highlight, fullWidth }) {
         marginBottom: '8px',
         fontSize: '11px',
         fontWeight: 700,
-        color: 'rgba(255,212,28,0.8)',
+        color: theme.accent.primary,
         textTransform: 'uppercase',
         letterSpacing: '0.5px'
       }}>
@@ -822,10 +820,10 @@ function InfoField({ label, value, highlight, fullWidth }) {
       </label>
       <div style={{
         padding: '12px 16px',
-        background: highlightStyle ? highlightStyle.bg : 'rgba(251,251,251,0.05)',
-        border: `1px solid ${highlightStyle ? highlightStyle.border : 'rgba(255,212,28,0.1)'}`,
+        background: highlightStyle ? highlightStyle.bg : theme.bg.tertiary,
+        border: `1px solid ${highlightStyle ? highlightStyle.border : theme.border.secondary}`,
         borderRadius: '8px',
-        color: highlightStyle ? highlightStyle.color : 'rgba(251,251,251,0.9)',
+        color: highlightStyle ? highlightStyle.color : theme.text.primary,
         fontSize: '15px',
         fontWeight: highlight ? 700 : 500
       }}>

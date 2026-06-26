@@ -17,9 +17,14 @@ import { sendTemporaryPIN } from '../services/emailService.js';
 import { checkMaintenanceMode, getMaintenanceStatus, setMaintenanceMode } from '../middlewares/maintenanceMode.js';
 import { logAdminAction, logMaintenanceMode, logStudentDeactivation, logAutoExportConfigChange, logManualExport } from '../utils/logger.js';
 import { extractAdminInfo } from '../middlewares/extractAdminInfo.js';
+import { requireAdminAuthForMutations } from '../middlewares/requireAdminAuth.js';
 
 // Apply admin info extraction middleware to all sysad routes
 router.use(extractAdminInfo);
+// Require a valid admin JWT for any state-changing request (create/delete
+// admins & users, transfer card, config/maintenance changes, etc.). GET reads
+// — including the public maintenance-status / config checks — stay open.
+router.use(requireAdminAuthForMutations);
 
 // ============================================================
 // DASHBOARD ENDPOINTS
@@ -46,63 +51,27 @@ router.get('/dashboard', async (req, res) => {
     // Admin count
     const adminCount = await Admin.countDocuments({ isActive: true });
 
-    // Financial metrics
-    const [balanceResult, totalTransactions, todayCashIn, merchantCount] = await Promise.all([
-      User.aggregate([{ $group: { _id: null, total: { $sum: '$balance' } } }]),
-      Transaction.countDocuments({ status: { $nin: ['Failed', 'Refunded'] } }),
-      Transaction.aggregate([
-        {
-          $match: {
-            transactionType: 'credit',
-            createdAt: { $gte: today },
-            status: { $nin: ['Failed', 'Refunded'] }
-          }
-        },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
-      ]),
-      Merchant.countDocuments({ isActive: true })
-    ]);
-
-    // Recent admin activity — pull from both SystemLog and EventLog collections
+    // Recent admin activity — read from EventLog only. Every sysad mutation
+    // is logged here via logAdminAction with proper admin attribution, so
+    // reading EventLog alone avoids the duplicate rows (one "System" from
+    // SystemLog + one attributed from EventLog) the merge used to produce.
     const SYSAD_EVENT_TYPES = [
-      // SystemLog events (written directly by sysad routes)
-      'user_created', 'user_updated', 'user_deleted', 'user_status_changed',
-      'admin_created', 'admin_login', 'admin_logout',
-      'card_transferred', 'config_changed', 'auto_export_configured', 'manual_export',
-      'concern_status_updated', 'concern_note_added', 'concern_resolved',
-      'scheduled_student_deactivation',
-      // EventLog events (written by logger.js utilities)
       'login', 'logout', 'cash_in', 'registration',
       'maintenance_mode', 'student_deactivation',
       'crud_create', 'crud_update', 'crud_delete',
+      'admin_action',
     ];
 
-    const [systemLogs, eventLogs] = await Promise.all([
-      SystemLog.find({ eventType: { $in: SYSAD_EVENT_TYPES } })
-        .sort({ timestamp: -1 }).limit(10).lean(),
-      EventLog.find({ eventType: { $in: SYSAD_EVENT_TYPES } })
-        .sort({ timestamp: -1 }).limit(10).lean(),
-    ]);
+    const eventLogs = await EventLog.find({ eventType: { $in: SYSAD_EVENT_TYPES } })
+      .sort({ timestamp: -1 }).limit(10).lean();
 
-    // Merge, normalize, sort by timestamp desc, take top 10
-    const mergedActivity = [
-      ...systemLogs.map(log => ({
-        id: log._id,
-        action: log.eventType,
-        details: log.description,
-        admin: log.metadata?.adminName || log.metadata?.performedBy || 'System',
-        timestamp: log.timestamp || log.createdAt,
-      })),
-      ...eventLogs.map(log => ({
-        id: log._id,
-        action: log.eventType,
-        details: log.description || log.title,
-        admin: log.adminName || log.metadata?.adminName || 'System',
-        timestamp: log.timestamp || log.createdAt,
-      })),
-    ]
-      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-      .slice(0, 10);
+    const mergedActivity = eventLogs.map(log => ({
+      id: log._id,
+      action: log.eventType,
+      details: log.description || log.title,
+      admin: log.adminName || log.metadata?.adminName || 'System',
+      timestamp: log.timestamp || log.createdAt,
+    }));
 
     res.json({
       success: true,
@@ -113,12 +82,6 @@ router.get('/dashboard', async (req, res) => {
         admins: adminCount,
         students: studentCount,
         employees: employeeCount
-      },
-      financialMetrics: {
-        totalBalance: balanceResult[0]?.total || 0,
-        totalTransactions,
-        todayCashIn: todayCashIn[0]?.total || 0,
-        activeMerchants: merchantCount
       },
       recentActivity: mergedActivity
     });
@@ -446,6 +409,7 @@ router.post('/users', async (req, res) => {
       });
       logAdminAction({
         adminId: req.adminId || 'sysad',
+        adminName: req.adminName || req.adminInfo?.adminName || 'System Admin',
         adminRole: 'sysad',
         department: 'system',
         action: 'Admin Created',
@@ -528,6 +492,7 @@ router.post('/users', async (req, res) => {
       });
       logAdminAction({
         adminId: req.adminId || 'sysad',
+        adminName: req.adminName || req.adminInfo?.adminName || 'System Admin',
         adminRole: 'sysad',
         department: 'system',
         action: 'User Created',
@@ -626,6 +591,7 @@ router.put('/users/:userId', async (req, res) => {
     });
     logAdminAction({
       adminId: req.adminId || 'sysad',
+        adminName: req.adminName || req.adminInfo?.adminName || 'System Admin',
       adminRole: 'sysad',
       department: 'system',
       action: 'User Updated',
@@ -702,6 +668,7 @@ router.delete('/users/:userId', async (req, res) => {
     });
     logAdminAction({
       adminId: req.adminId || 'sysad',
+        adminName: req.adminName || req.adminInfo?.adminName || 'System Admin',
       adminRole: 'sysad',
       department: 'system',
       action: `${isAdmin ? 'Admin' : 'User'} Deleted`,
@@ -767,7 +734,7 @@ router.patch('/users/:userId/toggle-status', async (req, res) => {
 
     await user.save();
 
-    const statusText = (!isAdmin ? user.isDeactivated : !user.isActive) ? 'deactivated' : 'undeactivated';
+    const statusText = (!isAdmin ? user.isDeactivated : !user.isActive) ? 'deactivated' : 'reactivated';
     const userName = user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim();
 
     // Log action
@@ -785,6 +752,7 @@ router.patch('/users/:userId/toggle-status', async (req, res) => {
     });
     logAdminAction({
       adminId: req.adminId || 'sysad',
+        adminName: req.adminName || req.adminInfo?.adminName || 'System Admin',
       adminRole: 'sysad',
       department: 'system',
       action: `${isAdmin ? 'Admin' : 'User'} ${statusText}`,
@@ -951,8 +919,9 @@ router.post('/transfer-card', async (req, res) => {
       }
     });
     logAdminAction({
-      adminId: adminId || 'sysad',
-      adminRole: 'sysad',
+      adminId: req.adminId || req.adminInfo?.adminId || adminId || 'sysad',
+      adminName: req.adminName || req.adminInfo?.adminName || 'System Admin',
+      adminRole: req.adminRole || 'sysad',
       department: 'system',
       action: 'Card Transferred',
       description: `transferred RFID for ${user.firstName} ${user.lastName}: ${oldRfid} → ${newCardUid}`,
@@ -1052,6 +1021,7 @@ router.put('/config', async (req, res) => {
     });
     logAdminAction({
       adminId: req.adminId || 'sysad',
+        adminName: req.adminName || req.adminInfo?.adminName || 'System Admin',
       adminRole: 'sysad',
       department: 'system',
       action: 'Config Updated',
@@ -1151,6 +1121,7 @@ router.post('/auto-export', async (req, res) => {
     });
     logAdminAction({
       adminId: req.adminId || 'sysad',
+        adminName: req.adminName || req.adminInfo?.adminName || 'System Admin',
       adminRole: 'sysad',
       department: 'system',
       action: 'Auto Export Configured',
@@ -1215,6 +1186,7 @@ router.post('/manual-export', async (req, res) => {
       });
       logAdminAction({
         adminId: req.adminId || 'sysad',
+        adminName: req.adminName || req.adminInfo?.adminName || 'System Admin',
         adminRole: 'sysad',
         department: 'system',
         action: 'Manual Export',
@@ -1259,6 +1231,7 @@ router.post('/manual-export', async (req, res) => {
       });
       logAdminAction({
         adminId: req.adminId || 'sysad',
+        adminName: req.adminName || req.adminInfo?.adminName || 'System Admin',
         adminRole: 'sysad',
         department: 'system',
         action: 'Manual Export',
@@ -1523,6 +1496,39 @@ router.patch('/concerns/:id/status', async (req, res) => {
       ipAddress: req.ip
     }).catch(() => {});
 
+    const userEmail = concern.userEmail || concern.userId?.email;
+    const userName = concern.userName || concern.userId?.firstName || 'Valued User';
+
+    if (status === 'in_progress' && userEmail) {
+      try {
+        const { sendConcernInProgressEmail } = await import('../services/emailService.js');
+        await sendConcernInProgressEmail(userEmail, userName, {
+          concernId: concern.concernId,
+          subject: concern.subject || concern.selectedConcerns?.join(', ') || 'Your Concern',
+          reportTo: concern.reportTo || 'System Admin'
+        });
+        console.log(`✉️ In-progress email sent to ${userEmail}`);
+      } catch (emailError) {
+        console.error('Failed to send in-progress email:', emailError.message);
+      }
+    }
+
+    if (status === 'resolved' && userEmail) {
+      try {
+        const { sendConcernResolvedEmail } = await import('../services/emailService.js');
+        await sendConcernResolvedEmail(userEmail, userName, {
+          concernId: concern.concernId,
+          subject: concern.subject || concern.selectedConcerns?.join(', ') || 'Your Concern',
+          reportTo: concern.reportTo || 'System Admin',
+          adminReply: reply,
+          resolvedBy: adminName || 'System Admin'
+        });
+        console.log(`✉️ Resolution email sent to ${userEmail}`);
+      } catch (emailError) {
+        console.error('Failed to send resolution email:', emailError.message);
+      }
+    }
+
     res.json({
       success: true,
       message: `Concern ${status === 'resolved' ? 'resolved' : 'updated'} successfully`,
@@ -1586,6 +1592,26 @@ router.post('/concerns/:id/note', async (req, res) => {
       changes: { note: note.trim(), adminName: adminName || 'System Admin' },
       ipAddress: req.ip
     }).catch(() => {});
+
+    const userEmail = concern.userEmail || concern.userId?.email;
+    const userName = concern.userName || concern.userId?.firstName || 'Valued User';
+
+    if (userEmail) {
+      try {
+        const { sendConcernNoteEmail } = await import('../services/emailService.js');
+        await sendConcernNoteEmail(userEmail, userName, {
+          concernId: concern.concernId,
+          subject: concern.subject || concern.selectedConcerns?.join(', ') || 'Your Concern',
+          reportTo: concern.reportTo || 'System Admin',
+          noteMessage: note.trim(),
+          adminName: adminName || 'System Admin',
+          noteTimestamp: new Date()
+        });
+        console.log(`✉️ Note email sent to ${userEmail}`);
+      } catch (emailError) {
+        console.error('Failed to send note email:', emailError.message);
+      }
+    }
 
     res.json({
       success: true,

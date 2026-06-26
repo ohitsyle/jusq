@@ -12,7 +12,7 @@ const SERVER_PORT_KEY = '@nucash_server_port';
 const DEFAULT_PORT = 3000;
 
 // Default server (AWS) - used when no custom IP is configured
-const DEFAULT_SERVER_URL = 'http://18.166.29.239:3000/api';
+const DEFAULT_SERVER_URL = 'http://localhost:3000/api';
 
 // Development/Production API URLs — all point to AWS by default
 const API_URLS = {

@@ -5,6 +5,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
+import { ClipboardList, Home, Settings, Store } from 'lucide-react';
 import AccountingHeader from './AccountingHeader';
 import Footer from './Footer';
 import api from '../../utils/api';
@@ -34,15 +35,15 @@ export default function AccountingLayout({ children }) {
 
   // Accounting tabs (read-only - no cash-in, no registration)
   const accountingTabs = [
-    { path: '/admin/accounting/home', icon: '🏠', label: 'Home' },
-    { path: '/admin/accounting/transactions', icon: '📋', label: 'Transactions' },
-    { path: '/admin/accounting/merchants', icon: '🏪', label: 'Merchants' },
+    { path: '/admin/accounting/home', icon: Home, label: 'Home' },
+    { path: '/admin/accounting/transactions', icon: ClipboardList, label: 'Transactions' },
+    { path: '/admin/accounting/merchants', icon: Store, label: 'Merchants' },
   ];
 
   // System tabs
   const systemTabs = [
-    { path: '/admin/accounting/logs', icon: '📋', label: 'Logs' },
-    { path: '/admin/accounting/config', icon: '⚙️', label: 'Settings' },
+    { path: '/admin/accounting/logs', icon: ClipboardList, label: 'Logs' },
+    { path: '/admin/accounting/config', icon: Settings, label: 'Settings' },
   ];
 
   return (
@@ -104,7 +105,7 @@ export default function AccountingLayout({ children }) {
                   }
                 }}
               >
-                <span className={`text-base transition-transform duration-300 ${isActive ? 'scale-110' : ''}`}>{tab.icon}</span>
+                <span className={`text-base transition-transform duration-300 ${isActive ? 'scale-110' : ''}`}><tab.icon className="w-[18px] h-[18px]" /></span>
                 <span>{tab.label}</span>
               </button>
             );
@@ -142,7 +143,7 @@ export default function AccountingLayout({ children }) {
                   }
                 }}
               >
-                <span className={`text-sm transition-transform duration-300 ${isActive ? 'scale-110' : ''}`}>{tab.icon}</span>
+                <span className={`text-sm transition-transform duration-300 ${isActive ? 'scale-110' : ''}`}><tab.icon className="w-[18px] h-[18px]" /></span>
                 <span>{tab.label}</span>
               </button>
             );

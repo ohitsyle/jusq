@@ -2,9 +2,12 @@
 // System configurations: Auto-export reports
 
 import React, { useState, useEffect } from 'react';
+import { BarChart3, Settings } from 'lucide-react';
+import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 
 export default function ConfigurationsPage() {
+    const { theme, isDarkMode } = useTheme();
   const [configurations, setConfigurations] = useState({
     autoExport: {
       frequency: 'daily',
@@ -141,11 +144,11 @@ export default function ConfigurationsPage() {
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div style={{ marginBottom: '24px', borderBottom: '2px solid rgba(255,212,28,0.2)', paddingBottom: '16px' }}>
-        <h2 className="text-2xl font-bold text-[#FFD41C] m-0 mb-2 flex items-center gap-[10px]">
-          <span>⚙️</span> System Configurations
+      <div style={{ marginBottom: '24px', borderBottom: `2px solid ${theme.border.primary}`, paddingBottom: '16px' }}>
+        <h2 style={{ color: theme.accent.primary }} className="text-2xl font-bold m-0 mb-2 flex items-center gap-[10px]">
+          <Settings className="w-5 h-5" /> System Configurations
         </h2>
-        <p className="text-[13px] text-[rgba(251,251,251,0.6)] m-0">
+        <p style={{ color: theme.text.secondary }} className="text-[13px] m-0">
           Configure automated data exports and system settings
         </p>
       </div>
@@ -178,18 +181,18 @@ export default function ConfigurationsPage() {
       <div className="flex-1 overflow-y-auto pr-2">
         {/* Auto-Export Section */}
         <div style={{
-          background: 'rgba(255,255,255,0.05)',
+          background: theme.bg.tertiary,
           borderRadius: '16px',
-          border: '1px solid rgba(255,212,28,0.2)',
+          border: `1px solid ${theme.border.primary}`,
           padding: '28px',
           marginBottom: '24px'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
             <div>
-              <h3 style={{ color: '#FFD41C', fontSize: '20px', fontWeight: 700, margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span>📊</span> Automated Data Export
+              <h3 style={{ color: theme.accent.primary, fontSize: '20px', fontWeight: 700, margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <BarChart3 className="w-5 h-5" /> Automated Data Export
               </h3>
-              <p style={{ color: 'rgba(251,251,251,0.6)', fontSize: '14px', margin: 0, lineHeight: '1.5' }}>
+              <p style={{ color: theme.text.secondary, fontSize: '14px', margin: 0, lineHeight: '1.5' }}>
                 System automatically exports all data as ZIP files for backup and compliance.
                 <br />Configure the schedule and download reports manually anytime.
               </p>
@@ -198,10 +201,10 @@ export default function ConfigurationsPage() {
               onClick={() => setShowExportModal(true)}
               style={{
                 padding: '12px 20px',
-                background: 'rgba(255, 212, 28, 0.15)',
+                background: `${theme.accent.primary}26`,
                 border: '2px solid rgba(255, 212, 28, 0.3)',
                 borderRadius: '10px',
-                color: '#FFD41C',
+                color: theme.accent.primary,
                 fontSize: '14px',
                 fontWeight: 600,
                 cursor: 'pointer',
@@ -219,7 +222,7 @@ export default function ConfigurationsPage() {
                 e.currentTarget.style.borderColor = 'rgba(255, 212, 28, 0.3)';
               }}
             >
-              <span>⚙️</span>
+              <Settings className="w-5 h-5" />
               <span>Configure Schedule</span>
             </button>
           </div>
@@ -252,10 +255,10 @@ export default function ConfigurationsPage() {
             textAlign: 'center'
           }}>
             <div style={{ fontSize: '48px', marginBottom: '12px' }}>📦</div>
-            <h4 style={{ color: '#FBFBFB', fontSize: '16px', fontWeight: 700, marginBottom: '8px' }}>
+            <h4 style={{ color: theme.text.primary, fontSize: '16px', fontWeight: 700, marginBottom: '8px' }}>
               Export All Data Now
             </h4>
-            <p style={{ color: 'rgba(251,251,251,0.6)', fontSize: '13px', marginBottom: '16px' }}>
+            <p style={{ color: theme.text.secondary, fontSize: '13px', marginBottom: '16px' }}>
               Download a complete ZIP file with all system data including drivers, trips, transactions, users, shuttles, routes, logs, phones, concerns, and merchants.
             </p>
             <button
@@ -295,12 +298,12 @@ export default function ConfigurationsPage() {
         {/* Export History */}
         {exportHistory.length > 0 && (
           <div style={{
-            background: 'rgba(255,255,255,0.05)',
+            background: theme.bg.tertiary,
             borderRadius: '16px',
-            border: '1px solid rgba(255,212,28,0.2)',
+            border: `1px solid ${theme.border.primary}`,
             padding: '28px'
           }}>
-            <h3 style={{ color: '#FFD41C', fontSize: '18px', fontWeight: 700, margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h3 style={{ color: theme.accent.primary, fontSize: '18px', fontWeight: 700, margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span>📜</span> Recent Export History
             </h3>
             <div style={{
@@ -317,7 +320,7 @@ export default function ConfigurationsPage() {
                       justifyContent: 'space-between',
                       alignItems: 'center',
                       padding: '14px 16px',
-                      background: 'rgba(255,255,255,0.03)',
+                      background: theme.bg.card,
                       borderRadius: '10px',
                       border: '1px solid rgba(255,212,28,0.1)',
                       fontSize: '14px',
@@ -333,8 +336,8 @@ export default function ConfigurationsPage() {
                     }}
                   >
                     <div>
-                      <span style={{ color: '#FFD41C', fontWeight: 700 }}>{exp.exportType}</span>
-                      <span style={{ color: 'rgba(251,251,251,0.5)', marginLeft: '16px', fontSize: '13px' }}>
+                      <span style={{ color: theme.accent.primary, fontWeight: 700 }}>{exp.exportType}</span>
+                      <span style={{ color: theme.text.tertiary, marginLeft: '16px', fontSize: '13px' }}>
                         {new Date(exp.exportedAt || exp.timestamp || exp.createdAt).toLocaleString()}
                       </span>
                     </div>
@@ -403,19 +406,19 @@ export default function ConfigurationsPage() {
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)',
+              background: isDarkMode ? 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)' : theme.bg.secondary,
               borderRadius: '16px',
-              border: '1px solid rgba(255, 212, 28, 0.2)',
+              border: `1px solid ${theme.border.primary}`,
               padding: '32px',
               width: '90%',
               maxWidth: '500px',
               boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)'
             }}
           >
-            <h3 style={{ color: '#FFD41C', fontSize: '22px', fontWeight: 700, margin: '0 0 8px 0' }}>
+            <h3 style={{ color: theme.accent.primary, fontSize: '22px', fontWeight: 700, margin: '0 0 8px 0' }}>
               Select Date Range
             </h3>
-            <p style={{ color: 'rgba(251,251,251,0.6)', fontSize: '13px', margin: '0 0 24px 0' }}>
+            <p style={{ color: theme.text.secondary, fontSize: '13px', margin: '0 0 24px 0' }}>
               Choose which records to include in the export
             </p>
 
@@ -460,10 +463,10 @@ export default function ConfigurationsPage() {
                     style={{ cursor: 'pointer', width: '18px', height: '18px' }}
                   />
                   <div style={{ flex: 1 }}>
-                    <div style={{ color: '#FBFBFB', fontSize: '14px', fontWeight: 700, marginBottom: '4px' }}>
+                    <div style={{ color: theme.text.primary, fontSize: '14px', fontWeight: 700, marginBottom: '4px' }}>
                       {option.label}
                     </div>
-                    <div style={{ color: 'rgba(251,251,251,0.5)', fontSize: '12px' }}>
+                    <div style={{ color: theme.text.tertiary, fontSize: '12px' }}>
                       {option.desc}
                     </div>
                   </div>
@@ -473,10 +476,10 @@ export default function ConfigurationsPage() {
 
             {/* Custom Date Inputs */}
             {dateRange === 'custom' && (
-              <div style={{ marginBottom: '24px', padding: '16px', background: 'rgba(255,255,255,0.05)', borderRadius: '10px' }}>
+              <div style={{ marginBottom: '24px', padding: '16px', background: theme.bg.tertiary, borderRadius: '10px' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div>
-                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: 700, color: '#FFD41C' }}>
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: 700, color: theme.accent.primary }}>
                       Start Date
                     </label>
                     <input
@@ -486,10 +489,10 @@ export default function ConfigurationsPage() {
                       style={{
                         width: '100%',
                         padding: '10px',
-                        background: 'rgba(255, 255, 255, 0.05)',
+                        background: theme.bg.tertiary,
                         border: '2px solid rgba(255, 212, 28, 0.3)',
                         borderRadius: '8px',
-                        color: '#FBFBFB',
+                        color: theme.text.primary,
                         fontSize: '13px',
                         outline: 'none',
                         boxSizing: 'border-box'
@@ -497,7 +500,7 @@ export default function ConfigurationsPage() {
                     />
                   </div>
                   <div>
-                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: 700, color: '#FFD41C' }}>
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: 700, color: theme.accent.primary }}>
                       End Date
                     </label>
                     <input
@@ -507,10 +510,10 @@ export default function ConfigurationsPage() {
                       style={{
                         width: '100%',
                         padding: '10px',
-                        background: 'rgba(255, 255, 255, 0.05)',
+                        background: theme.bg.tertiary,
                         border: '2px solid rgba(255, 212, 28, 0.3)',
                         borderRadius: '8px',
-                        color: '#FBFBFB',
+                        color: theme.text.primary,
                         fontSize: '13px',
                         outline: 'none',
                         boxSizing: 'border-box'
@@ -554,7 +557,7 @@ export default function ConfigurationsPage() {
                   flex: 1,
                   padding: '14px 24px',
                   background: 'rgba(255, 212, 28, 0.1)',
-                  color: '#FFD41C',
+                  color: theme.accent.primary,
                   border: '2px solid rgba(255, 212, 28, 0.3)',
                   borderRadius: '10px',
                   fontSize: '15px',
@@ -591,9 +594,9 @@ export default function ConfigurationsPage() {
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)',
+              background: isDarkMode ? 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)' : theme.bg.secondary,
               borderRadius: '16px',
-              border: '1px solid rgba(255, 212, 28, 0.2)',
+              border: `1px solid ${theme.border.primary}`,
               padding: '32px',
               width: '90%',
               maxWidth: '600px',
@@ -602,17 +605,17 @@ export default function ConfigurationsPage() {
               boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)'
             }}
           >
-            <h3 style={{ color: '#FFD41C', fontSize: '22px', fontWeight: 700, margin: '0 0 8px 0' }}>
+            <h3 style={{ color: theme.accent.primary, fontSize: '22px', fontWeight: 700, margin: '0 0 8px 0' }}>
               Configure Export Schedule
             </h3>
-            <p style={{ color: 'rgba(251,251,251,0.6)', fontSize: '13px', margin: '0 0 24px 0' }}>
+            <p style={{ color: theme.text.secondary, fontSize: '13px', margin: '0 0 24px 0' }}>
               Set up when and how often the system should automatically export data.
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               {/* Frequency */}
               <div>
-                <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 700, color: '#FFD41C', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 700, color: theme.accent.primary, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                   Frequency
                 </label>
                 <select
@@ -624,10 +627,10 @@ export default function ConfigurationsPage() {
                   style={{
                     width: '100%',
                     padding: '12px 16px',
-                    background: 'rgba(255, 255, 255, 0.05)',
+                    background: theme.bg.tertiary,
                     border: '2px solid rgba(255, 212, 28, 0.3)',
                     borderRadius: '8px',
-                    color: '#FBFBFB',
+                    color: theme.text.primary,
                     fontSize: '14px',
                     fontWeight: 600,
                     cursor: 'pointer',
@@ -643,7 +646,7 @@ export default function ConfigurationsPage() {
 
               {/* Time */}
               <div>
-                <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 700, color: '#FFD41C', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 700, color: theme.accent.primary, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                   Export Time (24-hour)
                 </label>
                 <input
@@ -656,10 +659,10 @@ export default function ConfigurationsPage() {
                   style={{
                     width: '100%',
                     padding: '12px 16px',
-                    background: 'rgba(255, 255, 255, 0.05)',
+                    background: theme.bg.tertiary,
                     border: '2px solid rgba(255, 212, 28, 0.3)',
                     borderRadius: '8px',
-                    color: '#FBFBFB',
+                    color: theme.text.primary,
                     fontSize: '14px',
                     fontWeight: 600,
                     outline: 'none',
@@ -670,7 +673,7 @@ export default function ConfigurationsPage() {
 
               {/* Export Types */}
               <div>
-                <label style={{ display: 'block', marginBottom: '12px', fontSize: '13px', fontWeight: 700, color: '#FFD41C', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                <label style={{ display: 'block', marginBottom: '12px', fontSize: '13px', fontWeight: 700, color: theme.accent.primary, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                   Data Types to Export
                 </label>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
@@ -716,7 +719,7 @@ export default function ConfigurationsPage() {
                         }}
                         style={{ cursor: 'pointer', width: '16px', height: '16px' }}
                       />
-                      <span style={{ color: '#FBFBFB', fontSize: '14px', fontWeight: 600 }}>{type}</span>
+                      <span style={{ color: theme.text.primary, fontSize: '14px', fontWeight: 600 }}>{type}</span>
                     </label>
                   ))}
                 </div>
@@ -731,7 +734,7 @@ export default function ConfigurationsPage() {
                     flex: 1,
                     padding: '14px 24px',
                     background: loading ? '#9CA3AF' : '#FFD41C',
-                    color: '#181D40',
+                    color: theme.accent.secondary,
                     border: 'none',
                     borderRadius: '10px',
                     fontSize: '15px',
@@ -750,7 +753,7 @@ export default function ConfigurationsPage() {
                     flex: 1,
                     padding: '14px 24px',
                     background: 'rgba(255, 212, 28, 0.1)',
-                    color: '#FFD41C',
+                    color: theme.accent.primary,
                     border: '2px solid rgba(255, 212, 28, 0.3)',
                     borderRadius: '10px',
                     fontSize: '15px',
@@ -778,18 +781,19 @@ export default function ConfigurationsPage() {
 }
 
 function SettingCard({ icon, label, value }) {
+  const { theme, isDarkMode } = useTheme();
   return (
     <div style={{
       padding: '20px',
-      background: 'rgba(255, 255, 255, 0.03)',
+      background: theme.bg.card,
       borderRadius: '12px',
       border: '1px solid rgba(255, 212, 28, 0.15)'
     }}>
       <div style={{ fontSize: '24px', marginBottom: '8px' }}>{icon}</div>
-      <div style={{ fontSize: '12px', color: 'rgba(251, 251, 251, 0.5)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>
+      <div style={{ fontSize: '12px', color: theme.text.tertiary, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>
         {label}
       </div>
-      <div style={{ fontSize: '16px', color: '#FBFBFB', fontWeight: 700 }}>
+      <div style={{ fontSize: '16px', color: theme.text.primary, fontWeight: 700 }}>
         {value}
       </div>
     </div>

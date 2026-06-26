@@ -22,16 +22,25 @@ export default function UserHeader({ userData, onLogout, onOpenProfile }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const getFullName = () => {
+    if (!userData) return 'User';
+    const fromParts = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+    return fromParts || userData.name || userData.fullName || 'User';
+  };
+
   const getInitials = () => {
     if (!userData) return 'U';
     const first = userData.firstName?.[0] || '';
     const last = userData.lastName?.[0] || '';
-    return (first + last).toUpperCase() || 'U';
-  };
-
-  const getFullName = () => {
-    if (!userData) return 'User';
-    return `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || 'User';
+    const fromParts = (first + last).toUpperCase();
+    if (fromParts) return fromParts;
+    // Fall back to initials derived from the full name
+    const name = getFullName();
+    if (name && name !== 'User') {
+      const parts = name.trim().split(/\s+/);
+      return ((parts[0]?.[0] || '') + (parts[parts.length - 1]?.[0] || '')).toUpperCase() || 'U';
+    }
+    return 'U';
   };
 
   return (

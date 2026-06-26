@@ -6,12 +6,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { toast } from 'react-toastify';
-import SearchBar from '../../../components/shared/SearchBar';
-import StatusFilter from '../../../components/shared/StatusFilter';
-import DateRangeFilter from '../../../components/shared/DateRangeFilter';
-import ExportButton from '../../../components/shared/ExportButton';
 import { exportToCSV } from '../../../utils/csvExport';
-import { X, Loader2, Send, CheckCircle, MessageCircle, FileText, Clock, AlertCircle } from 'lucide-react';
+import { X, Loader2, Send, CheckCircle, MessageCircle, FileText, Clock, AlertCircle, Search, Download, MessageSquare } from 'lucide-react';
 
 export default function SysadConcernsPage() {
   const { theme, isDarkMode } = useTheme();
@@ -181,7 +177,11 @@ export default function SysadConcernsPage() {
       Rating: c.rating || '',
       Date: c.createdAt ? new Date(c.createdAt).toLocaleDateString() : ''
     }));
-    exportToCSV(dataToExport, 'sysad_concerns');
+    const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+
+    const exportMeta = { adminName: adminData.firstName ? `${adminData.firstName} ${adminData.lastName || ''}`.trim() : 'Admin', department: adminData.role ? adminData.role.charAt(0).toUpperCase() + adminData.role.slice(1) : undefined };
+
+    exportToCSV(dataToExport, 'sysad_concerns', { ...exportMeta, title: 'All Concerns & Feedback Report' });
   };
 
   // Filter concerns
@@ -230,6 +230,17 @@ export default function SysadConcernsPage() {
       default: return theme.text.secondary;
     }
   };
+
+  // Feedback isn't an actionable concern, so it shouldn't show "Pending" —
+  // show "Received" until it's responded to/resolved.
+  const getStatusDisplay = (concern) => {
+    const isFeedback = concern.submissionType === 'feedback';
+    if (isFeedback && (!concern.status || concern.status === 'pending')) {
+      return { label: 'Received', color: '#06B6D4' };
+    }
+    return { label: (concern.status || 'pending').replace('_', ' '), color: getStatusColor(concern.status) };
+  };
+
 
   // Aging system - matches Treasury admin style
   const calculateAging = (concern) => {
@@ -285,7 +296,7 @@ export default function SysadConcernsPage() {
       {/* Header - Title & Subtitle */}
       <div style={{ borderColor: theme.border.primary }} className="mb-6 border-b-2 pb-5">
         <h2 style={{ color: theme.accent.primary }} className="text-2xl font-bold m-0 mb-2 flex items-center gap-[10px]">
-          <span>💬</span> Concerns & Feedback
+          <MessageSquare className="w-5 h-5" /> Concerns & Feedback
         </h2>
         <p style={{ color: theme.text.secondary }} className="text-[13px] m-0">
           {filteredConcerns.length > 0
@@ -363,17 +374,6 @@ export default function SysadConcernsPage() {
           </div>
         </div>
       </div>
-<div className="flex gap-2 mb-5">
-          <button onClick={() => setActiveTab('all')} style={{ padding: '10px 20px', background: activeTab === 'all' ? 'rgba(255,212,28,0.2)' : 'transparent', border: `2px solid ${activeTab === 'all' ? theme.accent.primary : 'rgba(255,212,28,0.3)'}`, borderRadius: '8px', color: activeTab === 'all' ? theme.accent.primary : theme.text.secondary, fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>
-            All ({concerns.length})
-          </button>
-          <button onClick={() => setActiveTab('assistance')} style={{ padding: '10px 20px', background: activeTab === 'assistance' ? 'rgba(59,130,246,0.2)' : 'transparent', border: `2px solid ${activeTab === 'assistance' ? '#3B82F6' : 'rgba(59,130,246,0.3)'}`, borderRadius: '8px', color: activeTab === 'assistance' ? '#3B82F6' : theme.text.secondary, fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>
-            🆘 Assistance ({concerns.filter(c => c.submissionType === 'assistance' || !c.submissionType).length})
-          </button>
-          <button onClick={() => setActiveTab('feedback')} style={{ padding: '10px 20px', background: activeTab === 'feedback' ? 'rgba(34,197,94,0.2)' : 'transparent', border: `2px solid ${activeTab === 'feedback' ? '#22C55E' : 'rgba(34,197,94,0.3)'}`, borderRadius: '8px', color: activeTab === 'feedback' ? '#22C55E' : theme.text.secondary, fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>
-            💬 Feedback ({concerns.filter(c => c.submissionType === 'feedback').length})
-          </button>
-        </div>
       {/* Actions Bar */}
       <div
         style={{
@@ -383,36 +383,94 @@ export default function SysadConcernsPage() {
         className="rounded-xl border-2 p-4 mb-5"
       >
         <div className="flex flex-wrap gap-3 items-center">
-          {/* Search */}
-          <SearchBar
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder="Search by ID, user, subject..."
-          />
+          {/* Tab Filter - Pill Group */}
+          <div className="flex gap-1 p-1 rounded-xl" style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F3F4F6' }}>
+            {[
+              { value: 'all', label: `All (${concerns.length})` },
+              { value: 'assistance', label: `🆘 Assistance (${concerns.filter(c => c.submissionType === 'assistance' || !c.submissionType).length})` },
+              { value: 'feedback', label: `💬 Feedback (${concerns.filter(c => c.submissionType === 'feedback').length})` }
+            ].map(tab => (
+              <button
+                key={tab.value}
+                onClick={() => setActiveTab(tab.value)}
+                style={{
+                  background: activeTab === tab.value ? theme.accent.primary : 'transparent',
+                  color: activeTab === tab.value ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.secondary
+                }}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80 whitespace-nowrap"
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
 
-          {/* Status Filter */}
+          {/* Search */}
+          <div className="relative flex-1 min-w-[180px] max-w-[280px]">
+            <Search style={{ color: theme.text.tertiary }} className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Search by ID, user, subject..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }}
+              className="w-full pl-10 pr-4 py-2 rounded-xl border text-sm focus:outline-none transition-all"
+            />
+          </div>
+
+          {/* Status Filter - Pill Group */}
           {activeTab !== 'feedback' && (
-            <StatusFilter
-              value={statusFilter}
-              onChange={setStatusFilter}
-              options={[
+            <div className="flex gap-1 p-1 rounded-xl" style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F3F4F6' }}>
+              {[
+                { value: '', label: 'All' },
                 { value: 'pending', label: 'Pending' },
                 { value: 'in_progress', label: 'In Progress' },
                 { value: 'resolved', label: 'Resolved' }
-              ]}
-            />
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => setStatusFilter(opt.value)}
+                  style={{
+                    background: statusFilter === opt.value ? theme.accent.primary : 'transparent',
+                    color: statusFilter === opt.value ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.secondary
+                  }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80 whitespace-nowrap"
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           )}
 
           {/* Date Range */}
-          <DateRangeFilter
-            startDate={startDate}
-            endDate={endDate}
-            onStartChange={setStartDate}
-            onEndChange={setEndDate}
-          />
+          <div className="flex items-center gap-2">
+            <span style={{ color: theme.text.secondary }} className="text-xs font-semibold whitespace-nowrap">From</span>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }}
+              className="px-3 py-2 rounded-xl border text-sm focus:outline-none"
+            />
+            <span style={{ color: theme.text.secondary }} className="text-xs font-semibold">To</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }}
+              className="px-3 py-2 rounded-xl border text-sm focus:outline-none"
+            />
+          </div>
 
-          {/* Export CSV Button */}
-          <ExportButton onClick={handleExport} disabled={filteredConcerns.length === 0} />
+          {/* Export CSV */}
+          <button
+            onClick={handleExport}
+            disabled={filteredConcerns.length === 0}
+            style={{ background: 'rgba(16,185,129,0.15)', color: '#10B981', borderColor: 'rgba(16,185,129,0.3)', opacity: filteredConcerns.length === 0 ? 0.5 : 1 }}
+            className="px-4 py-2 rounded-xl font-semibold text-sm border flex items-center gap-2 hover:opacity-80 transition-all ml-auto"
+          >
+            <Download className="w-4 h-4" />
+            Export CSV
+          </button>
         </div>
       </div>
 
@@ -524,10 +582,10 @@ export default function SysadConcernsPage() {
                           fontSize: '10px',
                           fontWeight: 700,
                           textTransform: 'uppercase',
-                          background: `${getStatusColor(concern.status)}20`,
-                          color: getStatusColor(concern.status),
+                          background: `${getStatusDisplay(concern).color}20`,
+                          color: getStatusDisplay(concern).color,
                         }}>
-                          {concern.status?.replace('_', ' ') || 'Pending'}
+                          {getStatusDisplay(concern).label}
                         </span>
                       </td>
                     )}
@@ -643,11 +701,11 @@ export default function SysadConcernsPage() {
                   fontSize: '10px',
                   fontWeight: 700,
                   textTransform: 'uppercase',
-                  background: `${getStatusColor(selectedConcern.status)}20`,
-                  color: getStatusColor(selectedConcern.status),
+                  background: `${getStatusDisplay(selectedConcern).color}20`,
+                  color: getStatusDisplay(selectedConcern).color,
                   marginBottom: '8px'
                 }}>
-                  {selectedConcern.status?.replace('_', ' ') || 'Pending'}
+                  {getStatusDisplay(selectedConcern).label}
                 </span>
                 <h2 style={{ fontSize: '20px', fontWeight: 700, color: theme.text.primary, margin: 0 }}>
                   {selectedConcern.subject || 'No Subject'}

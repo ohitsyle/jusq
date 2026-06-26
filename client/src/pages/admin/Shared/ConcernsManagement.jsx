@@ -24,6 +24,9 @@ export default function ConcernsManagement() {
     fetchConcerns();
   }, []);
 
+  const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+  const adminRole = adminData.role || '';
+
   const fetchConcerns = async () => {
     setLoading(true);
     try {
@@ -34,7 +37,12 @@ export default function ConcernsManagement() {
       };
 
       const response = await getConcerns(params);
-      setConcerns(response.concerns || response.data || []);
+      const all = response.concerns || response.data || [];
+      // Accounting sees only treasury-office concerns (no "Accounting" reportTo exists)
+      const filtered = adminRole === 'accounting'
+        ? all.filter(c => c.reportTo === 'Treasury Office')
+        : all;
+      setConcerns(filtered);
     } catch (error) {
       console.error("Failed to fetch concerns:", error);
       toast.error("Failed to load concerns");

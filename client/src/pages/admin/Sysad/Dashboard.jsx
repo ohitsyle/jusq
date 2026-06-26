@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { toast } from 'react-toastify';
-import { Users, UserCheck, UserX, Shield, GraduationCap, Briefcase, Clock, Plus, CreditCard, Search, Check, Loader2, AlertCircle, X, ArrowRight, CheckCircle } from 'lucide-react';
+import { Users, UserCheck, UserX, Shield, GraduationCap, Briefcase, Clock, Plus, CreditCard, Search, Check, Loader2, AlertCircle, X, ArrowRight, CheckCircle, ClipboardList, Home } from 'lucide-react';
 import { convertToHexLittleEndian } from '../../../utils/rfidConverter';
 
 export default function SysadDashboard() {
@@ -71,7 +71,7 @@ export default function SysadDashboard() {
       {/* Header */}
       <div style={{ borderColor: theme.border.primary }} className="mb-6 border-b-2 pb-5">
         <h2 style={{ color: theme.accent.primary }} className="text-2xl font-bold m-0 mb-2 flex items-center gap-[10px]">
-          <span>🏠</span> Home
+          <Home className="w-5 h-5" /> Home
         </h2>
         <p style={{ color: theme.text.secondary }} className="text-[13px] m-0">
           Comprehensive overview of the NUCash system • Auto-updates every 30 seconds
@@ -181,7 +181,7 @@ export default function SysadDashboard() {
         <div style={{ borderColor: theme.border.primary }} className="p-5 border-b flex justify-between items-center">
           <div>
             <h3 style={{ color: theme.accent.primary }} className="m-0 mb-1 text-lg font-bold flex items-center gap-2">
-              <span>📋</span> Recent Admin Logs
+              <ClipboardList className="w-5 h-5" /> Recent Admin Logs
             </h3>
             <p style={{ color: theme.text.secondary }} className="m-0 text-xs">
               Latest admin activity across the system

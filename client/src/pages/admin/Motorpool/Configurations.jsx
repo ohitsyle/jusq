@@ -2,9 +2,11 @@
 // Motorpool-specific export options: Drivers, Routes, Trips, Shuttles, Driver Phones, Motorpool Logs, Motorpool Concerns
 
 import React, { useState, useEffect } from 'react';
+import { BarChart3, Settings } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { toast } from 'react-toastify';
+import ScheduleExportModal from '../../../components/modals/ScheduleExportModal';
 
 export default function MotorpoolConfigurationsPage() {
   const { theme, isDarkMode } = useTheme();
@@ -182,7 +184,7 @@ export default function MotorpoolConfigurationsPage() {
       {/* Header */}
       <div style={{ marginBottom: '24px', borderBottom: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.2)' : 'rgba(59,130,246,0.2)'}`, paddingBottom: '16px' }}>
         <h2 style={{ color: theme.accent.primary }} className="text-2xl font-bold m-0 mb-2 flex items-center gap-[10px]">
-          <span>⚙️</span> Motorpool Settings
+          <Settings className="w-5 h-5" /> Motorpool Settings
         </h2>
         <p style={{ color: theme.text.secondary }} className="text-[13px] m-0">
           Configure automated motorpool data exports and system settings
@@ -202,7 +204,7 @@ export default function MotorpoolConfigurationsPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
             <div>
               <h3 style={{ color: theme.accent.primary, fontSize: '20px', fontWeight: 700, margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span>📊</span> Automated Motorpool Export
+                <BarChart3 className="w-5 h-5" /> Automated Motorpool Export
               </h3>
               <p style={{ color: theme.text.secondary, fontSize: '14px', margin: 0, lineHeight: '1.5' }}>
                 System automatically exports motorpool data as ZIP files for backup and compliance.
@@ -226,7 +228,7 @@ export default function MotorpoolConfigurationsPage() {
                 transition: 'all 0.2s ease'
               }}
             >
-              <span>⚙️</span>
+              <Settings className="w-5 h-5" />
               <span>Configure Schedule</span>
             </button>
           </div>
@@ -514,7 +516,7 @@ export default function MotorpoolConfigurationsPage() {
 
       {/* Auto-Export Configuration Modal */}
       {showConfigModal && (
-        <ConfigModal
+        <ScheduleExportModal
           configurations={configurations}
           setConfigurations={setConfigurations}
           exportTypes={MOTORPOOL_EXPORT_TYPES}
@@ -715,246 +717,6 @@ function DateRangeModal({ dateRange, setDateRange, customStartDate, setCustomSta
           >
             Cancel
           </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Configuration Modal
-function ConfigModal({ configurations, setConfigurations, exportTypes, loading, onSave, onCancel, theme, isDarkMode }) {
-  return (
-    <div
-      onClick={onCancel}
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        background: 'rgba(15,18,39,0.9)',
-        backdropFilter: 'blur(8px)',
-        zIndex: 9999,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: isDarkMode ? 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)' : '#FFFFFF',
-          borderRadius: '16px',
-          border: `1px solid ${theme.border.primary}`,
-          padding: '32px',
-          width: '90%',
-          maxWidth: '600px',
-          maxHeight: '90vh',
-          overflow: 'auto',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
-        }}
-      >
-        <h3 style={{ color: theme.accent.primary, fontSize: '22px', fontWeight: 700, margin: '0 0 8px 0' }}>
-          Configure Export Schedule
-        </h3>
-        <p style={{ color: theme.text.secondary, fontSize: '13px', margin: '0 0 24px 0' }}>
-          Set up when and how often the system should automatically export data.
-        </p>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* Enable Toggle */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '16px',
-              borderRadius: '12px',
-              background: configurations.autoExport?.enabled ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
-              border: `2px solid ${configurations.autoExport?.enabled ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`
-            }}
-          >
-            <div>
-              <div style={{ color: theme.text.primary, fontWeight: 700, fontSize: '14px' }}>Enable Automatic Export</div>
-              <div style={{ color: theme.text.secondary, fontSize: '12px', marginTop: '4px' }}>
-                {configurations.autoExport?.enabled ? '✅ Auto-export is active' : '⚠️ Auto-export is disabled'}
-              </div>
-            </div>
-            <button
-              onClick={() => setConfigurations({
-                ...configurations,
-                autoExport: { ...configurations.autoExport, enabled: !configurations.autoExport?.enabled }
-              })}
-              style={{
-                background: configurations.autoExport?.enabled ? '#10B981' : '#6B7280',
-                width: '52px',
-                height: '28px',
-                borderRadius: '14px',
-                position: 'relative',
-                border: 'none',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '2px',
-                  left: configurations.autoExport?.enabled ? '26px' : '2px',
-                  width: '24px',
-                  height: '24px',
-                  borderRadius: '12px',
-                  background: '#FFFFFF',
-                  transition: 'all 0.2s ease',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                }}
-              />
-            </button>
-          </div>
-
-          {/* Frequency */}
-          <div>
-            <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 700, color: theme.accent.primary, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Frequency
-            </label>
-            <select
-              value={configurations.autoExport.frequency}
-              onChange={(e) => setConfigurations({
-                ...configurations,
-                autoExport: { ...configurations.autoExport, frequency: e.target.value }
-              })}
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                background: theme.bg.tertiary,
-                border: `2px solid ${theme.border.primary}`,
-                borderRadius: '8px',
-                color: theme.text.primary,
-                fontSize: '14px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                outline: 'none'
-              }}
-            >
-              <option value="daily" style={{ background: isDarkMode ? '#1E2347' : '#FFFFFF' }}>📅 Daily</option>
-              <option value="weekly" style={{ background: isDarkMode ? '#1E2347' : '#FFFFFF' }}>📅 Weekly</option>
-              <option value="monthly" style={{ background: isDarkMode ? '#1E2347' : '#FFFFFF' }}>📅 Monthly</option>
-            </select>
-          </div>
-
-          {/* Time */}
-          <div>
-            <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 700, color: theme.accent.primary, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Export Time (24-hour)
-            </label>
-            <input
-              type="time"
-              value={configurations.autoExport.time}
-              onChange={(e) => setConfigurations({
-                ...configurations,
-                autoExport: { ...configurations.autoExport, time: e.target.value }
-              })}
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                background: theme.bg.tertiary,
-                border: `2px solid ${theme.border.primary}`,
-                borderRadius: '8px',
-                color: theme.text.primary,
-                fontSize: '14px',
-                fontWeight: 600,
-                outline: 'none',
-                boxSizing: 'border-box'
-              }}
-            />
-          </div>
-
-          {/* Export Types */}
-          <div>
-            <label style={{ display: 'block', marginBottom: '12px', fontSize: '13px', fontWeight: 700, color: theme.accent.primary, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Data Types to Export
-            </label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
-              {exportTypes.map((type) => (
-                <label
-                  key={type.value}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    padding: '12px',
-                    background: configurations.autoExport.exportTypes?.includes(type.value)
-                      ? `${theme.accent.primary}20`
-                      : theme.bg.tertiary,
-                    border: `2px solid ${configurations.autoExport.exportTypes?.includes(type.value)
-                      ? theme.accent.primary
-                      : theme.border.primary}`,
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={configurations.autoExport.exportTypes?.includes(type.value) || false}
-                    onChange={(e) => {
-                      const types = configurations.autoExport.exportTypes || [];
-                      const newTypes = e.target.checked
-                        ? [...types, type.value]
-                        : types.filter(t => t !== type.value);
-                      setConfigurations({
-                        ...configurations,
-                        autoExport: { ...configurations.autoExport, exportTypes: newTypes }
-                      });
-                    }}
-                    style={{ cursor: 'pointer', width: '16px', height: '16px' }}
-                  />
-                  <span style={{ fontSize: '16px' }}>{type.icon}</span>
-                  <span style={{ color: theme.text.primary, fontSize: '14px', fontWeight: 600 }}>{type.label}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Buttons */}
-          <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-            <button
-              onClick={onSave}
-              disabled={loading}
-              style={{
-                flex: 1,
-                padding: '14px 24px',
-                background: loading ? '#9CA3AF' : theme.accent.primary,
-                color: isDarkMode ? '#181D40' : '#FFFFFF',
-                border: 'none',
-                borderRadius: '10px',
-                fontSize: '15px',
-                fontWeight: 700,
-                cursor: loading ? 'not-allowed' : 'pointer',
-                boxShadow: loading ? 'none' : '0 4px 12px rgba(255,212,28,0.4)',
-                opacity: loading ? 0.6 : 1
-              }}
-            >
-              {loading ? '⏳ Saving...' : '💾 Save Settings'}
-            </button>
-            <button
-              onClick={onCancel}
-              disabled={loading}
-              style={{
-                flex: 1,
-                padding: '14px 24px',
-                background: theme.bg.tertiary,
-                color: theme.text.primary,
-                border: `2px solid ${theme.border.primary}`,
-                borderRadius: '10px',
-                fontSize: '15px',
-                fontWeight: 600,
-                cursor: loading ? 'not-allowed' : 'pointer'
-              }}
-            >
-              Cancel
-            </button>
-          </div>
         </div>
       </div>
     </div>

@@ -2,6 +2,8 @@ import React, { useState, useContext, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppContext } from '../../context/AppContext';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
 export default function UnifiedLogin() {
   const navigate = useNavigate();
   const { loginUser, isLoggedin } = useContext(AppContext);
@@ -27,7 +29,7 @@ export default function UnifiedLogin() {
   useEffect(() => {
     const checkMaintenanceMode = async () => {
       try {
-        const response = await fetch('http://18.166.29.239:3000/api/admin/sysad/config');
+        const response = await fetch(`${API_BASE}/admin/sysad/config`);
         const data = await response.json();
         if (data?.config?.maintenanceMode) {
           setMaintenanceMode(true);
@@ -97,8 +99,8 @@ export default function UnifiedLogin() {
   const getRoleConfig = (role) => {
     const configs = {
       admin: {
-        endpoint: 'http://18.166.29.239:3000/api/login',
-        checkEndpoint: 'http://18.166.29.239:3000/api/login/check-email',
+        endpoint: `${API_BASE}/login`,
+        checkEndpoint: `${API_BASE}/login/check-email`,
         tokenKey: 'adminToken',
         dataKey: 'adminData',
         title: 'Admin Portal',
@@ -107,8 +109,8 @@ export default function UnifiedLogin() {
         icon: '👨‍💼'
       },
       merchant: {
-        endpoint: 'http://18.166.29.239:3000/api/merchant/auth/login',
-        checkEndpoint: 'http://18.166.29.239:3000/api/merchant/auth/check-email',
+        endpoint: `${API_BASE}/merchant/auth/login`,
+        checkEndpoint: `${API_BASE}/merchant/auth/check-email`,
         tokenKey: 'merchantToken',
         dataKey: 'merchantData',
         title: 'Merchant Portal',
@@ -117,8 +119,8 @@ export default function UnifiedLogin() {
         icon: '🏪'
       },
       user: {
-        endpoint: 'http://18.166.29.239:3000/api/login',
-        checkEndpoint: 'http://18.166.29.239:3000/api/login/check-email',
+        endpoint: `${API_BASE}/login`,
+        checkEndpoint: `${API_BASE}/login/check-email`,
         tokenKey: 'userToken',
         dataKey: 'userData',
         title: 'Student Portal',
@@ -293,7 +295,7 @@ export default function UnifiedLogin() {
 
     try {
       // Use the forgot-pin endpoint for users
-      const response = await fetch('http://18.166.29.239:3000/api/login/forgot-pin', {
+      const response = await fetch(`${API_BASE}/login/forgot-pin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: forgotEmail })
@@ -322,7 +324,7 @@ export default function UnifiedLogin() {
 
     try {
       // Use the verify-otp endpoint for users
-      const response = await fetch('http://18.166.29.239:3000/api/login/verify-otp', {
+      const response = await fetch(`${API_BASE}/login/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: forgotEmail, otp })
@@ -362,7 +364,7 @@ export default function UnifiedLogin() {
 
     try {
       // Use the reset-pin endpoint for users
-      const response = await fetch('http://18.166.29.239:3000/api/login/reset-pin', {
+      const response = await fetch(`${API_BASE}/login/reset-pin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: forgotEmail, newPin })
@@ -774,9 +776,23 @@ export default function UnifiedLogin() {
           </div>
         )}
 
-        {/* Footer */}
+        {/* Footer — creator credits */}
         <div className="mt-8 pt-6 border-t border-[rgba(255,212,28,0.2)] text-center">
-          <p className="text-xs text-[rgba(251,251,251,0.4)]">
+          <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#FFD41C] mb-3">
+            Designed &amp; Developed by
+          </p>
+          <div className="space-y-1">
+            <p className="text-sm font-semibold text-[rgba(251,251,251,0.92)] leading-snug">
+              Jose Anjelo Abued
+            </p>
+            <p className="text-sm font-semibold text-[rgba(251,251,251,0.92)] leading-snug">
+              Ashley Gwyneth Cuevas
+            </p>
+            <p className="text-sm font-semibold text-[rgba(251,251,251,0.92)] leading-snug">
+              Jhustine Brylle Logronio
+            </p>
+          </div>
+          <p className="mt-4 text-[11px] text-[rgba(251,251,251,0.4)]">
             © 2026 National University Laguna
           </p>
         </div>

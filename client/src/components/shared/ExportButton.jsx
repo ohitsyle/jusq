@@ -1,25 +1,21 @@
 // src/admin/components/common/ExportButton.jsx
-// Reusable CSV export button
+// Reusable CSV export button — green pill matching the sysad/Logs export style.
 
 import React from 'react';
-import { useTheme } from '../../context/ThemeContext';
+import { Download } from 'lucide-react';
 
 export default function ExportButton({ onClick, disabled = false }) {
-  const { theme, isDarkMode } = useTheme();
-
-  const baseColor = isDarkMode ? '255, 212, 28' : '59, 130, 246';
-
   return (
     <button
       onClick={onClick}
       disabled={disabled}
       style={{
-        padding: '12px 20px',
-        background: disabled ? `rgba(${baseColor}, 0.3)` : `rgba(${baseColor}, 0.15)`,
-        border: `2px solid rgba(${baseColor}, 0.4)`,
-        borderRadius: '10px',
-        color: disabled ? `rgba(${baseColor}, 0.5)` : theme.accent.primary,
-        fontSize: '14px',
+        padding: '10px 18px',
+        background: disabled ? 'rgba(16,185,129,0.1)' : 'rgba(16,185,129,0.15)',
+        border: `1px solid ${disabled ? 'rgba(16,185,129,0.2)' : 'rgba(16,185,129,0.3)'}`,
+        borderRadius: '12px',
+        color: disabled ? 'rgba(16,185,129,0.5)' : '#10B981',
+        fontSize: '13px',
         fontWeight: 600,
         cursor: disabled ? 'not-allowed' : 'pointer',
         display: 'flex',
@@ -28,20 +24,10 @@ export default function ExportButton({ onClick, disabled = false }) {
         transition: 'all 0.2s ease',
         whiteSpace: 'nowrap'
       }}
-      onMouseEnter={(e) => {
-        if (!disabled) {
-          e.currentTarget.style.background = `rgba(${baseColor}, 0.25)`;
-          e.currentTarget.style.transform = 'translateY(-2px)';
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (!disabled) {
-          e.currentTarget.style.background = `rgba(${baseColor}, 0.15)`;
-          e.currentTarget.style.transform = 'translateY(0)';
-        }
-      }}
+      onMouseEnter={(e) => { if (!disabled) e.currentTarget.style.opacity = '0.8'; }}
+      onMouseLeave={(e) => { if (!disabled) e.currentTarget.style.opacity = '1'; }}
     >
-      <span>📥</span>
+      <Download className="w-4 h-4" />
       <span>Export CSV</span>
     </button>
   );

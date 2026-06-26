@@ -1,6 +1,7 @@
 // src/admin/components/Dashboard/Dashboard.jsx
 // Simplified dashboard with live shuttle tracking
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Home } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { GOOGLE_MAPS_API_KEY } from '../../../config/api.config';
@@ -269,7 +270,7 @@ export default function Dashboard() {
       {/* Header */}
       <div style={{ borderColor: theme.border.primary }} className="mb-[30px] border-b-2 pb-5">
         <h2 style={{ color: theme.accent.primary }} className="text-2xl font-bold m-0 mb-2 flex items-center gap-[10px]">
-          <span>🏠</span> Home
+          <Home className="w-5 h-5" /> Home
         </h2>
         <p style={{ color: theme.text.secondary }} className="text-[13px] m-0">
           Real-time motorpool analytics • Auto-updates every 5 seconds

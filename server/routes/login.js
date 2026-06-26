@@ -337,6 +337,9 @@ router.post('/', async (req, res) => {
         role: user.role, // 'student' or 'employee'
         userId: user._id.toString(),
         name: userName,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        accountType: user.role,
         email: user.email
       });
     }
@@ -593,6 +596,7 @@ router.post('/reset-pin', async (req, res) => {
 
     // Update PIN
     user.pin = hashedPin;
+    user.pinChangedAt = new Date();
     await user.save();
 
     // Clear OTP

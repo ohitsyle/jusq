@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
-import { Search, Download } from 'lucide-react';
+import { Search, Download, ClipboardList } from 'lucide-react';
 import { exportToCSV, prepareDataForExport } from '../../../utils/csvExport';
 import LogDetailModal from '../../../components/modals/LogDetailModal';
 
@@ -13,7 +13,6 @@ export default function LogsList() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [selectedLog, setSelectedLog] = useState(null);
@@ -45,17 +44,21 @@ export default function LogsList() {
   }, []);
 
   const handleExport = () => {
-    // Prepare data without location and severity
     const exportData = filteredLogs.map(log => ({
       Timestamp: new Date(log.timestamp).toLocaleString(),
       Action: log.title || log.eventType || 'N/A',
       Admin: log.adminName || log.driverName || log.userId || 'System',
       'ID Number': log.adminId || log.driverId || log.userId || '-',
-      Description: log.description || log.message || '-',
-      Status: log.status || 'success'
+      Description: log.description || log.message || '-'
     }));
     const fileName = `${adminData?.role || 'system'}-logs`;
-    exportToCSV(exportData, fileName);
+
+    const exportMeta = {
+      adminName: adminData?.firstName ? `${adminData.firstName} ${adminData.lastName || ''}`.trim() : 'Admin',
+      department: adminData?.role ? adminData.role.charAt(0).toUpperCase() + adminData.role.slice(1) : undefined
+    };
+
+    exportToCSV(exportData, fileName, { ...exportMeta, title: 'Activity Logs Report' });
     api.post('/admin/log-tab-export', { tabName: 'Logs', recordCount: filteredLogs.length, fileName: `${fileName}.csv` }).catch(() => {});
   };
 
@@ -235,8 +238,6 @@ export default function LogsList() {
         if (eventType !== typeFilter) return false;
       }
     }
-    if (statusFilter && log.status !== statusFilter) return false;
-
     if (startDate || endDate) {
       const logDate = new Date(log.timestamp);
       if (startDate && logDate < new Date(startDate)) return false;
@@ -265,7 +266,7 @@ export default function LogsList() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, typeFilter, statusFilter, startDate, endDate]);
+  }, [searchQuery, typeFilter, startDate, endDate]);
 
   // Get type options based on department
   const getTypeOptions = () => {
@@ -320,16 +321,6 @@ export default function LogsList() {
     ];
   };
 
-  const getStatusBadge = (status) => {
-    if (status === 'success' || !status) {
-      return { bg: 'rgba(34,197,94,0.2)', color: '#22C55E', label: 'Success' };
-    }
-    if (status === 'failed' || status === 'error') {
-      return { bg: 'rgba(239,68,68,0.2)', color: '#EF4444', label: 'Failed' };
-    }
-    return { bg: 'rgba(251,191,36,0.2)', color: '#FBBF24', label: status };
-  };
-
   if (loading) {
     return (
       <div style={{ color: theme.accent.primary }} className="text-center py-20">
@@ -344,7 +335,7 @@ export default function LogsList() {
       {/* Header */}
       <div style={{ borderColor: theme.border.primary }} className="mb-6 border-b-2 pb-5">
         <h2 style={{ color: theme.accent.primary }} className="text-2xl font-bold m-0 mb-2 flex items-center gap-[10px]">
-          <span>📋</span> Activity Logs
+          <ClipboardList className="w-5 h-5" /> Activity Logs
         </h2>
         <p style={{ color: theme.text.secondary }} className="text-[13px] m-0">
           Showing {filteredLogs.length} logs • Page {currentPage} of {Math.max(1, totalPages)}
@@ -402,40 +393,6 @@ export default function LogsList() {
                 {option.label}
               </button>
             ))}
-          </div>
-
-          {/* Status Filter - Button Group */}
-          <div className="flex gap-1 p-1 rounded-xl" style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F3F4F6' }}>
-            <button
-              onClick={() => setStatusFilter('')}
-              style={{
-                background: statusFilter === '' ? theme.accent.primary : 'transparent',
-                color: statusFilter === '' ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.secondary
-              }}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
-            >
-              All
-            </button>
-            <button
-              onClick={() => setStatusFilter('success')}
-              style={{
-                background: statusFilter === 'success' ? theme.accent.primary : 'transparent',
-                color: statusFilter === 'success' ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.secondary
-              }}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
-            >
-              Success
-            </button>
-            <button
-              onClick={() => setStatusFilter('failed')}
-              style={{
-                background: statusFilter === 'failed' ? theme.accent.primary : 'transparent',
-                color: statusFilter === 'failed' ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.secondary
-              }}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
-            >
-              Failed
-            </button>
           </div>
 
           {/* Sort Buttons - Only show for sysad */}
@@ -527,7 +484,6 @@ export default function LogsList() {
                     <th style={{ color: theme.accent.primary, borderColor: theme.border.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2">Admin</th>
                     <th style={{ color: theme.accent.primary, borderColor: theme.border.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2">ID Number</th>
                     <th style={{ color: theme.accent.primary, borderColor: theme.border.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2">Description</th>
-                    <th style={{ color: theme.accent.primary, borderColor: theme.border.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2">Status</th>
                     <th style={{ color: theme.accent.primary, borderColor: theme.border.primary }} className="text-center p-4 text-[11px] font-extrabold uppercase border-b-2">Actions</th>
                   </tr>
                 </thead>
@@ -535,7 +491,6 @@ export default function LogsList() {
                   {currentLogs.map((log, index) => {
                     const actor = log.adminName || log.driverName || 'System';
                     const actorId = log.adminId || log.driverId || log.userId || '-';
-                    const statusBadge = getStatusBadge(log.status);
 
                     return (
                       <tr
@@ -591,14 +546,6 @@ export default function LogsList() {
                         </td>
                         <td style={{ color: theme.text.secondary }} className="p-4 max-w-[300px] overflow-hidden text-ellipsis whitespace-nowrap">
                           {log.description || log.message || '-'}
-                        </td>
-                        <td className="p-4">
-                          <span
-                            style={{ background: statusBadge.bg, color: statusBadge.color }}
-                            className="inline-block px-3 py-1 rounded-full text-[10px] font-bold uppercase"
-                          >
-                            {statusBadge.label}
-                          </span>
                         </td>
                         <td className="p-4 text-center">
                           <button

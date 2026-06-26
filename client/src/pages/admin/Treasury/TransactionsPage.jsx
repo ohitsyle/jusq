@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { toast } from 'react-toastify';
-import { Search, Download } from 'lucide-react';
+import { Search, Download, ClipboardList } from 'lucide-react';
 import TransactionTable from '../../../components/TreasuryDashboard/TransactionTable';
 import { exportToCSV } from '../../../utils/csvExport';
 
@@ -62,6 +62,11 @@ export default function TransactionsPage() {
   }, [filterType, searchQuery, startDate, endDate]);
 
   const handleExport = () => {
+  const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+  const exportMeta = {
+    adminName: adminData.firstName ? `${adminData.firstName} ${adminData.lastName || ''}`.trim() : 'Admin',
+    department: adminData.role ? adminData.role.charAt(0).toUpperCase() + adminData.role.slice(1) : undefined,
+  };
     const dataToExport = filteredTransactions.map(tx => ({
       Date: tx.createdAt ? new Date(tx.createdAt).toLocaleDateString() : tx.date || '',
       Time: tx.createdAt ? new Date(tx.createdAt).toLocaleTimeString() : tx.time || '',
@@ -73,7 +78,7 @@ export default function TransactionsPage() {
       'Processed By': tx.transactionType === 'credit' ? (tx.adminName || tx.processedBy || 'Treasury') : '—',
       'Transaction ID': tx.transactionId || tx._id || ''
     }));
-    exportToCSV(dataToExport, 'transactions');
+    exportToCSV(dataToExport, 'transactions', { ...exportMeta, title: 'Transactions Report' });
     api.post('/admin/log-tab-export', { tabName: 'Treasury Transactions', recordCount: filteredTransactions.length, fileName: 'transactions.csv' }).catch(() => {});
   };
 
@@ -115,7 +120,7 @@ export default function TransactionsPage() {
       <div className="mb-6 border-b-2 pb-5" style={{ borderColor: isDarkMode ? 'rgba(255,212,28,0.2)' : 'rgba(59,130,246,0.2)' }}>
         <div className="mb-5">
           <h2 style={{ color: theme.accent.primary }} className="text-2xl font-bold m-0 mb-2 flex items-center gap-[10px]">
-            <span>📋</span> Transactions
+            <ClipboardList className="w-5 h-5" /> Transactions
           </h2>
           <p style={{ color: theme.text.secondary }} className="text-[13px] m-0">
             Showing {startIndex + 1}-{Math.min(endIndex, filteredTransactions.length)} of {filteredTransactions.length} transactions • Auto-refreshes every 10s

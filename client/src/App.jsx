@@ -40,7 +40,6 @@ import MerchantConfigurationsPage from './pages/admin/Merchant/Configurations';
 
 // Treasury Pages
 import TreasuryDashboard from './pages/admin/Treasury/TreasuryDashboard';
-import CashInForm from './pages/admin/Treasury/CashInForm';
 import RegistrationForm from './pages/admin/Treasury/RegistrationForm';
 import TreasuryTransactionsPage from './pages/admin/Treasury/TransactionsPage';
 import TreasuryMerchantsPage from './pages/admin/Treasury/MerchantsPage';
@@ -57,7 +56,6 @@ import AccountingTransactionsPage from './pages/admin/Treasury/TransactionsPage'
 import LogsPage from './pages/admin/Shared/Logs';
 import ProfilePage from './pages/admin/Shared/Profile';
 import ConcernsPage from './pages/admin/Shared/Concerns';
-import TransactionsPage from './pages/admin/Shared/TransactionsPage';
 import Merchants from './pages/admin/Shared/Merchants';
 import TreasuryLogs from './pages/admin/Shared/Logs';
 import ConcernsManagement from './pages/admin/Shared/ConcernsManagement';
@@ -92,6 +90,9 @@ const MotorpoolProtectedRoute = ({ children }) => {
   if (!token) {
     return <Navigate to="/login" replace />;
   }
+  if (adminData.role && adminData.role !== 'motorpool') {
+    return <Navigate to="/login" replace />;
+  }
 
   return <AdminLayout>{children}</AdminLayout>;
 };
@@ -99,8 +100,12 @@ const MotorpoolProtectedRoute = ({ children }) => {
 // Protected Route wrapper for Merchant Admin
 const MerchantProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('adminToken');
+  const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
 
   if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+  if (adminData.role && adminData.role !== 'merchant') {
     return <Navigate to="/login" replace />;
   }
 
@@ -110,8 +115,12 @@ const MerchantProtectedRoute = ({ children }) => {
 // Protected Route wrapper for Treasury Admin
 const TreasuryProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('adminToken');
+  const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
 
   if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+  if (adminData.role && adminData.role !== 'treasury') {
     return <Navigate to="/login" replace />;
   }
 
@@ -121,8 +130,12 @@ const TreasuryProtectedRoute = ({ children }) => {
 // Protected Route wrapper for Accounting Admin
 const AccountingProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('adminToken');
+  const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
 
   if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+  if (adminData.role && adminData.role !== 'accounting') {
     return <Navigate to="/login" replace />;
   }
 
@@ -143,8 +156,12 @@ const UserProtectedRoute = ({ children }) => {
 // Protected Route wrapper for System Admin
 const SysadProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('adminToken');
+  const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
 
   if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+  if (adminData.role && adminData.role !== 'sysad') {
     return <Navigate to="/login" replace />;
   }
 
@@ -221,14 +238,6 @@ function AppContent() {
         element={
           <TreasuryProtectedRoute>
             <TreasuryDashboard />
-          </TreasuryProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/treasury/cashin"
-        element={
-          <TreasuryProtectedRoute>
-            <CashInForm />
           </TreasuryProtectedRoute>
         }
       />

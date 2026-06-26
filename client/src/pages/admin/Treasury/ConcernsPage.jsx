@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { toast } from 'react-toastify';
-import { Search, Download } from 'lucide-react';
+import { Search, Download, MessageSquare } from 'lucide-react';
 import { exportToCSV } from '../../../utils/csvExport';
 
 export default function ConcernsPage() {
@@ -149,7 +149,11 @@ export default function ConcernsPage() {
       Rating: c.rating || '',
       Date: c.createdAt ? new Date(c.createdAt).toLocaleDateString() : ''
     }));
-    exportToCSV(dataToExport, 'treasury_concerns');
+    const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+
+    const exportMeta = { adminName: adminData.firstName ? `${adminData.firstName} ${adminData.lastName || ''}`.trim() : 'Admin', department: adminData.role ? adminData.role.charAt(0).toUpperCase() + adminData.role.slice(1) : undefined };
+
+    exportToCSV(dataToExport, 'treasury_concerns', { ...exportMeta, title: 'Concerns & Feedback Report' });
   };
 
   const filteredConcerns = concerns.filter(concern => {
@@ -187,6 +191,16 @@ export default function ConcernsPage() {
       case 'resolved': return '#10B981';
       default: return theme.text.secondary;
     }
+  };
+
+  // Feedback isn't an actionable concern, so it shouldn't show "Pending" —
+  // show "Received" until it's responded to/resolved.
+  const getStatusDisplay = (concern) => {
+    const isFeedback = concern.submissionType === 'feedback';
+    if (isFeedback && (!concern.status || concern.status === 'pending')) {
+      return { label: 'Received', color: '#06B6D4' };
+    }
+    return { label: (concern.status || 'pending').replace('_', ' '), color: getStatusColor(concern.status) };
   };
 
   const calculateAging = (concern) => {
@@ -232,7 +246,7 @@ export default function ConcernsPage() {
       <div style={{ borderColor: theme.border.primary }} className="mb-6 border-b-2 pb-5">
         <div className="mb-5">
           <h2 style={{ color: theme.accent.primary }} className="text-2xl font-bold m-0 mb-2 flex items-center gap-[10px]">
-            <span>💬</span> Concerns & Feedback
+            <MessageSquare className="w-5 h-5" /> Concerns & Feedback
           </h2>
           <p style={{ color: theme.text.secondary }} className="text-[13px] m-0">
             {filteredConcerns.length > 0
@@ -351,9 +365,14 @@ export default function ConcernsPage() {
                         </td>
                       ) : (
                         <td className="p-4">
-                          <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '20px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', background: `${getStatusColor(concern.status)}20`, color: getStatusColor(concern.status) }}>
-                            {concern.status?.replace('_', ' ') || 'Pending'}
-                          </span>
+                          {(() => {
+                            const sd = getStatusDisplay(concern);
+                            return (
+                              <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '20px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', background: `${sd.color}20`, color: sd.color }}>
+                                {sd.label}
+                              </span>
+                            );
+                          })()}
                         </td>
                       )}
                       <td style={{ color: theme.text.secondary }} className="p-4 text-sm">{concern.createdAt ? new Date(concern.createdAt).toLocaleDateString() : ''}</td>
@@ -427,11 +446,11 @@ export default function ConcernsPage() {
                   fontSize: '10px',
                   fontWeight: 700,
                   textTransform: 'uppercase',
-                  background: `${getStatusColor(selectedConcern.status)}20`,
-                  color: getStatusColor(selectedConcern.status),
+                  background: `${getStatusDisplay(selectedConcern).color}20`,
+                  color: getStatusDisplay(selectedConcern).color,
                   marginBottom: '8px'
                 }}>
-                  {selectedConcern.status?.replace('_', ' ') || 'Pending'}
+                  {getStatusDisplay(selectedConcern).label}
                 </span>
                 <h2 style={{ fontSize: '20px', fontWeight: 700, color: theme.text.primary, margin: 0 }}>
                   {selectedConcern.subject || 'No Subject'}

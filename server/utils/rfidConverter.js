@@ -13,48 +13,41 @@ export function convertRfidToHexLittleEndian(rfid) {
   }
 
   try {
-    // Remove any whitespace and convert to uppercase
-    let cleanedRfid = rfid.replace(/\s+/g, '').toUpperCase();
-    
-    // If it's already in hex format (contains A-F but not only digits), just validate and return
-    if (/[A-F]/.test(cleanedRfid) && /^[0-9A-F]+$/.test(cleanedRfid)) {
-      return cleanedRfid;
+    // Must stay byte-for-byte identical to the client converter
+    // (client/src/utils/rfidConverter.js#convertToHexLittleEndian) so that a
+    // value converted on the client and re-converted here is unchanged
+    // (idempotent). The DB stores this byte-reversed little-endian form.
+    const cleaned = rfid.replace(/[\s:-]/g, '').toUpperCase();
+
+    // Already an 8-char hex string (already converted) — return as-is.
+    // This idempotency prevents the old bug where an all-digit converted
+    // value (e.g. "56341200") was re-parsed as decimal and corrupted.
+    if (/^[0-9A-F]{8}$/.test(cleaned)) {
+      return cleaned;
     }
-    
-    // If it's all digits, convert from decimal to hex
-    if (/^\d+$/.test(cleanedRfid)) {
-      const decimalValue = parseInt(cleanedRfid, 10);
-      
-      // Convert to hex
-      let hexValue = decimalValue.toString(16).toUpperCase();
-      
-      // Ensure it's an even number of characters (pad with leading zero if needed)
-      if (hexValue.length % 2 !== 0) {
-        hexValue = '0' + hexValue;
-      }
-      
-      return hexValue;
+
+    // Hex string containing A-F — reverse bytes for little-endian.
+    if (/^[0-9A-F]+$/.test(cleaned) && /[A-F]/.test(cleaned)) {
+      let hex = cleaned;
+      if (hex.length % 2 !== 0) hex = '0' + hex;
+      while (hex.length < 8) hex = '0' + hex;
+      const bytes = hex.match(/.{2}/g) || [];
+      return bytes.reverse().join('');
     }
-    
-    // If it contains mixed format, try to extract the largest numeric part
-    const numericParts = cleanedRfid.match(/\d+/g);
-    if (numericParts && numericParts.length > 0) {
-      // Find the largest numeric part
-      const largestNumeric = numericParts.reduce((a, b) => a.length > b.length ? a : b);
-      const decimalValue = parseInt(largestNumeric, 10);
-      
-      let hexValue = decimalValue.toString(16).toUpperCase();
-      
-      if (hexValue.length % 2 !== 0) {
-        hexValue = '0' + hexValue;
-      }
-      
-      return hexValue;
+
+    // All digits (decimal from scanner) — convert to hex, then byte-reverse.
+    if (/^\d+$/.test(cleaned)) {
+      const decimal = BigInt(cleaned);
+      let hex = decimal.toString(16).toUpperCase();
+      if (hex.length % 2 !== 0) hex = '0' + hex;
+      while (hex.length < 8) hex = '0' + hex;
+      const bytes = hex.match(/.{2}/g) || [];
+      return bytes.reverse().join('');
     }
-    
-    // If we can't parse it, return the original cleaned value
-    return cleanedRfid;
-    
+
+    // Can't parse — return the cleaned value.
+    return cleaned;
+
   } catch (error) {
     console.error('❌ RFID conversion error:', error);
     // Return original value if conversion fails

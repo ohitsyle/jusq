@@ -5,10 +5,8 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { toast } from 'react-toastify';
-import {
-  Settings, Shield, Download, Calendar, Clock, Power, AlertTriangle,
-  CheckCircle, X, Loader2, Archive, FileText, RefreshCw, Users
-} from 'lucide-react';
+import { Settings, Shield, Download, Calendar, Clock, Power, AlertTriangle, CheckCircle, X, Loader2, Archive, FileText, RefreshCw, Users } from 'lucide-react';
+import ScheduleExportModal from '../../../components/modals/ScheduleExportModal';
 
 // Sysad-specific export types
 const SYSAD_EXPORT_TYPES = [
@@ -49,6 +47,10 @@ export default function SysadConfigPage() {
   const [scheduledExports, setScheduledExports] = useState([]);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
+  const [showEditMsgModal, setShowEditMsgModal] = useState(false);
+  const [savingMsg, setSavingMsg] = useState(false);
+  const [maintenanceMsgInput, setMaintenanceMsgInput] = useState('');
   const [saving, setSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterDateRange, setFilterDateRange] = useState({ start: '', end: '' });
@@ -113,51 +115,63 @@ export default function SysadConfigPage() {
   };
 
   const handleToggleMaintenance = async () => {
-    const newValue = !sysadConfig.maintenanceMode;
-    
-    if (newValue) {
-      // Get custom maintenance message
-      const customMessage = window.prompt(
-        'Enter custom maintenance message (optional):',
-        sysadConfig.maintenanceMessage
-      );
-      
-      if (!window.confirm(`Are you sure you want to enable maintenance mode?\n\nAll non-sysadmin users will be immediately logged out and will see the maintenance message.`)) {
-        return;
-      }
+    // Enabling opens a confirmation modal (with the custom message); disabling
+    // also goes through the modal for a consistent, non-blocking experience.
+    setMaintenanceMsgInput(sysadConfig.maintenanceMessage);
+    setShowMaintenanceModal(true);
+  };
 
-      setSaving(true);
-      try {
-        await api.post('/admin/sysad/maintenance-mode', { 
-          enabled: newValue, 
-          message: customMessage || sysadConfig.maintenanceMessage 
-        });
-        setSysadConfig(prev => ({ 
-          ...prev, 
-          maintenanceMode: newValue,
-          maintenanceMessage: customMessage || prev.maintenanceMessage
-        }));
-        toast.success('Maintenance mode enabled. All non-sysadmin users will be logged out.');
-      } catch (error) {
-        toast.error('Failed to enable maintenance mode');
-      } finally {
-        setSaving(false);
-      }
-    } else {
-      if (!window.confirm('Are you sure you want to disable maintenance mode?')) {
-        return;
-      }
+  const confirmEnableMaintenance = async () => {
+    setSaving(true);
+    try {
+      await api.post('/admin/sysad/maintenance-mode', {
+        enabled: true,
+        message: maintenanceMsgInput || sysadConfig.maintenanceMessage
+      });
+      setSysadConfig(prev => ({
+        ...prev,
+        maintenanceMode: true,
+        maintenanceMessage: maintenanceMsgInput || prev.maintenanceMessage
+      }));
+      toast.success('Maintenance mode enabled. All non-sysadmin users will be logged out.');
+      setShowMaintenanceModal(false);
+    } catch (error) {
+      toast.error('Failed to enable maintenance mode');
+    } finally {
+      setSaving(false);
+    }
+  };
 
-      setSaving(true);
-      try {
-        await api.post('/admin/sysad/maintenance-mode', { enabled: newValue });
-        setSysadConfig(prev => ({ ...prev, maintenanceMode: newValue }));
-        toast.success('Maintenance mode disabled');
-      } catch (error) {
-        toast.error('Failed to disable maintenance mode');
-      } finally {
-        setSaving(false);
-      }
+  const confirmDisableMaintenance = async () => {
+    setSaving(true);
+    try {
+      await api.post('/admin/sysad/maintenance-mode', { enabled: false });
+      setSysadConfig(prev => ({ ...prev, maintenanceMode: false }));
+      toast.success('Maintenance mode disabled');
+      setShowMaintenanceModal(false);
+    } catch (error) {
+      toast.error('Failed to disable maintenance mode');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveMaintenanceMessage = async () => {
+    const trimmed = maintenanceMsgInput.trim();
+    if (!trimmed) {
+      toast.error('Message cannot be empty');
+      return;
+    }
+    setSavingMsg(true);
+    try {
+      await api.post('/admin/sysad/maintenance-mode', { enabled: true, message: trimmed });
+      setSysadConfig(prev => ({ ...prev, maintenanceMessage: trimmed }));
+      toast.success('Maintenance message updated');
+      setShowEditMsgModal(false);
+    } catch (error) {
+      toast.error('Failed to update maintenance message');
+    } finally {
+      setSavingMsg(false);
     }
   };
 
@@ -293,7 +307,7 @@ export default function SysadConfigPage() {
       {/* Header */}
       <div style={{ borderColor: theme.border.primary }} className="mb-6 border-b-2 pb-5">
         <h2 style={{ color: accentColor }} className="text-2xl font-bold m-0 mb-2 flex items-center gap-[10px]">
-          <span>⚙️</span> System Configuration
+          <Settings className="w-5 h-5" /> System Configuration
         </h2>
         <p style={{ color: theme.text.secondary }} className="text-[13px] m-0">
           Manage system settings, maintenance mode, exports, and scheduled tasks
@@ -320,60 +334,38 @@ export default function SysadConfigPage() {
                   When enabled, only system administrators can access the system. All other users will be logged out and will see a maintenance message.
                 </p>
                 
-                {/* Current Message Display */}
-                <div className="mb-3">
-                  <div style={{ color: theme.text.secondary }} className="text-xs font-semibold mb-1">CURRENT MESSAGE:</div>
-                  <div 
-                    style={{ 
-                      background: theme.bg.secondary, 
-                      borderColor: theme.border.primary,
-                      color: theme.text.primary 
-                    }} 
-                    className="p-3 rounded-lg border text-sm"
-                  >
-                    {sysadConfig.maintenanceMessage}
-                  </div>
-                </div>
-
+                {/* Message + Edit only appear once maintenance mode is enabled */}
                 {sysadConfig.maintenanceMode && (
-                  <div
-                    style={{ background: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.3)' }}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border mb-3"
-                  >
-                    <AlertTriangle className="w-4 h-4 text-red-500" />
-                    <span className="text-red-500 text-sm font-semibold">System is in maintenance mode - All non-sysadmin users logged out</span>
-                  </div>
-                )}
+                  <>
+                    <div
+                      style={{ background: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.3)' }}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border mb-3"
+                    >
+                      <AlertTriangle className="w-4 h-4 text-red-500" />
+                      <span className="text-red-500 text-sm font-semibold">System is in maintenance mode - All non-sysadmin users logged out</span>
+                    </div>
 
-                {/* Edit Message Button */}
-                <button
-                  onClick={() => {
-                    const newMessage = window.prompt(
-                      'Edit maintenance message:',
-                      sysadConfig.maintenanceMessage
-                    );
-                    if (newMessage && newMessage.trim()) {
-                      setSysadConfig(prev => ({ ...prev, maintenanceMessage: newMessage.trim() }));
-                      // Also update the message on server if maintenance mode is active
-                      if (sysadConfig.maintenanceMode) {
-                        api.post('/admin/sysad/maintenance-mode', { 
-                          enabled: true, 
-                          message: newMessage.trim() 
-                        }).catch(() => {
-                          toast.error('Failed to update maintenance message');
-                        });
-                      }
-                    }
-                  }}
-                  style={{ 
-                    background: `${accentColor}20`, 
-                    color: accentColor,
-                    borderColor: accentColor 
-                  }}
-                  className="px-4 py-2 rounded-lg text-sm font-medium border hover:opacity-80 transition mr-3"
-                >
-                  Edit Message
-                </button>
+                    {/* Current Message Display */}
+                    <div className="mb-3">
+                      <div style={{ color: theme.text.secondary }} className="text-xs font-semibold mb-1">CURRENT MESSAGE:</div>
+                      <div
+                        style={{ background: theme.bg.secondary, borderColor: theme.border.primary, color: theme.text.primary }}
+                        className="p-3 rounded-lg border text-sm"
+                      >
+                        {sysadConfig.maintenanceMessage}
+                      </div>
+                    </div>
+
+                    {/* Edit Message Button */}
+                    <button
+                      onClick={() => { setMaintenanceMsgInput(sysadConfig.maintenanceMessage); setShowEditMsgModal(true); }}
+                      style={{ background: `${accentColor}20`, color: accentColor, borderColor: accentColor }}
+                      className="px-4 py-2 rounded-lg text-sm font-medium border hover:opacity-80 transition"
+                    >
+                      Edit Message
+                    </button>
+                  </>
+                )}
               </div>
             </div>
             <button
@@ -807,7 +799,7 @@ export default function SysadConfigPage() {
 
       {/* Auto Export Schedule Modal */}
       {showScheduleModal && (
-        <ConfigModal
+        <ScheduleExportModal
           theme={theme}
           isDarkMode={isDarkMode}
           configurations={configurations}
@@ -817,6 +809,130 @@ export default function SysadConfigPage() {
           onSave={handleSaveAutoExport}
           onCancel={() => setShowScheduleModal(false)}
         />
+      )}
+
+      {/* Maintenance Mode Modal */}
+      {showMaintenanceModal && (
+        <div
+          onClick={() => !saving && setShowMaintenanceModal(false)}
+          style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', backdropFilter: 'blur(4px)' }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: '100%', maxWidth: '480px', background: isDarkMode ? 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)' : theme.bg.card, borderRadius: '16px', border: `2px solid ${sysadConfig.maintenanceMode ? '#22C55E' : '#F59E0B'}`, padding: '28px', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div style={{ background: sysadConfig.maintenanceMode ? 'rgba(34,197,94,0.15)' : 'rgba(245,158,11,0.15)' }} className="w-11 h-11 rounded-full flex items-center justify-center">
+                {sysadConfig.maintenanceMode
+                  ? <Power className="w-6 h-6" style={{ color: '#22C55E' }} />
+                  : <AlertTriangle className="w-6 h-6" style={{ color: '#F59E0B' }} />}
+              </div>
+              <h3 className="text-xl font-bold" style={{ color: theme.text.primary }}>
+                {sysadConfig.maintenanceMode ? 'Disable Maintenance Mode' : 'Enable Maintenance Mode'}
+              </h3>
+            </div>
+
+            {sysadConfig.maintenanceMode ? (
+              <p className="text-sm mb-6" style={{ color: theme.text.secondary }}>
+                Disable maintenance mode? The system will become accessible to all users again.
+              </p>
+            ) : (
+              <>
+                <p className="text-sm mb-4" style={{ color: theme.text.secondary }}>
+                  All non-sysadmin users will be <strong>immediately logged out</strong> and shown the message below until maintenance mode is turned off.
+                </p>
+                <label className="block text-xs font-bold uppercase tracking-wide mb-2" style={{ color: theme.text.tertiary }}>
+                  Maintenance Message
+                </label>
+                <textarea
+                  value={maintenanceMsgInput}
+                  onChange={(e) => setMaintenanceMsgInput(e.target.value)}
+                  rows={3}
+                  placeholder="System is under maintenance. Please try again later."
+                  style={{ background: isDarkMode ? 'rgba(15,18,39,0.6)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }}
+                  className="w-full p-3 rounded-xl border text-sm outline-none resize-none mb-6"
+                />
+              </>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowMaintenanceModal(false)}
+                disabled={saving}
+                style={{ background: isDarkMode ? 'rgba(71,85,105,0.5)' : '#E5E7EB', color: theme.text.primary }}
+                className="flex-1 py-3 rounded-xl font-semibold hover:opacity-80 transition disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={sysadConfig.maintenanceMode ? confirmDisableMaintenance : confirmEnableMaintenance}
+                disabled={saving}
+                style={{ background: sysadConfig.maintenanceMode ? '#EF4444' : '#22C55E', color: '#FFFFFF' }}
+                className="flex-1 py-3 rounded-xl font-semibold hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                {sysadConfig.maintenanceMode ? 'Disable' : 'Enable'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Maintenance Message Modal */}
+      {showEditMsgModal && (
+        <div
+          onClick={() => !savingMsg && setShowEditMsgModal(false)}
+          style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', backdropFilter: 'blur(4px)' }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: '100%', maxWidth: '480px', background: isDarkMode ? 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)' : theme.bg.card, borderRadius: '16px', border: `2px solid ${accentColor}`, padding: '28px', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div style={{ background: `${accentColor}26` }} className="w-11 h-11 rounded-full flex items-center justify-center">
+                <Shield className="w-6 h-6" style={{ color: accentColor }} />
+              </div>
+              <h3 className="text-xl font-bold" style={{ color: theme.text.primary }}>
+                Edit Maintenance Message
+              </h3>
+            </div>
+
+            <p className="text-sm mb-4" style={{ color: theme.text.secondary }}>
+              This message is shown to all non-sysadmin users while the system is in maintenance mode.
+            </p>
+            <label className="block text-xs font-bold uppercase tracking-wide mb-2" style={{ color: theme.text.tertiary }}>
+              Maintenance Message
+            </label>
+            <textarea
+              value={maintenanceMsgInput}
+              onChange={(e) => setMaintenanceMsgInput(e.target.value)}
+              rows={3}
+              placeholder="System is under maintenance. Please try again later."
+              style={{ background: isDarkMode ? 'rgba(15,18,39,0.6)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }}
+              className="w-full p-3 rounded-xl border text-sm outline-none resize-none mb-6"
+            />
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowEditMsgModal(false)}
+                disabled={savingMsg}
+                style={{ background: isDarkMode ? 'rgba(71,85,105,0.5)' : '#E5E7EB', color: theme.text.primary }}
+                className="flex-1 py-3 rounded-xl font-semibold hover:opacity-80 transition disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveMaintenanceMessage}
+                disabled={savingMsg}
+                style={{ background: accentColor, color: isDarkMode ? '#0f1227' : '#FFFFFF' }}
+                className="flex-1 py-3 rounded-xl font-semibold hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {savingMsg ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -903,164 +1019,6 @@ function DateRangeModal({ theme, isDarkMode, dateRange, setDateRange, customStar
               className="flex-1 py-3 rounded-xl font-bold hover:opacity-90 transition disabled:opacity-50"
             >
               {loading ? '⏳ Exporting...' : '📥 Export Now'}
-            </button>
-            <button
-              onClick={onCancel}
-              disabled={loading}
-              style={{ background: isDarkMode ? 'rgba(71,85,105,0.5)' : '#E5E7EB', color: theme.text.primary }}
-              className="flex-1 py-3 rounded-xl font-semibold hover:opacity-80 transition"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Config Modal for Auto Export Settings
-function ConfigModal({ theme, isDarkMode, configurations, setConfigurations, exportTypes, loading, onSave, onCancel }) {
-  const accentColor = theme.accent.primary;
-
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" onClick={onCancel}>
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-      <div
-        style={{ background: isDarkMode ? '#1E2347' : '#FFFFFF', borderColor: theme.border.primary }}
-        className="relative rounded-2xl shadow-2xl border w-full max-w-lg max-h-[90vh] overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div style={{ background: `linear-gradient(135deg, ${accentColor}30 0%, ${accentColor}10 100%)` }} className="px-6 py-5">
-          <h3 style={{ color: accentColor }} className="text-xl font-bold">Configure Export Schedule</h3>
-          <p style={{ color: theme.text.secondary }} className="text-sm mt-1">Set up when and how often the system should automatically export data.</p>
-        </div>
-
-        <div className="p-6 space-y-5 overflow-y-auto max-h-[calc(90vh-180px)]">
-          {/* Enable Toggle */}
-          <div
-            style={{
-              background: configurations.autoExport?.enabled ? `${accentColor}15` : isDarkMode ? 'rgba(239,68,68,0.1)' : 'rgba(239,68,68,0.05)',
-              borderColor: configurations.autoExport?.enabled ? `${accentColor}40` : 'rgba(239,68,68,0.3)'
-            }}
-            className="flex items-center justify-between p-4 rounded-xl border"
-          >
-            <div>
-              <div style={{ color: theme.text.primary }} className="font-bold text-sm">Enable Automatic Export</div>
-              <div style={{ color: theme.text.secondary }} className="text-xs mt-1">
-                {configurations.autoExport?.enabled ? '✅ Auto-export is active' : '⚠️ Auto-export is disabled'}
-              </div>
-            </div>
-            <button
-              onClick={() => setConfigurations({
-                ...configurations,
-                autoExport: { ...configurations.autoExport, enabled: !configurations.autoExport?.enabled }
-              })}
-              style={{
-                background: configurations.autoExport?.enabled ? '#10B981' : '#6B7280',
-                width: '52px',
-                height: '28px',
-                borderRadius: '14px',
-                position: 'relative',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '2px',
-                  left: configurations.autoExport?.enabled ? '26px' : '2px',
-                  width: '24px',
-                  height: '24px',
-                  borderRadius: '12px',
-                  background: '#FFFFFF',
-                  transition: 'all 0.2s ease',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                }}
-              />
-            </button>
-          </div>
-
-          {/* Frequency */}
-          <div>
-            <label style={{ color: accentColor }} className="block text-xs font-bold uppercase mb-2">Frequency</label>
-            <select
-              value={configurations.autoExport?.frequency || 'daily'}
-              onChange={(e) => setConfigurations({
-                ...configurations,
-                autoExport: { ...configurations.autoExport, frequency: e.target.value }
-              })}
-              style={{ background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }}
-              className="w-full px-4 py-3 rounded-xl border text-sm focus:outline-none"
-            >
-              <option value="daily">📅 Daily</option>
-              <option value="weekly">📅 Weekly</option>
-              <option value="monthly">📅 Monthly</option>
-            </select>
-          </div>
-
-          {/* Time */}
-          <div>
-            <label style={{ color: accentColor }} className="block text-xs font-bold uppercase mb-2">Export Time (24-hour)</label>
-            <input
-              type="time"
-              value={configurations.autoExport?.time || '00:00'}
-              onChange={(e) => setConfigurations({
-                ...configurations,
-                autoExport: { ...configurations.autoExport, time: e.target.value }
-              })}
-              style={{ background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }}
-              className="w-full px-4 py-3 rounded-xl border text-sm focus:outline-none"
-            />
-          </div>
-
-          {/* Data Types */}
-          <div>
-            <label style={{ color: accentColor }} className="block text-xs font-bold uppercase mb-3">Data Types to Export</label>
-            <div className="grid grid-cols-2 gap-2">
-              {exportTypes.map((type) => (
-                <label
-                  key={type.value}
-                  style={{
-                    background: configurations.autoExport?.exportTypes?.includes(type.value)
-                      ? `${accentColor}15`
-                      : isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB',
-                    borderColor: configurations.autoExport?.exportTypes?.includes(type.value)
-                      ? `${accentColor}40`
-                      : theme.border.primary
-                  }}
-                  className="flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition"
-                >
-                  <input
-                    type="checkbox"
-                    checked={configurations.autoExport?.exportTypes?.includes(type.value) || false}
-                    onChange={(e) => {
-                      const types = configurations.autoExport?.exportTypes || [];
-                      const newTypes = e.target.checked
-                        ? [...types, type.value]
-                        : types.filter(t => t !== type.value);
-                      setConfigurations({
-                        ...configurations,
-                        autoExport: { ...configurations.autoExport, exportTypes: newTypes }
-                      });
-                    }}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-lg">{type.icon}</span>
-                  <span style={{ color: theme.text.primary }} className="text-sm font-semibold">{type.label}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex gap-3 pt-4">
-            <button
-              onClick={onSave}
-              disabled={loading}
-              style={{ background: accentColor, color: isDarkMode ? '#181D40' : '#FFFFFF' }}
-              className="flex-1 py-3 rounded-xl font-bold hover:opacity-90 transition disabled:opacity-50"
-            >
-              {loading ? '⏳ Saving...' : '💾 Save Settings'}
             </button>
             <button
               onClick={onCancel}

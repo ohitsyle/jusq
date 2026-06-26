@@ -22,34 +22,12 @@ export default function ChangePinModal({ visible, onClose, userEmail, userId }) 
   const [otpSent, setOtpSent] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Step 1: validate PINs, then request an OTP. The server verifies the
+  // current PIN and stores the new PIN alongside the OTP, so both PINs must
+  // be supplied here (matches /user/send-pin-change-otp contract).
   const handleSendOtp = async () => {
-    if (!userEmail) {
-      Alert.alert('Error', 'User email not found');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const { data } = await api.post('/auth/send-reset-otp', {
-        email: userEmail
-      });
-
-      if (data.success) {
-        Alert.alert('Success', 'OTP sent to your email!');
-        setOtpSent(true);
-      } else {
-        Alert.alert('Error', data.message || 'Failed to send OTP');
-      }
-    } catch (error) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to send OTP');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleChangePin = async () => {
-    if (!oldPin || !newPin || !confirmPin || !otp) {
-      Alert.alert('Error', 'Please fill all fields');
+    if (!oldPin || !newPin || !confirmPin) {
+      Alert.alert('Error', 'Please enter your current and new PIN first');
       return;
     }
 
@@ -63,28 +41,42 @@ export default function ChangePinModal({ visible, onClose, userEmail, userId }) 
       return;
     }
 
+    if (oldPin === newPin) {
+      Alert.alert('Error', 'New PIN must be different from your current PIN');
+      return;
+    }
+
     try {
       setLoading(true);
-
-      // Verify OTP first
-      const verifyRes = await api.post('/auth/verify-reset-otp', {
-        email: userEmail,
-        otp
-      });
-
-      if (!verifyRes.data.success) {
-        Alert.alert('Error', 'Invalid or expired OTP');
-        return;
-      }
-
-      // Change PIN
-      const { data } = await api.post('/auth/change-pin-with-otp', {
+      const { data } = await api.post('/user/send-pin-change-otp', {
         currentPin: oldPin,
-        newPin: newPin,
-        confirmPin: confirmPin,
-        email: userEmail,
-        otp
+        newPin
       });
+
+      if (data.success) {
+        Alert.alert('Success', 'OTP sent to your email!');
+        setOtpSent(true);
+      } else {
+        Alert.alert('Error', data.message || 'Failed to send OTP');
+      }
+    } catch (error) {
+      Alert.alert('Error', error.response?.data?.error || error.response?.data?.message || 'Failed to send OTP');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Step 2: submit the OTP. The new PIN was captured at the OTP-request step,
+  // so only the code is needed here (matches /user/change-pin contract).
+  const handleChangePin = async () => {
+    if (!otp) {
+      Alert.alert('Error', 'Please enter the verification code sent to your email');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const { data } = await api.post('/user/change-pin', { otp });
 
       if (data.success) {
         Alert.alert('Success', 'PIN changed successfully!', [
@@ -100,7 +92,7 @@ export default function ChangePinModal({ visible, onClose, userEmail, userId }) 
         Alert.alert('Error', data.message || 'Failed to change PIN');
       }
     } catch (error) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to change PIN');
+      Alert.alert('Error', error.response?.data?.error || error.response?.data?.message || 'Failed to change PIN');
     } finally {
       setLoading(false);
     }

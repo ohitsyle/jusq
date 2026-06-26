@@ -75,7 +75,7 @@ export default function MerchantsPage() {
       {/* Header */}
       <div style={{ borderColor: theme.border.primary }} className="mb-6 border-b-2 pb-5">
         <h2 style={{ color: theme.accent.primary }} className="text-2xl font-bold m-0 mb-2 flex items-center gap-[10px]">
-          <span>🏪</span> Merchants
+          <Store className="w-5 h-5" /> Merchants
         </h2>
         <p style={{ color: theme.text.secondary }} className="text-[13px] m-0">
           View merchant accounts and transaction metrics

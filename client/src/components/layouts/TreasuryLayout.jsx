@@ -4,6 +4,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
+import { ClipboardList, Home, MessageSquare, Settings, Store } from 'lucide-react';
 import TreasuryHeader from './TreasuryHeader';
 import Footer from './Footer';
 import api from '../../utils/api';
@@ -33,16 +34,16 @@ export default function TreasuryLayout({ children }) {
 
   // Treasury tabs (Cash In and Register accessible from Home dashboard cards only)
   const treasuryTabs = [
-    { path: '/admin/treasury/dashboard', icon: '🏠', label: 'Home' },
-    { path: '/admin/treasury/transactions', icon: '📋', label: 'Transactions' },
-    { path: '/admin/treasury/merchants', icon: '🏪', label: 'Merchants' },
+    { path: '/admin/treasury/dashboard', icon: Home, label: 'Home' },
+    { path: '/admin/treasury/transactions', icon: ClipboardList, label: 'Transactions' },
+    { path: '/admin/treasury/merchants', icon: Store, label: 'Merchants' },
   ];
 
   // System tabs
   const systemTabs = [
-    { path: '/admin/treasury/logs', icon: '📋', label: 'Logs' },
-    { path: '/admin/treasury/concerns', icon: '💬', label: 'Concerns' },
-    { path: '/admin/treasury/config', icon: '⚙️', label: 'Settings' },
+    { path: '/admin/treasury/logs', icon: ClipboardList, label: 'Logs' },
+    { path: '/admin/treasury/concerns', icon: MessageSquare, label: 'Concerns' },
+    { path: '/admin/treasury/config', icon: Settings, label: 'Settings' },
   ];
 
   return (
@@ -104,7 +105,7 @@ export default function TreasuryLayout({ children }) {
                   }
                 }}
               >
-                <span className={`text-base transition-transform duration-300 ${isActive ? 'scale-110' : ''}`}>{tab.icon}</span>
+                <span className={`text-base transition-transform duration-300 ${isActive ? 'scale-110' : ''}`}><tab.icon className="w-[18px] h-[18px]" /></span>
                 <span>{tab.label}</span>
               </button>
             );
@@ -142,7 +143,7 @@ export default function TreasuryLayout({ children }) {
                   }
                 }}
               >
-                <span className={`text-sm transition-transform duration-300 ${isActive ? 'scale-110' : ''}`}>{tab.icon}</span>
+                <span className={`text-sm transition-transform duration-300 ${isActive ? 'scale-110' : ''}`}><tab.icon className="w-[18px] h-[18px]" /></span>
                 <span>{tab.label}</span>
               </button>
             );

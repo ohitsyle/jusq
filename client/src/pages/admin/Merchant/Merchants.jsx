@@ -2,6 +2,7 @@
 // Merchant account management - Theme-aware, uses api utility
 
 import React, { useState, useEffect } from 'react';
+import { Mail, Plus, User } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import ConfirmDialog from '../../../components/shared/ConfirmDialog';
@@ -199,7 +200,7 @@ export default function MerchantsList() {
           style={{ background: theme.accent.primary, color: isDarkMode ? '#181D40' : '#FFF' }}
           className="py-3 px-6 rounded-xl text-sm font-bold cursor-pointer flex items-center gap-2 shadow-lg border-none"
         >
-          <span>➕</span>
+          <Plus className="w-5 h-5" />
           <span>Add Merchant</span>
         </button>
       </div>
@@ -217,18 +218,18 @@ export default function MerchantsList() {
       )}
 
       {/* Search */}
-      <div className="mb-5">
+      <div className="rounded-xl border-2 p-4 mb-5" style={{ background: isDarkMode ? 'rgba(15,18,39,0.8)' : theme.bg.card, borderColor: theme.accent.primary }}>
         <input
           type="text"
           placeholder="🔍 Search merchants by name, contact, email, or ID..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           style={{
-            background: isDarkMode ? 'rgba(30,35,71,0.5)' : 'rgba(0,0,0,0.04)',
+            background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F9FAFB',
             borderColor: theme.border.primary,
             color: theme.text.primary
           }}
-          className="w-full py-3 px-4 border-2 rounded-xl text-sm outline-none"
+          className="w-full max-w-[320px] py-2.5 px-4 border rounded-xl text-sm outline-none"
         />
       </div>
 
@@ -461,11 +462,11 @@ function MerchantCard({ merchant, onEdit, onToggleActive, theme, isDarkMode }) {
       {/* Contact Info */}
       <div className="flex flex-col gap-2 mb-4">
         <div style={{ color: theme.text.secondary }} className="text-[13px] flex items-center gap-2">
-          <span>👤</span>
+          <User className="w-5 h-5" />
           <span>{merchant.firstName} {merchant.lastName}</span>
         </div>
         <div style={{ color: theme.text.secondary }} className="text-[13px] flex items-center gap-2">
-          <span>📧</span>
+          <Mail className="w-5 h-5" />
           <span>{merchant.email}</span>
         </div>
       </div>
@@ -512,7 +513,7 @@ function FormField({ label, type = 'text', value, onChange, placeholder, require
         placeholder={placeholder}
         required={required}
         style={{
-          background: 'rgba(251,251,251,0.05)',
+          background: theme.bg.tertiary,
           borderColor: theme.border.primary,
           color: theme.text.primary
         }}

@@ -21,7 +21,7 @@ const maskRfid = (rfid) => {
 const DEFAULT_PRESET_AMOUNTS = [100, 200, 300, 500, 1000];
 const STORAGE_KEY = 'cashin_preset_amounts';
 
-export default function CashInModal({ isOpen, onClose, onSuccess, onRegisterUser }) {
+export default function CashInModal({ isOpen, onClose, onSuccess, onRegisterUser, prefillRfid = '' }) {
   const { theme, isDarkMode } = useTheme();
   const [step, setStep] = useState(1); // 1: RFID Scan, 2: User Found, 3: Amount Select, 4: Countdown, 5: Success, 'not_found': User not found
   const [loading, setLoading] = useState(false);
@@ -57,10 +57,20 @@ export default function CashInModal({ isOpen, onClose, onSuccess, onRegisterUser
 
   // Focus on RFID input when modal opens
   useEffect(() => {
-    if (isOpen && step === 1 && rfidInputRef.current) {
+    if (isOpen && step === 1 && rfidInputRef.current && !prefillRfid) {
       setTimeout(() => rfidInputRef.current?.focus(), 100);
     }
-  }, [isOpen, step]);
+  }, [isOpen, step, prefillRfid]);
+
+  // When opened with a pre-filled RFID (e.g. switched from the register modal
+  // for an already-registered user), auto-fill and look the user up.
+  useEffect(() => {
+    if (isOpen && prefillRfid) {
+      setRfidInput(prefillRfid);
+      handleSearchUser(prefillRfid);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, prefillRfid]);
 
   // Countdown logic
   useEffect(() => {
@@ -104,9 +114,11 @@ export default function CashInModal({ isOpen, onClose, onSuccess, onRegisterUser
     onClose();
   };
 
-  // Search for user by RFID
-  const handleSearchUser = async () => {
-    if (!rfidInput.trim()) {
+  // Search for user by RFID. Accepts an optional rfid (used when pre-filled
+  // from the register modal) to avoid relying on async state.
+  const handleSearchUser = async (rfidArg) => {
+    const raw = (typeof rfidArg === 'string' ? rfidArg : rfidInput).trim();
+    if (!raw) {
       toast.error('Please scan or enter RFID');
       return;
     }
@@ -114,7 +126,7 @@ export default function CashInModal({ isOpen, onClose, onSuccess, onRegisterUser
     setSearching(true);
     try {
       // Normalize to little-endian hex format
-      const hexRfid = normalizeRfidHex(rfidInput.trim());
+      const hexRfid = normalizeRfidHex(raw);
       setNormalizedRfid(hexRfid);
 
       // Search for user using the admin treasury endpoint

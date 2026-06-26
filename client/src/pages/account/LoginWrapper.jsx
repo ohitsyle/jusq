@@ -5,21 +5,21 @@ import Login from './Login';
 export default function LoginWrapper({ type = 'admin' }) {
   const config = {
     admin: {
-      endpoint: 'http://18.166.29.239:3000/api/admin/auth/login',
+      endpoint: `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/admin/auth/login`,
       tokenKey: 'adminToken',
       dataKey: 'adminData',
       title: 'Admin Portal',
       redirectPath: '/admin/motorpool'
     },
     merchant: {
-      endpoint: 'http://18.166.29.239:3000/api/merchant/auth/login',
+      endpoint: `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/merchant/auth/login`,
       tokenKey: 'merchantToken',
       dataKey: 'merchantData',
       title: 'Merchant Portal',
       redirectPath: '/admin/merchant'
     },
     user: {
-      endpoint: 'http://18.166.29.239:3000/api/user/auth/login',
+      endpoint: `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/user/auth/login`,
       tokenKey: 'userToken',
       dataKey: 'userData',
       title: 'User Portal',

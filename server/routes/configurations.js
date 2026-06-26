@@ -9,6 +9,7 @@ import ExportHistory from '../models/ExportHistory.js';
 import User from '../models/User.js';
 import Driver from '../models/Driver.js';
 import { exportByType } from '../utils/csvExporter.js';
+import { filterTypesForRole } from '../utils/exportScopes.js';
 import { sendEmail } from '../services/emailService.js';
 import { logAdminAction } from '../utils/logger.js';
 import { extractAdminInfo } from '../middlewares/extractAdminInfo.js';
@@ -577,9 +578,9 @@ router.post('/manual-export-motorpool', async (req, res) => {
     let totalRecords = 0;
 
     // Export each selected type and add to ZIP
-    for (const type of exportTypes) {
+    for (const type of filterTypesForRole(exportTypes, 'motorpool')) {
       try {
-        const { csv, count } = await exportByType(type);
+        const { csv, count } = await exportByType(type, {}, 'motorpool');
         const fileName = `${type.toLowerCase()}_export_${new Date().toISOString().split('T')[0]}.csv`;
         zip.addFile(fileName, Buffer.from(csv, 'utf8'));
         totalRecords += count;
@@ -648,9 +649,9 @@ router.post('/manual-export-merchant', async (req, res) => {
     let totalRecords = 0;
 
     // Export each selected type and add to ZIP
-    for (const type of exportTypes) {
+    for (const type of filterTypesForRole(exportTypes, 'merchant')) {
       try {
-        const { csv, count } = await exportByType(type);
+        const { csv, count } = await exportByType(type, {}, 'merchant');
         const fileName = `${type.toLowerCase()}_export_${new Date().toISOString().split('T')[0]}.csv`;
         zip.addFile(fileName, Buffer.from(csv, 'utf8'));
         totalRecords += count;
@@ -748,10 +749,10 @@ router.post('/manual-export-treasury', async (req, res) => {
     };
 
     // Export each selected type and add to ZIP
-    for (const type of exportTypes) {
+    for (const type of filterTypesForRole(exportTypes, 'treasury')) {
       try {
         const actualType = typeMapping[type] || type.toLowerCase();
-        const { csv, count } = await exportByType(actualType, dateFilter);
+        const { csv, count } = await exportByType(actualType, dateFilter, 'treasury');
         const fileName = `${actualType}_export_${new Date().toISOString().split('T')[0]}.csv`;
         zip.addFile(fileName, Buffer.from(csv, 'utf8'));
         totalRecords += count;
@@ -849,10 +850,10 @@ router.post('/manual-export-sysad', async (req, res) => {
     };
 
     // Export each selected type and add to ZIP
-    for (const type of exportTypes) {
+    for (const type of filterTypesForRole(exportTypes, 'sysad')) {
       try {
         const actualType = typeMapping[type] || type.toLowerCase();
-        const { csv, count } = await exportByType(actualType, dateFilter);
+        const { csv, count } = await exportByType(actualType, dateFilter, 'sysad');
         const fileName = `${actualType}_export_${new Date().toISOString().split('T')[0]}.csv`;
         zip.addFile(fileName, Buffer.from(csv, 'utf8'));
         totalRecords += count;
@@ -951,10 +952,10 @@ router.post('/manual-export-accounting', async (req, res) => {
     };
 
     // Export each selected type and add to ZIP
-    for (const type of exportTypes) {
+    for (const type of filterTypesForRole(exportTypes, 'accounting')) {
       try {
         const actualType = typeMapping[type] || type.toLowerCase();
-        const { csv, count } = await exportByType(actualType, dateFilter);
+        const { csv, count } = await exportByType(actualType, dateFilter, 'accounting');
         const fileName = `${actualType}_export_${new Date().toISOString().split('T')[0]}.csv`;
         zip.addFile(fileName, Buffer.from(csv, 'utf8'));
         totalRecords += count;

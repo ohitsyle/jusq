@@ -2,6 +2,7 @@
 // Phone inventory management - Theme-aware, uses api utility
 
 import React, { useState, useEffect } from 'react';
+import { Smartphone } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import SearchBar from '../../../components/shared/SearchBar';
@@ -236,7 +237,7 @@ export default function MerchantPhonesList() {
         <div className="flex justify-between items-start mb-5">
           <div>
             <h2 style={{ color: theme.accent.primary }} className="text-2xl font-bold m-0 mb-2 flex items-center gap-2.5">
-              <span>📱</span> Merchant Phone Inventory
+              <Smartphone className="w-5 h-5" /> Merchant Phone Inventory
             </h2>
             <p style={{ color: theme.text.secondary }} className="text-[13px] m-0">
               {searchQuery
@@ -252,13 +253,15 @@ export default function MerchantPhonesList() {
             + Add Phone
           </button>
         </div>
-        <div className="flex gap-3 items-center">
-          <SearchBar
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder="Search by phone ID, model, serial, or merchant..."
-          />
-          <ExportButton onClick={handleExport} disabled={filteredPhones.length === 0} />
+        <div className="rounded-xl border-2 p-4" style={{ background: isDarkMode ? 'rgba(15,18,39,0.8)' : theme.bg.card, borderColor: theme.accent.primary }}>
+          <div className="flex gap-3 items-center flex-wrap">
+            <SearchBar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Search by phone ID, model, serial, or merchant..."
+            />
+            <ExportButton onClick={handleExport} disabled={filteredPhones.length === 0} />
+          </div>
         </div>
       </div>
 

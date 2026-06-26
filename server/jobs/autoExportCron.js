@@ -31,10 +31,14 @@ async function processAutoExport(role) {
       return;
     }
 
-    const { exportTypes, emailRecipients } = config.autoExport;
+    const { emailRecipients } = config.autoExport;
+    // Only export types this role is actually allowed to export (guards against
+    // configs polluted with other roles' types).
+    const { filterTypesForRole } = await import('../utils/exportScopes.js');
+    const exportTypes = filterTypesForRole(config.autoExport.exportTypes, role);
 
     if (!exportTypes || exportTypes.length === 0) {
-      console.log(`[Auto-Export] No export types selected for ${role} role`);
+      console.log(`[Auto-Export] No (valid) export types selected for ${role} role`);
       return;
     }
 
@@ -53,8 +57,8 @@ async function processAutoExport(role) {
         // Normalize the export type - handle display names from UI
         const normalizedType = type.toLowerCase().replace(/\s+/g, '-');
         console.log(`[Auto-Export] Processing type: ${type} (normalized: ${normalizedType})`);
-        
-        const { csv, count } = await exportByType(normalizedType);
+
+        const { csv, count } = await exportByType(normalizedType, {}, role);
         const fileName = `${normalizedType.replace(/-/g, '_')}_export_${new Date().toISOString().split('T')[0]}.csv`;
         zip.addFile(fileName, Buffer.from(csv, 'utf8'));
         totalRecords += count;
@@ -148,11 +152,14 @@ async function checkAndProcessAutoExports() {
     const enabledConfigs = configs.filter(c => c.autoExport?.enabled);
     console.log(`[Auto-Export] Found ${configs.length} configs, ${enabledConfigs.length} enabled`);
 
-    const currentTime = new Date();
-    const currentHour = currentTime.getHours().toString().padStart(2, '0');
-    const currentMinute = currentTime.getMinutes().toString().padStart(2, '0');
-    const currentDay = currentTime.getDay();
-    const currentDate = currentTime.getDate();
+    // Admins configure the export time in Philippine time (Asia/Manila), but
+    // the server runs in UTC. Evaluate "now" in Manila so the configured time
+    // is matched in the timezone the admin actually entered it in.
+    const manilaNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
+    const currentHour = manilaNow.getHours().toString().padStart(2, '0');
+    const currentMinute = manilaNow.getMinutes().toString().padStart(2, '0');
+    const currentDay = manilaNow.getDay();
+    const currentDate = manilaNow.getDate();
 
     for (const config of configs) {
       if (config.autoExport && config.autoExport.enabled) {

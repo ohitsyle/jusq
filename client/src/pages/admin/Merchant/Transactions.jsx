@@ -2,6 +2,7 @@
 // Merchant transactions list - Theme-aware, uses api utility
 
 import React, { useState, useEffect } from 'react';
+import { CreditCard, Download } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 
@@ -92,7 +93,7 @@ export default function TransactionsList() {
       <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
         <div>
           <h2 style={{ color: theme.text.primary }} className="text-2xl font-bold m-0 mb-2 flex items-center gap-2.5">
-            <span>💳</span> All Transactions
+            <CreditCard className="w-5 h-5" /> All Transactions
           </h2>
           <p style={{ color: theme.text.secondary }} className="text-[13px] m-0">
             Showing {filteredTransactions.length} of {transactions.length} transactions
@@ -103,29 +104,29 @@ export default function TransactionsList() {
           disabled={filteredTransactions.length === 0}
           className="py-3 px-6 rounded-xl text-sm font-semibold flex items-center gap-2 transition-all border-2 hover:opacity-80"
           style={{
-            background: filteredTransactions.length === 0 ? 'rgba(255,255,255,0.05)' : '#10B981',
+            background: filteredTransactions.length === 0 ? (isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)') : '#10B981',
             color: filteredTransactions.length === 0 ? theme.text.tertiary : '#FFF',
             borderColor: 'rgba(16,185,129,0.3)',
             cursor: filteredTransactions.length === 0 ? 'not-allowed' : 'pointer'
           }}
         >
-          <span>📥</span> Export to CSV
+          <Download className="w-5 h-5" /> Export to CSV
         </button>
       </div>
 
       {/* Search */}
-      <div className="mb-5">
+      <div className="rounded-xl border-2 p-4 mb-5" style={{ background: isDarkMode ? 'rgba(15,18,39,0.8)' : theme.bg.card, borderColor: theme.accent.primary }}>
         <input
           type="text"
           placeholder="🔍 Search transactions..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           style={{
-            background: isDarkMode ? 'rgba(30,35,71,0.5)' : 'rgba(0,0,0,0.04)',
+            background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F9FAFB',
             borderColor: theme.border.primary,
             color: theme.text.primary
           }}
-          className="w-full max-w-[400px] py-3 px-4 border-2 rounded-xl text-sm outline-none mb-4"
+          className="w-full max-w-[320px] py-2.5 px-4 border rounded-xl text-sm outline-none mb-4"
         />
 
         {/* Time Period Filters */}

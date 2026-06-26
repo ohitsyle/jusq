@@ -1,5 +1,6 @@
 // src/admin/components/Trips/TripsList.jsx
 import React, { useState, useEffect } from 'react';
+import { Bus } from 'lucide-react';
 import api from '../../../utils/api';
 import SearchBar from '../../../components/shared/SearchBar';
 import ExportButton from '../../../components/shared/ExportButton';
@@ -40,7 +41,11 @@ export default function TripsList() {
 
   const handleExport = () => {
     const dataToExport = prepareDataForExport(filteredTrips);
-    exportToCSV(dataToExport, 'trips');
+    const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+
+    const exportMeta = { adminName: adminData.firstName ? `${adminData.firstName} ${adminData.lastName || ''}`.trim() : 'Admin', department: adminData.role ? adminData.role.charAt(0).toUpperCase() + adminData.role.slice(1) : undefined };
+
+    exportToCSV(dataToExport, 'trips', { ...exportMeta, title: 'Trips Report' });
   };
 
   const filteredTrips = trips.filter(trip => {
@@ -105,10 +110,10 @@ export default function TripsList() {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="mb-[30px] pb-5" style={{ borderBottom: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.2)' : 'rgba(59,130,246,0.2)'}` }}>
-        <div style={{ marginBottom: '20px' }}>
+      <div className="mb-6">
+        <div style={{ marginBottom: '16px' }}>
           <h2 className="text-2xl font-bold m-0 mb-2 flex items-center gap-[10px]" style={{ color: theme.accent.primary }}>
-            <span>🚐</span> Trip Management
+            <Bus className="w-5 h-5" /> Trip Management
           </h2>
           <p className="text-[13px] m-0" style={{ color: theme.text.secondary }}>
             {filteredTrips.length > 0
@@ -117,41 +122,42 @@ export default function TripsList() {
             }
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <SearchBar
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder="Search by shuttle, driver, route, or location..."
-          />
-          <StatusFilter
-            value={statusFilter}
-            onChange={setStatusFilter}
-            label="Status"
-            options={[
-              { value: 'in_progress', label: 'In Progress' },
-              { value: 'completed', label: 'Completed' },
-              { value: 'cancelled', label: 'Cancelled' }
-            ]}
-          />
-          <DateRangeFilter
-            startDate={startDate}
-            endDate={endDate}
-            onStartChange={setStartDate}
-            onEndChange={setEndDate}
-          />
-          <ExportButton onClick={handleExport} disabled={filteredTrips.length === 0} />
+        <div className="rounded-xl border-2 p-4" style={{ background: isDarkMode ? 'rgba(15,18,39,0.8)' : theme.bg.card, borderColor: theme.accent.primary }}>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <SearchBar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Search by shuttle, driver, route, or location..."
+            />
+            <StatusFilter
+              value={statusFilter}
+              onChange={setStatusFilter}
+              options={[
+                { value: 'in_progress', label: 'In Progress' },
+                { value: 'completed', label: 'Completed' },
+                { value: 'cancelled', label: 'Cancelled' }
+              ]}
+            />
+            <DateRangeFilter
+              startDate={startDate}
+              endDate={endDate}
+              onStartChange={setStartDate}
+              onEndChange={setEndDate}
+            />
+            <ExportButton onClick={handleExport} disabled={filteredTrips.length === 0} />
+          </div>
         </div>
       </div>
 
       {/* Scrollable Area */}
       <div className="flex-1 overflow-y-auto pr-2">
       {trips.length === 0 ? (
-        <div className="text-center py-[60px] text-[rgba(251,251,251,0.5)]">
+        <div className="text-center py-[60px]" style={{ color: theme.text.tertiary }}>
           <div className="text-5xl mb-4">🚐</div>
           <div>No trips found</div>
         </div>
       ) : filteredTrips.length === 0 ? (
-        <div className="text-center py-[60px] text-[rgba(251,251,251,0.5)]">
+        <div className="text-center py-[60px]" style={{ color: theme.text.tertiary }}>
           <div className="text-5xl mb-4">🔍</div>
           <div style={{ marginBottom: '12px' }}>No trips match your search</div>
           <button onClick={() => setSearchQuery('')} style={{
@@ -262,7 +268,7 @@ export default function TripsList() {
                   background: currentPage === 1 ? (isDarkMode ? 'rgba(255,212,28,0.1)' : 'rgba(59,130,246,0.1)') : (isDarkMode ? 'rgba(255,212,28,0.2)' : 'rgba(59,130,246,0.2)'),
                   border: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}`,
                   borderRadius: '8px',
-                  color: currentPage === 1 ? 'rgba(251,251,251,0.3)' : theme.accent.primary,
+                  color: currentPage === 1 ? theme.text.tertiary : theme.accent.primary,
                   fontSize: '13px',
                   fontWeight: 600,
                   cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
@@ -270,7 +276,7 @@ export default function TripsList() {
               >
                 ← Previous
               </button>
-              <span style={{ color: 'rgba(251,251,251,0.7)', fontSize: '13px', fontWeight: 600 }}>
+              <span style={{ color: theme.text.secondary, fontSize: '13px', fontWeight: 600 }}>
                 Page {currentPage} of {totalPages}
               </span>
               <button
@@ -281,7 +287,7 @@ export default function TripsList() {
                   background: currentPage === totalPages ? (isDarkMode ? 'rgba(255,212,28,0.1)' : 'rgba(59,130,246,0.1)') : (isDarkMode ? 'rgba(255,212,28,0.2)' : 'rgba(59,130,246,0.2)'),
                   border: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}`,
                   borderRadius: '8px',
-                  color: currentPage === totalPages ? 'rgba(251,251,251,0.3)' : theme.accent.primary,
+                  color: currentPage === totalPages ? theme.text.tertiary : theme.accent.primary,
                   fontSize: '13px',
                   fontWeight: 600,
                   cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'

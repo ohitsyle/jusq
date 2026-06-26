@@ -3,7 +3,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../../context/ThemeContext';
-import api, { API_BASE_URL } from '../../../utils/api';
+import api from '../../../utils/api';
+import { exportToCSV } from '../../../utils/csvExport';
 
 export default function ReportsPage() {
   const { theme, isDarkMode } = useTheme();
@@ -26,9 +27,36 @@ export default function ReportsPage() {
     }
   };
 
-  const downloadReport = (format) => {
-    const token = localStorage.getItem('adminToken');
-    window.open(`${API_BASE_URL}/merchant/reports/download?format=${format}&range=${dateRange}&token=${token}`, '_blank');
+  const exportCSV = () => {
+    if (!reportData) return;
+
+    const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+    const adminName = adminData.businessName
+      || (adminData.firstName ? `${adminData.firstName} ${adminData.lastName || ''}`.trim() : 'Merchant Admin');
+
+    const rows = [
+      { Metric: 'Total Revenue', Value: `₱${(reportData.totalRevenue || 0).toFixed(2)}` },
+      { Metric: 'Total Transactions', Value: reportData.totalTransactions || 0 },
+      { Metric: 'Average Transaction', Value: `₱${(reportData.avgTransaction || 0).toFixed(2)}` },
+      { Metric: 'Active Merchants', Value: reportData.activeMerchants || 0 },
+      ...(reportData.topMerchants || []).map((m, i) => ({
+        Metric: `Top Merchant #${i + 1}: ${m.name}`,
+        Value: `₱${(m.revenue || 0).toFixed(2)}`
+      }))
+    ];
+
+    exportToCSV(rows, `merchant_report_${dateRange}`, {
+      title: 'Merchant Reports & Analytics',
+      adminName,
+      department: 'Merchant',
+      dateRange: dateRange.charAt(0).toUpperCase() + dateRange.slice(1)
+    });
+  };
+
+  // No PDF library in the project — use the browser's print-to-PDF, which
+  // produces a proper document without adding a heavy dependency.
+  const printReport = () => {
+    window.print();
   };
 
   if (loading) {
@@ -48,18 +76,19 @@ export default function ReportsPage() {
         </h2>
         <div className="flex gap-3">
           <button
-            onClick={() => downloadReport('csv')}
-            className="py-2.5 px-5 rounded-lg text-sm font-semibold cursor-pointer border-none hover:opacity-80 transition-all"
+            onClick={exportCSV}
+            disabled={!reportData}
+            className="py-2.5 px-5 rounded-lg text-sm font-semibold cursor-pointer border-none hover:opacity-80 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ background: '#10B981', color: '#FFF' }}
           >
             📥 Export CSV
           </button>
           <button
-            onClick={() => downloadReport('pdf')}
+            onClick={printReport}
             className="py-2.5 px-5 rounded-lg text-sm font-semibold cursor-pointer border-none hover:opacity-80 transition-all"
             style={{ background: '#EF4444', color: '#FFF' }}
           >
-            📄 Export PDF
+            📄 Print / PDF
           </button>
         </div>
       </div>

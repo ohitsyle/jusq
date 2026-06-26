@@ -12,6 +12,7 @@ import User from '../models/User.js';
 import UserConcern from '../models/UserConcern.js';
 import Merchant from '../models/Merchant.js';
 import Admin from '../models/Admin.js';
+import { buildDepartmentLogQuery, buildDepartmentConcernQuery, buildDepartmentPhoneQuery } from './exportScopes.js';
 
 /**
  * Convert array of objects to CSV string
@@ -131,8 +132,9 @@ export async function exportRoutes(dateFilter = {}) {
 /**
  * Export phones data to CSV
  */
-export async function exportPhones(dateFilter = {}) {
-  const query = {};
+export async function exportPhones(dateFilter = {}, role = null) {
+  // Scope to the role's phones (motorpool=driver phones, merchant=merchant phones).
+  const query = buildDepartmentPhoneQuery(role);
   if (dateFilter.startDate && dateFilter.endDate) {
     query.createdAt = { $gte: new Date(dateFilter.startDate), $lte: new Date(dateFilter.endDate) };
   }
@@ -224,8 +226,9 @@ export async function exportTransactions(dateFilter = {}) {
 /**
  * Export logs data to CSV
  */
-export async function exportLogs(dateFilter = {}) {
-  const query = {};
+export async function exportLogs(dateFilter = {}, role = null) {
+  // Department-scoped so each role only exports its own logs.
+  const query = buildDepartmentLogQuery(role);
   if (dateFilter.startDate && dateFilter.endDate) {
     query.createdAt = { $gte: new Date(dateFilter.startDate), $lte: new Date(dateFilter.endDate) };
   }
@@ -234,7 +237,9 @@ export async function exportLogs(dateFilter = {}) {
   const headers = ['action', 'description', 'userId', 'userName', 'adminId', 'driverId', 'shuttleId', 'status', 'createdAt'];
 
   const data = logs.map(log => ({
-    action: log.action,
+    // EventLog stores the human-readable action label in `title`
+    // (e.g. "User Created", "Card Transferred", "Manage Users Tab Export").
+    action: log.title || log.eventType || '',
     description: log.description || '',
     userId: log.userId || '',
     userName: log.userName || '',
@@ -282,8 +287,9 @@ export async function exportUsers(dateFilter = {}) {
 /**
  * Export concerns data to CSV
  */
-export async function exportConcerns(dateFilter = {}) {
-  const query = {};
+export async function exportConcerns(dateFilter = {}, role = null) {
+  // Department-scoped (by reportTo) so each role only exports its own concerns.
+  const query = buildDepartmentConcernQuery(role);
   if (dateFilter.startDate && dateFilter.endDate) {
     query.submittedAt = { $gte: new Date(dateFilter.startDate), $lte: new Date(dateFilter.endDate) };
   }
@@ -432,7 +438,7 @@ export async function exportAdmins(dateFilter = {}) {
 /**
  * Export data by type with optional date filtering
  */
-export async function exportByType(exportType, dateFilter = {}) {
+export async function exportByType(exportType, dateFilter = {}, role = null) {
   // Normalize export type to lowercase for function mapping
   const normalizedType = exportType.toLowerCase();
 
@@ -444,17 +450,20 @@ export async function exportByType(exportType, dateFilter = {}) {
     case 'routes':
       return await exportRoutes(dateFilter);
     case 'phones':
-      return await exportPhones(dateFilter);
+      // Shared collection — scope to the role's phones (driver vs merchant).
+      return await exportPhones(dateFilter, role);
     case 'trips':
       return await exportTrips(dateFilter);
     case 'transactions':
       return await exportTransactions(dateFilter);
     case 'logs':
-      return await exportLogs(dateFilter);
+      // Shared collection — scope logs to the role's department.
+      return await exportLogs(dateFilter, role);
     case 'users':
       return await exportUsers(dateFilter);
     case 'concerns':
-      return await exportConcerns(dateFilter);
+      // Shared collection — scope concerns to the role's department.
+      return await exportConcerns(dateFilter, role);
     case 'merchants':
       return await exportMerchants(dateFilter);
     case 'cash-ins':

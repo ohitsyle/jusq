@@ -1,6 +1,7 @@
 // src/admin/components/Routes/RoutesList.jsx
 // Interactive map-based route creation with step-by-step wizard
 import React, { useState, useEffect, useRef } from 'react';
+import { Map } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import SearchBar from '../../../components/shared/SearchBar';
@@ -204,7 +205,7 @@ function LocationMapPicker({ location, onLocationChange, onConfirm, pointLabel, 
           className={`w-full p-3 border-2 rounded-lg text-sm box-border`}
           style={{
             borderColor: pointColor === 'green' ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)',
-            background: 'rgba(251,251,251,0.05)',
+            background: theme.bg.tertiary,
             color: theme.text.primary
           }}
         />
@@ -226,7 +227,7 @@ function LocationMapPicker({ location, onLocationChange, onConfirm, pointLabel, 
           className="w-full p-3 border-2 rounded-lg text-sm box-border"
           style={{
             borderColor: pointColor === 'green' ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)',
-            background: 'rgba(251,251,251,0.05)',
+            background: theme.bg.tertiary,
             color: theme.text.primary
           }}
         />
@@ -285,7 +286,7 @@ function LocationMapPicker({ location, onLocationChange, onConfirm, pointLabel, 
         style={(!tempLocation.name || !tempLocation.latitude || !displayName)
           ? {
               background: 'rgba(100,100,100,0.2)',
-              color: 'rgba(251,251,251,0.3)',
+              color: theme.text.tertiary,
               cursor: 'not-allowed'
             }
           : {
@@ -522,7 +523,11 @@ export default function RoutesList() {
       'routeId', 'routeName', 'fromName', 'toName', 'fare', 'isActive'
     ]);
     const fileName = `routes_${new Date().toISOString().split('T')[0]}.csv`;
-    exportToCSV(exportData, fileName);
+    const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+
+    const exportMeta = { adminName: adminData.firstName ? `${adminData.firstName} ${adminData.lastName || ''}`.trim() : 'Admin', department: adminData.role ? adminData.role.charAt(0).toUpperCase() + adminData.role.slice(1) : undefined };
+
+    exportToCSV(exportData, fileName, { ...exportMeta, title: 'Routes Report' });
     api.post('/admin/log-tab-export', { tabName: 'Routes', recordCount: routes.length, fileName }).catch(() => {});
   };
 
@@ -556,7 +561,7 @@ export default function RoutesList() {
         <div className="flex justify-between items-center mb-5">
           <div>
             <h2 className="text-2xl font-bold m-0 mb-2 flex items-center gap-[10px]" style={{ color: theme.accent.primary }}>
-              <span>🗺️</span> Route Management
+              <Map className="w-5 h-5" /> Route Management
             </h2>
             <p className="text-[13px] m-0" style={{ color: theme.text.secondary }}>
               Manage shuttle routes with interactive map
@@ -585,20 +590,22 @@ export default function RoutesList() {
         </div>
 
         {/* Search and Export Row */}
-        <div className="flex gap-3 items-center">
-          <SearchBar
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder="Search routes..."
-          />
-          <ExportButton onClick={handleExport} disabled={filteredRoutes.length === 0} />
+        <div className="rounded-xl border-2 p-4" style={{ background: isDarkMode ? 'rgba(15,18,39,0.8)' : theme.bg.card, borderColor: theme.accent.primary }}>
+          <div className="flex gap-3 items-center flex-wrap">
+            <SearchBar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Search routes..."
+            />
+            <ExportButton onClick={handleExport} disabled={filteredRoutes.length === 0} />
+          </div>
         </div>
       </div>
 
       {/* Table - Scrollable Area */}
       <div className="flex-1 overflow-y-auto pr-2">
       {filteredRoutes.length === 0 ? (
-        <div className="text-center py-[60px] text-[rgba(251,251,251,0.5)]">
+        <div className="text-center py-[60px]" style={{ color: theme.text.tertiary }}>
           <div className="text-5xl mb-4">🗺️</div>
           <div>No routes found</div>
         </div>
@@ -619,13 +626,13 @@ export default function RoutesList() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-10 text-[rgba(251,251,251,0.5)]">
+                  <td colSpan={7} className="text-center py-10" style={{ color: theme.text.tertiary }}>
                     Loading routes...
                   </td>
                 </tr>
               ) : currentRoutes.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-10 text-[rgba(251,251,251,0.5)]">
+                  <td colSpan={7} className="text-center py-10" style={{ color: theme.text.tertiary }}>
                     No routes found
                   </td>
                 </tr>
@@ -735,7 +742,7 @@ export default function RoutesList() {
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)',
+              background: isDarkMode ? 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)' : theme.bg.card,
               borderRadius: '16px',
               border: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}`,
               width: '90%',

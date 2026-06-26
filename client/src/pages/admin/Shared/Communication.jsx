@@ -1,8 +1,10 @@
 // src/admin/components/Communication/DriverNotifications.jsx
 import React, { useState, useEffect } from 'react';
+import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 
 export default function DriverNotifications() {
+    const { theme, isDarkMode } = useTheme();
   const [drivers, setDrivers] = useState([]);
   const [selectedDriver, setSelectedDriver] = useState('all');
   const [messageType, setMessageType] = useState('info');
@@ -104,11 +106,11 @@ export default function DriverNotifications() {
 
   return (
     <div>
-      <div className="mb-[30px] border-b-2 border-[rgba(255,212,28,0.2)] pb-5">
-        <h2 className="text-2xl font-bold text-[#FFD41C] m-0 mb-2 flex items-center gap-[10px]">
+      <div style={{ borderBottomColor: theme.border.primary }} className="mb-[30px] border-b-2 pb-5">
+        <h2 style={{ color: theme.accent.primary }} className="text-2xl font-bold m-0 mb-2 flex items-center gap-[10px]">
           <span>📢</span> Driver Communications
         </h2>
-        <p className="text-[13px] text-[rgba(251,251,251,0.6)] m-0">
+        <p style={{ color: theme.text.secondary }} className="text-[13px] m-0">
           Send notifications and messages to drivers
         </p>
       </div>
@@ -116,18 +118,18 @@ export default function DriverNotifications() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
         {/* Send Notification Form */}
         <div style={{
-          background: 'rgba(255,255,255,0.05)',
+          background: theme.bg.tertiary,
           borderRadius: '16px',
-          border: '1px solid rgba(255,212,28,0.2)',
+          border: `1px solid ${theme.border.primary}`,
           padding: '24px'
         }}>
-          <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#FFD41C', marginBottom: '20px' }}>
+          <h3 style={{ fontSize: '16px', fontWeight: 700, color: theme.accent.primary, marginBottom: '20px' }}>
             Send Notification
           </h3>
 
           {/* Recipient Selection */}
           <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(251,251,251,0.7)', marginBottom: '8px' }}>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: theme.text.secondary, marginBottom: '8px' }}>
               Recipient
             </label>
             <select
@@ -136,10 +138,10 @@ export default function DriverNotifications() {
               style={{
                 width: '100%',
                 padding: '10px',
-                background: 'rgba(255,255,255,0.05)',
+                background: theme.bg.tertiary,
                 border: '1px solid rgba(255,212,28,0.3)',
                 borderRadius: '8px',
-                color: '#FBFBFB',
+                color: theme.text.primary,
                 fontSize: '13px'
               }}
             >
@@ -154,7 +156,7 @@ export default function DriverNotifications() {
 
           {/* Message Type */}
           <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(251,251,251,0.7)', marginBottom: '8px' }}>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: theme.text.secondary, marginBottom: '8px' }}>
               Message Type
             </label>
             <div style={{ display: 'flex', gap: '8px' }}>
@@ -187,7 +189,7 @@ export default function DriverNotifications() {
 
           {/* Message Title */}
           <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(251,251,251,0.7)', marginBottom: '8px' }}>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: theme.text.secondary, marginBottom: '8px' }}>
               Title
             </label>
             <input
@@ -198,10 +200,10 @@ export default function DriverNotifications() {
               style={{
                 width: '100%',
                 padding: '10px',
-                background: 'rgba(255,255,255,0.05)',
+                background: theme.bg.tertiary,
                 border: '1px solid rgba(255,212,28,0.3)',
                 borderRadius: '8px',
-                color: '#FBFBFB',
+                color: theme.text.primary,
                 fontSize: '13px'
               }}
             />
@@ -209,7 +211,7 @@ export default function DriverNotifications() {
 
           {/* Message Content */}
           <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'rgba(251,251,251,0.7)', marginBottom: '8px' }}>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: theme.text.secondary, marginBottom: '8px' }}>
               Message
             </label>
             <textarea
@@ -220,10 +222,10 @@ export default function DriverNotifications() {
                 width: '100%',
                 minHeight: '120px',
                 padding: '10px',
-                background: 'rgba(255,255,255,0.05)',
+                background: theme.bg.tertiary,
                 border: '1px solid rgba(255,212,28,0.3)',
                 borderRadius: '8px',
-                color: '#FBFBFB',
+                color: theme.text.primary,
                 fontSize: '13px',
                 fontFamily: 'inherit',
                 resize: 'vertical'
@@ -243,7 +245,7 @@ export default function DriverNotifications() {
               <div style={{ fontSize: '11px', color: currentTypeStyle.color, fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px' }}>
                 PREVIEW
               </div>
-              <div style={{ fontSize: '14px', fontWeight: 600, color: '#FBFBFB', marginBottom: '4px' }}>
+              <div style={{ fontSize: '14px', fontWeight: 600, color: theme.text.primary, marginBottom: '4px' }}>
                 {messageTitle || 'Notification Title'}
               </div>
               <div style={{ fontSize: '12px', color: 'rgba(251,251,251,0.8)' }}>
@@ -275,17 +277,17 @@ export default function DriverNotifications() {
 
         {/* Sent Messages History */}
         <div style={{
-          background: 'rgba(255,255,255,0.05)',
+          background: theme.bg.tertiary,
           borderRadius: '16px',
-          border: '1px solid rgba(255,212,28,0.2)',
+          border: `1px solid ${theme.border.primary}`,
           padding: '24px'
         }}>
-          <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#FFD41C', marginBottom: '20px' }}>
+          <h3 style={{ fontSize: '16px', fontWeight: 700, color: theme.accent.primary, marginBottom: '20px' }}>
             Recent Messages ({sentMessages.length})
           </h3>
 
           {sentMessages.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(251,251,251,0.5)' }}>
+            <div style={{ textAlign: 'center', padding: '40px', color: theme.text.tertiary }}>
               <div style={{ fontSize: '48px', marginBottom: '12px' }}>📭</div>
               <div>No messages sent yet</div>
             </div>
@@ -295,7 +297,7 @@ export default function DriverNotifications() {
                 const typeStyle = getMessageTypeColor(msg.messageType);
                 return (
                   <div key={msg.id} style={{
-                    background: 'rgba(255,255,255,0.03)',
+                    background: theme.bg.card,
                     border: '1px solid rgba(255,212,28,0.1)',
                     borderRadius: '8px',
                     padding: '12px',
@@ -314,17 +316,17 @@ export default function DriverNotifications() {
                       }}>
                         {msg.messageType}
                       </span>
-                      <div style={{ fontSize: '10px', color: 'rgba(251,251,251,0.5)' }}>
+                      <div style={{ fontSize: '10px', color: theme.text.tertiary }}>
                         {new Date(msg.timestamp).toLocaleString()}
                       </div>
                     </div>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#FFD41C', marginBottom: '4px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: theme.accent.primary, marginBottom: '4px' }}>
                       {msg.title}
                     </div>
-                    <div style={{ fontSize: '12px', color: 'rgba(251,251,251,0.7)', marginBottom: '6px' }}>
+                    <div style={{ fontSize: '12px', color: theme.text.secondary, marginBottom: '6px' }}>
                       {msg.content}
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'rgba(251,251,251,0.5)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: theme.text.tertiary }}>
                       <span>To: {msg.recipients}</span>
                       <span>By: {msg.sentBy}</span>
                     </div>

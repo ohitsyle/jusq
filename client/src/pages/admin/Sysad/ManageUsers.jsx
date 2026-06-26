@@ -196,6 +196,11 @@ export default function ManageUsers() {
   }, []);
 
   const handleExportCSV = () => {
+  const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+  const exportMeta = {
+    adminName: adminData.firstName ? `${adminData.firstName} ${adminData.lastName || ''}`.trim() : 'Admin',
+    department: adminData.role ? adminData.role.charAt(0).toUpperCase() + adminData.role.slice(1) : undefined,
+  };
     const exportData = users.map(user => ({
       'ID Number': user.schoolUId || user.adminId || 'N/A',
       'RFID': user.rfidUId || 'N/A',
@@ -207,7 +212,7 @@ export default function ManageUsers() {
       'Balance': user.balance || 0,
       'Created': new Date(user.createdAt).toLocaleDateString()
     }));
-    exportToCSV(exportData, `users-export-${sortBy}`);
+    exportToCSV(exportData, `users-export-${sortBy}`, { ...exportMeta, title: 'User Management Report' });
     api.post('/admin/log-tab-export', { tabName: 'Manage Users', recordCount: users.length, fileName: `users-export-${sortBy}.csv` }).catch(() => {});
     showNotification('success', 'Export Complete', 'Users have been exported to CSV successfully.');
   };
@@ -252,7 +257,7 @@ export default function ManageUsers() {
       {/* Header */}
       <div style={{ borderColor: theme.border.primary }} className="mb-6 border-b-2 pb-5">
         <h2 style={{ color: theme.accent.primary }} className="text-2xl font-bold m-0 mb-2 flex items-center gap-[10px]">
-          <span>👥</span> Manage Users
+          <Users className="w-5 h-5" /> Manage Users
         </h2>
         <p style={{ color: theme.text.secondary }} className="text-[13px] m-0">
           View, add, edit, and manage all system users

@@ -1,3 +1,4 @@
+import { AlertTriangle, BarChart3, ClipboardList, FileText, Home, Settings, Store } from 'lucide-react';
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTheme } from "../../context/ThemeContext";
@@ -10,21 +11,21 @@ export default function Navbar() {
   const isTreasury = location.pathname.startsWith("/admin/treasury");
 
   const TREASURY_TABS = [
-    { id: "dashboard", label: "Dashboard", icon: "📊", route: "/admin/treasury/dashboard" },
-    { id: "transactions", label: "Transaction History", icon: "📋", route: "/admin/treasury/transactions" },
-    { id: "merchants", label: "Merchants", icon: "🛒", route: "/admin/treasury/merchants" },
-    { id: "logs", label: "Logs", icon: "📑", route: "/admin/treasury/logs" },
-    { id: "concerns", label: "Concerns", icon: "⚠️", route: "/admin/treasury/concerns" },
-    { id: "config", label: "Configuration", icon: "⚙️", route: "/admin/treasury/config" },
+    { id: "dashboard", label: "Dashboard", icon: BarChart3, route: "/admin/treasury/dashboard" },
+    { id: "transactions", label: "Transaction History", icon: FileText, route: "/admin/treasury/transactions" },
+    { id: "merchants", label: "Merchants", icon: Store, route: "/admin/treasury/merchants" },
+    { id: "logs", label: "Logs", icon: ClipboardList, route: "/admin/treasury/logs" },
+    { id: "concerns", label: "Concerns", icon: AlertTriangle, route: "/admin/treasury/concerns" },
+    { id: "config", label: "Configuration", icon: Settings, route: "/admin/treasury/config" },
   ];
 
   const ACCOUNTING_TABS = [
-    { id: "home", label: "Home", icon: "🏠", route: "/admin/accounting/home" },
-    { id: "transactions", label: "Transaction History", icon: "📋", route: "/admin/accounting/transactions" },
-    { id: "merchants", label: "Merchants", icon: "🛒", route: "/admin/accounting/merchants" },
-    { id: "logs", label: "Logs", icon: "📑", route: "/admin/accounting/logs" },
-    { id: "concerns", label: "Concerns", icon: "⚠️", route: "/admin/accounting/concerns" },
-    { id: "config", label: "Configuration", icon: "⚙️", route: "/admin/accounting/config" },
+    { id: "home", label: "Home", icon: Home, route: "/admin/accounting/home" },
+    { id: "transactions", label: "Transaction History", icon: FileText, route: "/admin/accounting/transactions" },
+    { id: "merchants", label: "Merchants", icon: Store, route: "/admin/accounting/merchants" },
+    { id: "logs", label: "Logs", icon: ClipboardList, route: "/admin/accounting/logs" },
+    { id: "concerns", label: "Concerns", icon: AlertTriangle, route: "/admin/accounting/concerns" },
+    { id: "config", label: "Configuration", icon: Settings, route: "/admin/accounting/config" },
   ];
 
   const tabs = isTreasury ? TREASURY_TABS : ACCOUNTING_TABS;
@@ -89,7 +90,7 @@ export default function Navbar() {
             }}
           >
             <span className={`text-base transition-transform duration-300 ${isActive ? 'scale-110' : ''}`}>
-              {tab.icon}
+              <tab.icon className="w-[18px] h-[18px]" />
             </span>
             <span>{tab.label}</span>
           </button>

@@ -117,9 +117,11 @@ const UserConcernSchema = new mongoose.Schema({
     default: ''
   },
 
+  // Stores the resolving admin's display name. The whole app sets/reads a name
+  // string here (not an Admin ref); typing it as ObjectId caused every
+  // resolve to fail with a Cast-to-ObjectId 400.
   resolvedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Admin',
+    type: String,
     default: null
   },
 
@@ -141,8 +143,7 @@ const UserConcernSchema = new mongoose.Schema({
   },
 
   respondedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Admin',
+    type: String,
     default: null
   },
 

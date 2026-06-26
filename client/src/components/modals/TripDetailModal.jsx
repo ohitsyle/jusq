@@ -2,8 +2,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { GOOGLE_MAPS_API_KEY } from '../../config/api.config';
 import api from '../../utils/api';
+import { useTheme } from '../../context/ThemeContext';
 
 export default function TripDetailModal({ trip, onClose, onUpdate }) {
+  const { theme, isDarkMode } = useTheme();
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const [noteContent, setNoteContent] = useState('');
@@ -108,7 +110,7 @@ export default function TripDetailModal({ trip, onClose, onUpdate }) {
       new window.google.maps.Polyline({
         path: [startPos, endPos],
         geodesic: true,
-        strokeColor: '#FFD41C',
+        strokeColor: theme.accent.primary,
         strokeOpacity: 0.8,
         strokeWeight: 4,
         map: mapInstanceRef.current,
@@ -204,20 +206,20 @@ export default function TripDetailModal({ trip, onClose, onUpdate }) {
       animation: 'fadeIn 0.2s ease'
     }}>
       <div onClick={(e) => e.stopPropagation()} style={{
-        background: 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)',
+        background: (isDarkMode ? 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)' : theme.bg.card),
         borderRadius: '16px',
         maxWidth: '800px',
         width: '90%',
         maxHeight: '85vh',
         overflow: 'auto',
-        border: '2px solid rgba(255,212,28,0.3)',
+        border: (isDarkMode ? '2px solid rgba(255,212,28,0.3)' : '2px solid rgba(59,130,246,0.3)'),
         boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
         animation: 'slideIn 0.3s ease'
       }}>
         {/* Modal Header */}
         <div style={{
           padding: '24px',
-          borderBottom: '2px solid rgba(255,212,28,0.2)',
+          borderBottom: (isDarkMode ? '2px solid rgba(255,212,28,0.2)' : '2px solid rgba(59,130,246,0.2)'),
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
@@ -225,10 +227,10 @@ export default function TripDetailModal({ trip, onClose, onUpdate }) {
         }}>
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-              <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#FFD41C', margin: 0 }}>
+              <h2 style={{ fontSize: '22px', fontWeight: 700, color: theme.accent.primary, margin: 0 }}>
                 Trip Details
               </h2>
-              <span style={{ fontSize: '16px', color: '#FFD41C', fontWeight: 700, fontFamily: 'monospace', background: 'rgba(255,212,28,0.15)', padding: '4px 12px', borderRadius: '6px' }}>
+              <span style={{ fontSize: '16px', color: theme.accent.primary, fontWeight: 700, fontFamily: 'monospace', background: (isDarkMode ? 'rgba(255,212,28,0.15)' : 'rgba(59,130,246,0.15)'), padding: '4px 12px', borderRadius: '6px' }}>
                 {localTrip.tripId || `#${localTrip._id.slice(-8)}`}
               </span>
             </div>
@@ -289,37 +291,37 @@ export default function TripDetailModal({ trip, onClose, onUpdate }) {
         <div style={{ padding: '24px' }}>
           {/* Trip Information */}
           <div style={{
-            background: 'rgba(255,212,28,0.05)',
-            border: '1px solid rgba(255,212,28,0.2)',
+            background: (isDarkMode ? 'rgba(255,212,28,0.05)' : 'rgba(59,130,246,0.05)'),
+            border: (isDarkMode ? '1px solid rgba(255,212,28,0.2)' : '1px solid rgba(59,130,246,0.2)'),
             borderRadius: '12px',
             padding: '16px',
             marginBottom: '20px'
           }}>
-            <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#FFD41C', textTransform: 'uppercase', marginBottom: '12px' }}>
+            <h3 style={{ fontSize: '14px', fontWeight: 700, color: theme.accent.primary, textTransform: 'uppercase', marginBottom: '12px' }}>
               Trip Information
             </h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div>
-                <div style={{ fontSize: '11px', color: 'rgba(251,251,251,0.5)', marginBottom: '4px' }}>Shuttle ID</div>
-                <div style={{ fontSize: '14px', color: 'rgba(251,251,251,0.9)', fontWeight: 600 }}>
+                <div style={{ fontSize: '11px', color: theme.text.secondary, marginBottom: '4px' }}>Shuttle ID</div>
+                <div style={{ fontSize: '14px', color: theme.text.primary, fontWeight: 600 }}>
                   {localTrip.shuttleId}
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: '11px', color: 'rgba(251,251,251,0.5)', marginBottom: '4px' }}>Driver</div>
-                <div style={{ fontSize: '14px', color: 'rgba(251,251,251,0.9)', fontWeight: 600 }}>
+                <div style={{ fontSize: '11px', color: theme.text.secondary, marginBottom: '4px' }}>Driver</div>
+                <div style={{ fontSize: '14px', color: theme.text.primary, fontWeight: 600 }}>
                   {localTrip.driverName || localTrip.driverId}
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: '11px', color: 'rgba(251,251,251,0.5)', marginBottom: '4px' }}>Route ID</div>
-                <div style={{ fontSize: '14px', color: 'rgba(251,251,251,0.9)', fontWeight: 600 }}>
+                <div style={{ fontSize: '11px', color: theme.text.secondary, marginBottom: '4px' }}>Route ID</div>
+                <div style={{ fontSize: '14px', color: theme.text.primary, fontWeight: 600 }}>
                   {localTrip.routeId}
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: '11px', color: 'rgba(251,251,251,0.5)', marginBottom: '4px' }}>Distance Traveled</div>
-                <div style={{ fontSize: '14px', color: 'rgba(251,251,251,0.9)', fontWeight: 600 }}>
+                <div style={{ fontSize: '11px', color: theme.text.secondary, marginBottom: '4px' }}>Distance Traveled</div>
+                <div style={{ fontSize: '14px', color: theme.text.primary, fontWeight: 600 }}>
                   {localTrip.distanceTraveledKm ? `${localTrip.distanceTraveledKm} km` : 'N/A'}
                 </div>
               </div>
@@ -339,20 +341,20 @@ export default function TripDetailModal({ trip, onClose, onUpdate }) {
             </h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
               <div>
-                <div style={{ fontSize: '11px', color: 'rgba(251,251,251,0.5)', marginBottom: '4px' }}>Departure Time</div>
-                <div style={{ fontSize: '14px', color: 'rgba(251,251,251,0.9)' }}>
+                <div style={{ fontSize: '11px', color: theme.text.secondary, marginBottom: '4px' }}>Departure Time</div>
+                <div style={{ fontSize: '14px', color: theme.text.primary }}>
                   {new Date(localTrip.departureTime).toLocaleString()}
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: '11px', color: 'rgba(251,251,251,0.5)', marginBottom: '4px' }}>Arrival Time</div>
-                <div style={{ fontSize: '14px', color: 'rgba(251,251,251,0.9)' }}>
+                <div style={{ fontSize: '11px', color: theme.text.secondary, marginBottom: '4px' }}>Arrival Time</div>
+                <div style={{ fontSize: '14px', color: theme.text.primary }}>
                   {localTrip.arrivalTime ? new Date(localTrip.arrivalTime).toLocaleString() : 'In Progress'}
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: '11px', color: 'rgba(251,251,251,0.5)', marginBottom: '4px' }}>Duration</div>
-                <div style={{ fontSize: '14px', color: 'rgba(251,251,251,0.9)', fontWeight: 600 }}>
+                <div style={{ fontSize: '11px', color: theme.text.secondary, marginBottom: '4px' }}>Duration</div>
+                <div style={{ fontSize: '14px', color: theme.text.primary, fontWeight: 600 }}>
                   {formatDuration(localTrip.durationMinutes)}
                 </div>
               </div>
@@ -373,19 +375,19 @@ export default function TripDetailModal({ trip, onClose, onUpdate }) {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div>
                 <div style={{ fontSize: '12px', color: '#A855F7', marginBottom: '8px', fontWeight: 600 }}>📍 Start Location</div>
-                <div style={{ fontSize: '13px', color: 'rgba(251,251,251,0.9)', marginBottom: '4px', fontWeight: 600 }}>
+                <div style={{ fontSize: '13px', color: theme.text.primary, marginBottom: '4px', fontWeight: 600 }}>
                   {localTrip.startLocationName || 'Unknown Location'}
                 </div>
-                <div style={{ fontSize: '11px', color: 'rgba(251,251,251,0.5)', fontFamily: 'monospace' }}>
+                <div style={{ fontSize: '11px', color: theme.text.secondary, fontFamily: 'monospace' }}>
                   {localTrip.startLatitude.toFixed(6)}, {localTrip.startLongitude.toFixed(6)}
                 </div>
               </div>
               <div>
                 <div style={{ fontSize: '12px', color: '#A855F7', marginBottom: '8px', fontWeight: 600 }}>🏁 End Location</div>
-                <div style={{ fontSize: '13px', color: 'rgba(251,251,251,0.9)', marginBottom: '4px', fontWeight: 600 }}>
+                <div style={{ fontSize: '13px', color: theme.text.primary, marginBottom: '4px', fontWeight: 600 }}>
                   {localTrip.endLocationName || 'Unknown Location'}
                 </div>
-                <div style={{ fontSize: '11px', color: 'rgba(251,251,251,0.5)', fontFamily: 'monospace' }}>
+                <div style={{ fontSize: '11px', color: theme.text.secondary, fontFamily: 'monospace' }}>
                   {localTrip.endLatitude.toFixed(6)}, {localTrip.endLongitude.toFixed(6)}
                 </div>
               </div>
@@ -420,13 +422,13 @@ export default function TripDetailModal({ trip, onClose, onUpdate }) {
             </h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div>
-                <div style={{ fontSize: '11px', color: 'rgba(251,251,251,0.5)', marginBottom: '4px' }}>Total Passengers</div>
+                <div style={{ fontSize: '11px', color: theme.text.secondary, marginBottom: '4px' }}>Total Passengers</div>
                 <div style={{ fontSize: '24px', color: '#22C55E', fontWeight: 700 }}>
                   {localTrip.passengerCount || 0}
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: '11px', color: 'rgba(251,251,251,0.5)', marginBottom: '4px' }}>Total Collections</div>
+                <div style={{ fontSize: '11px', color: theme.text.secondary, marginBottom: '4px' }}>Total Collections</div>
                 <div style={{ fontSize: '24px', color: '#22C55E', fontWeight: 700 }}>
                   ₱{(localTrip.totalCollections || 0).toLocaleString()}
                 </div>
@@ -471,11 +473,11 @@ export default function TripDetailModal({ trip, onClose, onUpdate }) {
             {passengersOpen && (
               <div style={{ padding: '0 16px 16px' }}>
                 {loadingPassengers ? (
-                  <div style={{ textAlign: 'center', padding: '20px', color: 'rgba(251,251,251,0.5)', fontSize: '13px' }}>
+                  <div style={{ textAlign: 'center', padding: '20px', color: theme.text.secondary, fontSize: '13px' }}>
                     Loading passengers...
                   </div>
                 ) : passengers.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '20px', color: 'rgba(251,251,251,0.5)', fontSize: '13px' }}>
+                  <div style={{ textAlign: 'center', padding: '20px', color: theme.text.secondary, fontSize: '13px' }}>
                     No passenger records found for this trip.
                   </div>
                 ) : (
@@ -502,21 +504,21 @@ export default function TripDetailModal({ trip, onClose, onUpdate }) {
                         gap: '8px',
                         padding: '8px 12px',
                         borderRadius: '6px',
-                        background: idx % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'transparent'
+                        background: idx % 2 === 0 ? (isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)') : 'transparent'
                       }}>
-                        <div style={{ fontSize: '12px', color: 'rgba(251,251,251,0.5)' }}>{idx + 1}</div>
+                        <div style={{ fontSize: '12px', color: theme.text.secondary }}>{idx + 1}</div>
                         <div>
-                          <div style={{ fontSize: '13px', color: 'rgba(251,251,251,0.9)', fontWeight: 600 }}>
+                          <div style={{ fontSize: '13px', color: theme.text.primary, fontWeight: 600 }}>
                             {p.userName || 'Unknown'}
                           </div>
                           {p.userEmail && (
-                            <div style={{ fontSize: '10px', color: 'rgba(251,251,251,0.4)' }}>{p.userEmail}</div>
+                            <div style={{ fontSize: '10px', color: theme.text.tertiary }}>{p.userEmail}</div>
                           )}
                         </div>
-                        <div style={{ fontSize: '13px', color: 'rgba(251,251,251,0.8)' }}>
+                        <div style={{ fontSize: '13px', color: theme.text.primary }}>
                           P{p.fareCharged}
                         </div>
-                        <div style={{ fontSize: '11px', color: 'rgba(251,251,251,0.5)' }}>
+                        <div style={{ fontSize: '11px', color: theme.text.secondary }}>
                           {new Date(p.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </div>
                       </div>
@@ -543,7 +545,7 @@ export default function TripDetailModal({ trip, onClose, onUpdate }) {
               <div style={{ marginBottom: '16px', maxHeight: '200px', overflowY: 'auto' }}>
                 {localTrip.notes.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).map((note, idx) => (
                   <div key={idx} style={{
-                    background: 'rgba(255,255,255,0.05)',
+                    background: (isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'),
                     borderRadius: '8px',
                     padding: '12px',
                     marginBottom: '8px',
@@ -553,18 +555,18 @@ export default function TripDetailModal({ trip, onClose, onUpdate }) {
                       <div style={{ fontSize: '12px', fontWeight: 600, color: '#FBBF24' }}>
                         {note.adminName || 'Admin'}
                       </div>
-                      <div style={{ fontSize: '10px', color: 'rgba(251,251,251,0.5)' }}>
+                      <div style={{ fontSize: '10px', color: theme.text.secondary }}>
                         {new Date(note.timestamp).toLocaleString()}
                       </div>
                     </div>
-                    <div style={{ fontSize: '13px', color: 'rgba(251,251,251,0.8)', lineHeight: '1.5' }}>
+                    <div style={{ fontSize: '13px', color: theme.text.primary, lineHeight: '1.5' }}>
                       {note.content}
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div style={{ fontSize: '13px', color: 'rgba(251,251,251,0.5)', marginBottom: '16px', textAlign: 'center', padding: '20px' }}>
+              <div style={{ fontSize: '13px', color: theme.text.secondary, marginBottom: '16px', textAlign: 'center', padding: '20px' }}>
                 No notes yet. Add the first note below.
               </div>
             )}
@@ -578,7 +580,7 @@ export default function TripDetailModal({ trip, onClose, onUpdate }) {
                 style={{
                   width: '100%',
                   minHeight: '80px',
-                  background: 'rgba(255,255,255,0.05)',
+                  background: (isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'),
                   border: '1px solid rgba(251,191,36,0.3)',
                   borderRadius: '8px',
                   padding: '12px',
@@ -595,7 +597,7 @@ export default function TripDetailModal({ trip, onClose, onUpdate }) {
                 style={{
                   padding: '10px 20px',
                   background: noteContent.trim() && !submittingNote ? '#FBBF24' : 'rgba(251,191,36,0.3)',
-                  color: noteContent.trim() && !submittingNote ? '#181D40' : 'rgba(251,251,251,0.5)',
+                  color: noteContent.trim() && !submittingNote ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.secondary,
                   border: 'none',
                   borderRadius: '8px',
                   fontSize: '13px',
@@ -613,20 +615,20 @@ export default function TripDetailModal({ trip, onClose, onUpdate }) {
         {/* Modal Footer */}
         <div style={{
           padding: '20px 24px',
-          borderTop: '2px solid rgba(255,212,28,0.2)',
+          borderTop: (isDarkMode ? '2px solid rgba(255,212,28,0.2)' : '2px solid rgba(59,130,246,0.2)'),
           display: 'flex',
           justifyContent: 'flex-end'
         }}>
           <button onClick={onClose} style={{
             padding: '12px 24px',
-            background: '#FFD41C',
-            color: '#181D40',
+            background: theme.accent.primary,
+            color: (isDarkMode ? '#181D40' : '#FFFFFF'),
             border: 'none',
             borderRadius: '8px',
             fontSize: '14px',
             fontWeight: 700,
             cursor: 'pointer',
-            boxShadow: '0 4px 12px rgba(255,212,28,0.4)'
+            boxShadow: (isDarkMode ? '0 4px 12px rgba(255,212,28,0.4)' : '0 4px 12px rgba(59,130,246,0.4)')
           }}>
             Close
           </button>

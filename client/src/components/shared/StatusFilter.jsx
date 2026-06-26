@@ -1,41 +1,30 @@
 // src/admin/components/common/StatusFilter.jsx
+// Pill-group (segmented control) status filter — matches the sysad filter-bar style.
 import React from 'react';
+import { useTheme } from '../../context/ThemeContext';
 
-export default function StatusFilter({ value, onChange, options, label = "Status" }) {
+export default function StatusFilter({ value, onChange, options }) {
+  const { theme, isDarkMode } = useTheme();
+  const allOptions = [{ value: '', label: 'All' }, ...options];
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '150px' }}>
-      <label style={{
-        fontSize: '11px',
-        fontWeight: 700,
-        color: '#FFD41C',
-        textTransform: 'uppercase',
-        letterSpacing: '0.5px'
-      }}>
-        {label}
-      </label>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        style={{
-          padding: '10px 12px',
-          border: '2px solid rgba(255, 212, 28, 0.3)',
-          borderRadius: '10px',
-          background: 'rgba(251, 251, 251, 0.05)',
-          color: 'rgba(251, 251, 251, 0.9)',
-          fontSize: '13px',
-          fontWeight: 600,
-          cursor: 'pointer',
-          transition: 'all 0.3s ease',
-          outline: 'none'
-        }}
-      >
-        <option value="">All</option>
-        {options.map(option => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+    <div
+      className="flex gap-1 p-1 rounded-xl flex-wrap"
+      style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F3F4F6' }}
+    >
+      {allOptions.map((option) => (
+        <button
+          key={option.value || 'all'}
+          onClick={() => onChange(option.value)}
+          style={{
+            background: value === option.value ? theme.accent.primary : 'transparent',
+            color: value === option.value ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.secondary
+          }}
+          className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80 whitespace-nowrap"
+        >
+          {option.label}
+        </button>
+      ))}
     </div>
   );
 }

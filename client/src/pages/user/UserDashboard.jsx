@@ -100,8 +100,10 @@ export default function UserDashboard() {
   const filterTransactions = (txList, period) => {
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    // "This week" = rolling last 7 days (today + previous 6), so yesterday is
+    // always included regardless of which calendar day of the week it is.
     const startOfWeek = new Date(startOfDay);
-    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+    startOfWeek.setDate(startOfWeek.getDate() - 6);
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
     let filtered = txList;
@@ -209,7 +211,7 @@ export default function UserDashboard() {
               const txType = tx.transactionType || tx.type;
               return `
               <tr>
-                <td>${tx.date || new Date(tx.createdAt).toLocaleDateString()} ${tx.time || new Date(tx.createdAt).toLocaleTimeString()}</td>
+                <td>${new Date(tx.createdAt).toLocaleDateString()} ${new Date(tx.createdAt).toLocaleTimeString()}</td>
                 <td>${getTransactionDescription(tx)}</td>
                 <td class="${txType === 'credit' ? 'credit' : 'debit'}">
                   ${txType === 'credit' ? '+' : '-'}₱${Math.abs(tx.amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
@@ -368,7 +370,7 @@ export default function UserDashboard() {
       {/* Right Column - Transactions */}
       <div
         style={{ background: theme.bg.card, borderColor: theme.border.primary }}
-        className="w-full lg:flex-1 lg:max-w-[1000px] rounded-2xl border overflow-hidden flex flex-col max-h-[450px] lg:max-h-[600px]"
+        className="w-full lg:flex-1 lg:max-w-[1000px] rounded-2xl border overflow-hidden flex flex-col max-h-[450px] lg:max-h-none"
       >
         {/* Header */}
         <div style={{ borderColor: theme.border.primary }} className="p-4 border-b flex-shrink-0">
@@ -434,7 +436,9 @@ export default function UserDashboard() {
                           {getTransactionDescription(tx)}
                         </p>
                         <p style={{ color: theme.text.muted }} className="text-xs">
-                          {tx.date || new Date(tx.createdAt).toLocaleDateString()} {tx.time || ''}
+                          {tx.createdAt
+                            ? `${new Date(tx.createdAt).toLocaleDateString()} ${new Date(tx.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                            : (tx.date || '')}
                         </p>
                       </div>
                     </div>

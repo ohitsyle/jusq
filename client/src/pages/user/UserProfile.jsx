@@ -328,7 +328,7 @@ export default function UserProfile() {
 
   const renderPersonalInfo = () => (
     <div style={{
-      background: 'rgba(255,255,255,0.05)',
+      background: isDarkMode ? 'rgba(255,255,255,0.05)' : '#FFFFFF',
       borderRadius: '16px',
       border: '1px solid rgba(255,212,28,0.2)',
       overflow: 'hidden'
@@ -406,7 +406,7 @@ export default function UserProfile() {
 
   const renderSecuritySettings = () => (
     <div style={{
-      background: 'rgba(255,255,255,0.05)',
+      background: isDarkMode ? 'rgba(255,255,255,0.05)' : '#FFFFFF',
       borderRadius: '16px',
       border: '1px solid rgba(255,212,28,0.2)',
       overflow: 'hidden'
@@ -430,7 +430,7 @@ export default function UserProfile() {
         </h3>
         <p style={{
           fontSize: '14px',
-          color: 'rgba(251,251,251,0.6)',
+          color: theme.text.secondary,
           margin: 0
         }}>
           Manage your PIN and account security
@@ -482,6 +482,29 @@ export default function UserProfile() {
             }}>
               <span>🔑</span> Change PIN
             </h4>
+
+            {/* Last PIN change */}
+            <div style={{
+              marginBottom: '20px',
+              padding: '10px 14px',
+              background: isDarkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+              borderRadius: '8px',
+              fontSize: '12px',
+              color: theme.text.secondary,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <span>🕓</span>
+              <span>
+                Last PIN change:{' '}
+                <span style={{ color: theme.text.primary, fontWeight: 600 }}>
+                  {userData?.pinChangedAt
+                    ? new Date(userData.pinChangedAt).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })
+                    : 'Never changed yet'}
+                </span>
+              </span>
+            </div>
 
             {/* Step 1: Enter PINs */}
             {pinStep === 1 && (
@@ -1373,7 +1396,7 @@ export default function UserProfile() {
         </h2>
         <p style={{
           fontSize: '13px',
-          color: 'rgba(251,251,251,0.6)',
+          color: theme.text.secondary,
           margin: 0
         }}>
           Manage your account information and security settings
@@ -1941,6 +1964,7 @@ export default function UserProfile() {
 
 // Info Field Component
 function InfoField({ label, value, highlight, fullWidth }) {
+  const { theme } = useTheme();
   const getHighlightColor = () => {
     if (highlight === 'success') return { bg: 'rgba(34, 197, 94, 0.15)', border: 'rgba(34, 197, 94, 0.3)', color: '#22C55E' };
     if (highlight === 'error') return { bg: 'rgba(239, 68, 68, 0.15)', border: 'rgba(239, 68, 68, 0.3)', color: '#EF4444' };
@@ -1967,10 +1991,10 @@ function InfoField({ label, value, highlight, fullWidth }) {
       </label>
       <div style={{
         padding: '12px 16px',
-        background: highlightStyle ? highlightStyle.bg : 'rgba(251,251,251,0.05)',
+        background: highlightStyle ? highlightStyle.bg : theme.bg.tertiary,
         border: `1px solid ${highlightStyle ? highlightStyle.border : 'rgba(255,212,28,0.1)'}`,
         borderRadius: '8px',
-        color: highlightStyle ? highlightStyle.color : 'rgba(251,251,251,0.9)',
+        color: highlightStyle ? highlightStyle.color : theme.text.primary,
         fontSize: '15px',
         fontWeight: highlight ? 700 : 500,
         wordBreak: 'break-word'

@@ -162,19 +162,34 @@ router.post('/login', async (req, res) => {
 // ============================================================================
 router.post('/logout', authenticateAdmin, async (req, res) => {
   try {
-    const admin = req.admin;
+    const decoded = req.admin;
+
+    // Look up full admin record since JWT may not contain all fields
+    const adminRecord = await Admin.findOne({
+      $or: [
+        { _id: decoded.id },
+        { email: decoded.email },
+        { adminId: decoded.adminId }
+      ]
+    });
+
+    const adminName = adminRecord
+      ? `${adminRecord.firstName} ${adminRecord.lastName}`.trim()
+      : decoded.email || 'Admin';
+    const adminId = adminRecord?.adminId || decoded.adminId || decoded.id;
+    const role = adminRecord?.role || decoded.role;
 
     // Log the logout event
     await logLogout({
-      adminId: admin.adminId,
-      adminName: `${admin.firstName} ${admin.lastName}`,
-      userType: `Admin (${admin.role})`,
-      adminRole: admin.role,
-      department: admin.role,
+      adminId,
+      adminName,
+      userType: `Admin (${role})`,
+      adminRole: role,
+      department: role,
       sessionDuration: req.body.sessionDuration || null
     });
 
-    console.log(`👋 Admin logout: ${admin.email}`);
+    console.log(`👋 Admin logout: ${adminName}`);
 
     res.json({
       message: 'Logout successful'

@@ -1,5 +1,6 @@
 // src/pages/admin/Treasury/TreasuryDashboard.jsx
 import React, { useState, useEffect, useRef } from 'react';
+import { Home } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import TransactionTable from '../../../components/TreasuryDashboard/TransactionTable';
@@ -26,6 +27,7 @@ export default function TreasuryDashboard() {
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showCashInModal, setShowCashInModal] = useState(false);
   const [prefillRfid, setPrefillRfid] = useState('');
+  const [cashInPrefillRfid, setCashInPrefillRfid] = useState('');
 
   const loadDashboardData = async () => {
     try {
@@ -75,6 +77,13 @@ export default function TreasuryDashboard() {
     setShowRegisterModal(true);
   };
 
+  // Handle switching to cash-in from the register modal (RFID already registered)
+  const handleSwitchToCashIn = (rfid) => {
+    setCashInPrefillRfid(rfid);
+    setShowRegisterModal(false);
+    setShowCashInModal(true);
+  };
+
   // Handle successful registration
   const handleRegisterSuccess = () => {
     loadDashboardData();
@@ -98,7 +107,7 @@ export default function TreasuryDashboard() {
       {/* Header */}
       <div style={{ borderColor: theme.border.primary }} className="mb-6 border-b-2 pb-5">
         <h2 style={{ color: theme.accent.primary }} className="text-2xl font-bold m-0 mb-2 flex items-center gap-[10px]">
-          <span>🏠</span> Treasury Home
+          <Home className="w-5 h-5" /> Treasury Home
         </h2>
         <p style={{ color: theme.text.secondary }} className="text-[13px] m-0">
           Cash-in and User Registration operations with transaction monitoring • Auto-updates every 5 seconds
@@ -238,14 +247,19 @@ export default function TreasuryDashboard() {
         }}
         onSuccess={handleRegisterSuccess}
         prefillRfid={prefillRfid}
+        onSwitchToCashIn={handleSwitchToCashIn}
       />
 
       {/* Cash-In Modal */}
       <CashInModal
         isOpen={showCashInModal}
-        onClose={() => setShowCashInModal(false)}
+        onClose={() => {
+          setShowCashInModal(false);
+          setCashInPrefillRfid('');
+        }}
         onSuccess={handleCashInSuccess}
         onRegisterUser={handleRegisterFromCashIn}
+        prefillRfid={cashInPrefillRfid}
       />
     </div>
   );

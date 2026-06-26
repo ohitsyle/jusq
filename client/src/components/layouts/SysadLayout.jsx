@@ -4,6 +4,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
+import { Home, Users, CreditCard, ClipboardList, MessageSquare, Settings } from 'lucide-react';
 import SysadHeader from './SysadHeader';
 import Footer from './Footer';
 import api from '../../utils/api';
@@ -37,16 +38,16 @@ export default function SysadLayout({ children }) {
 
   // Main tabs for System Admin
   const mainTabs = [
-    { path: '/admin/sysad/dashboard', icon: '🏠', label: 'Home' },
-    { path: '/admin/sysad/users', icon: '👥', label: 'Manage Users' },
-    { path: '/admin/sysad/transfer-card', icon: '💳', label: 'Transfer Card' },
+    { path: '/admin/sysad/dashboard', icon: Home, label: 'Home' },
+    { path: '/admin/sysad/users', icon: Users, label: 'Manage Users' },
+    { path: '/admin/sysad/transfer-card', icon: CreditCard, label: 'Transfer Card' },
   ];
 
   // System tabs
   const systemTabs = [
-    { path: '/admin/sysad/logs', icon: '📋', label: 'Logs' },
-    { path: '/admin/sysad/concerns', icon: '💬', label: 'Concerns' },
-    { path: '/admin/sysad/config', icon: '⚙️', label: 'Settings' },
+    { path: '/admin/sysad/logs', icon: ClipboardList, label: 'Logs' },
+    { path: '/admin/sysad/concerns', icon: MessageSquare, label: 'Concerns' },
+    { path: '/admin/sysad/config', icon: Settings, label: 'Settings' },
   ];
 
   return (
@@ -108,7 +109,7 @@ export default function SysadLayout({ children }) {
                   }
                 }}
               >
-                <span className={`text-base transition-transform duration-300 ${isActive ? 'scale-110' : ''}`}>{tab.icon}</span>
+                <span className={`text-base transition-transform duration-300 ${isActive ? 'scale-110' : ''}`}><tab.icon className="w-[18px] h-[18px]" /></span>
                 <span>{tab.label}</span>
               </button>
             );
@@ -146,7 +147,7 @@ export default function SysadLayout({ children }) {
                   }
                 }}
               >
-                <span className={`text-sm transition-transform duration-300 ${isActive ? 'scale-110' : ''}`}>{tab.icon}</span>
+                <span className={`text-sm transition-transform duration-300 ${isActive ? 'scale-110' : ''}`}><tab.icon className="w-[18px] h-[18px]" /></span>
                 <span>{tab.label}</span>
               </button>
             );

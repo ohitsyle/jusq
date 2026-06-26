@@ -21,16 +21,9 @@ export default function DeactivateAccountModal({ visible, onClose, userEmail, us
   const [loading, setLoading] = useState(false);
 
   const handleSendOtp = async () => {
-    if (!userEmail) {
-      Alert.alert('Error', 'User email not found');
-      return;
-    }
-
     try {
       setLoading(true);
-      const { data } = await api.post('/auth/send-reset-otp', {
-        email: userEmail
-      });
+      const { data } = await api.post('/user/send-deactivation-otp');
 
       if (data.success) {
         Alert.alert('Success', 'OTP sent to your email!');
@@ -39,7 +32,7 @@ export default function DeactivateAccountModal({ visible, onClose, userEmail, us
         Alert.alert('Error', data.message || 'Failed to send OTP');
       }
     } catch (error) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to send OTP');
+      Alert.alert('Error', error.response?.data?.error || error.response?.data?.message || 'Failed to send OTP');
     } finally {
       setLoading(false);
     }
@@ -71,21 +64,9 @@ export default function DeactivateAccountModal({ visible, onClose, userEmail, us
             try {
               setLoading(true);
 
-              // Verify OTP first
-              const verifyRes = await api.post('/auth/verify-reset-otp', {
-                email: userEmail,
-                otp
-              });
-
-              if (!verifyRes.data.success) {
-                Alert.alert('Error', 'Invalid or expired OTP');
-                return;
-              }
-
-              // Deactivate account
-              const { data } = await api.post('/user/deactivate', {
-                pin,
-                email: userEmail,
+              // The server verifies the OTP and deactivates in one call
+              // (matches /user/deactivate-account contract).
+              const { data } = await api.post('/user/deactivate-account', {
                 otp
               });
 
@@ -108,7 +89,7 @@ export default function DeactivateAccountModal({ visible, onClose, userEmail, us
                 Alert.alert('Error', data.message || 'Failed to deactivate account');
               }
             } catch (error) {
-              Alert.alert('Error', error.response?.data?.message || 'Failed to deactivate account');
+              Alert.alert('Error', error.response?.data?.error || error.response?.data?.message || 'Failed to deactivate account');
             } finally {
               setLoading(false);
             }

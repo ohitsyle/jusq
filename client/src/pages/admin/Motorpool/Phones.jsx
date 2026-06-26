@@ -1,5 +1,6 @@
 // src/admin/components/Phones/PhonesList.jsx
 import React, { useState, useEffect } from 'react';
+import { Smartphone } from 'lucide-react';
 import api from '../../../utils/api';
 import SearchBar from '../../../components/shared/SearchBar';
 import ExportButton from '../../../components/shared/ExportButton';
@@ -238,7 +239,7 @@ export default function PhonesList() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
           <div>
             <h2 className="text-2xl font-bold m-0 mb-2 flex items-center gap-[10px]" style={{ color: theme.accent.primary }}>
-              <span>📱</span> Phone Inventory
+              <Smartphone className="w-5 h-5" /> Phone Inventory
             </h2>
             <p className="text-[13px] m-0" style={{ color: theme.text.secondary }}>
               {searchQuery
@@ -261,13 +262,15 @@ export default function PhonesList() {
             + Add Phone
           </button>
         </div>
-        <div className="flex gap-3 items-center">
-          <SearchBar
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder="Search by phone ID, model, serial, or driver..."
-          />
-          <ExportButton onClick={handleExport} disabled={filteredPhones.length === 0} />
+        <div className="rounded-xl border-2 p-4" style={{ background: isDarkMode ? 'rgba(15,18,39,0.8)' : theme.bg.card, borderColor: theme.accent.primary }}>
+          <div className="flex gap-3 items-center flex-wrap">
+            <SearchBar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Search by phone ID, model, serial, or driver..."
+            />
+            <ExportButton onClick={handleExport} disabled={filteredPhones.length === 0} />
+          </div>
         </div>
       </div>
 
@@ -506,7 +509,7 @@ export default function PhonesList() {
             <form onSubmit={handleSubmit} style={{ padding: '24px' }}>
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', fontWeight: 700, color: theme.accent.primary, textTransform: 'uppercase' }}>
-                  Phone ID {!editingPhone && <span style={{ fontSize: '11px', color: 'rgba(251,251,251,0.5)', fontWeight: 400 }}>(Auto-generated)</span>}
+                  Phone ID {!editingPhone && <span style={{ fontSize: '11px', color: theme.text.tertiary, fontWeight: 400 }}>(Auto-generated)</span>}
                 </label>
                 <input 
                   type="text" 

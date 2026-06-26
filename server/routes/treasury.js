@@ -11,9 +11,13 @@ import { logAdminAction, logCashIn, logAutoExportConfigChange, logManualExport }
 import { sendTemporaryPIN, sendConcernInProgressEmail, sendConcernResolvedEmail } from '../services/emailService.js';
 import { convertRfidToHexLittleEndian, validateRfidFormat } from '../utils/rfidConverter.js';
 import { extractAdminInfo } from '../middlewares/extractAdminInfo.js';
+import { requireAdminAuthForMutations } from '../middlewares/requireAdminAuth.js';
 
 // Apply admin info extraction middleware to all treasury routes
 router.use(extractAdminInfo);
+// Require a valid admin JWT for any state-changing request (cash-in, refund,
+// register, merchant status, config changes). GET reads stay open.
+router.use(requireAdminAuthForMutations);
 
 // ============================================================
 // DASHBOARD ENDPOINT
@@ -122,56 +126,6 @@ router.get('/dashboard', async (req, res) => {
 // ============================================================
 // DEBUG ENDPOINT (REMOVE AFTER TESTING)
 // ============================================================
-
-/**
- * GET /api/admin/treasury/debug/today-transactions
- * Debug endpoint to see all today's transactions and their status
- */
-router.get('/debug/today-transactions', async (req, res) => {
-  try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const allCredits = await Transaction.find({
-      transactionType: 'credit',
-      createdAt: { $gte: today }
-    }).select('transactionId amount status createdAt').lean();
-
-    const completedCredits = await Transaction.find({
-      transactionType: 'credit',
-      createdAt: { $gte: today },
-      status: { $nin: ['Failed', 'Refunded'] }
-    }).select('transactionId amount status createdAt').lean();
-
-    const refundedCredits = await Transaction.find({
-      transactionType: 'credit',
-      createdAt: { $gte: today },
-      status: 'Refunded'
-    }).select('transactionId amount status createdAt').lean();
-
-    res.json({
-      summary: {
-        allCreditsCount: allCredits.length,
-        allCreditsTotal: allCredits.reduce((sum, tx) => sum + tx.amount, 0),
-        completedCount: completedCredits.length,
-        completedTotal: completedCredits.reduce((sum, tx) => sum + tx.amount, 0),
-        refundedCount: refundedCredits.length,
-        refundedTotal: refundedCredits.reduce((sum, tx) => sum + tx.amount, 0)
-      },
-      details: {
-        allCredits,
-        completedCredits,
-        refundedCredits
-      }
-    });
-  } catch (error) {
-    console.error('❌ Debug endpoint error:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-});
 
 // ============================================================
 // ANALYTICS ENDPOINTS
@@ -540,7 +494,8 @@ router.get('/search-user/:rfid', async (req, res) => {
     }
 
     // Find user by RFID - don't filter by isActive, let client handle that
-    const user = await User.findOne({ rfidUId: rfid });
+    // Canonicalize so a raw or already-converted RFID both match what's stored.
+    const user = await User.findOne({ rfidUId: convertRfidToHexLittleEndian(rfid) });
 
     if (!user) {
       return res.status(404).json({
@@ -590,7 +545,8 @@ router.get('/users/search-rfid', async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ rfidUId });
+    // Canonicalize so a raw or already-converted RFID both match what's stored.
+    const user = await User.findOne({ rfidUId: convertRfidToHexLittleEndian(rfidUId) });
 
     if (!user) {
       return res.status(404).json({
@@ -645,7 +601,8 @@ router.post('/cash-in', async (req, res) => {
     if (userId) {
       user = await User.findOne({ userId });
     } else if (rfid) {
-      user = await User.findOne({ rfidUId: rfid });
+      // Canonicalize so a raw or already-converted RFID both match what's stored.
+      user = await User.findOne({ rfidUId: convertRfidToHexLittleEndian(rfid) });
     }
 
     if (!user) {
@@ -1703,20 +1660,12 @@ router.get('/concerns', async (req, res) => {
   }
 });
 
-router.use((req, res, next) => {
-  console.log('HIT TREASURY ROUTER:', req.method, req.originalUrl);
-  next();
-});
-
 /**
  * POST /api/admin/treasury/concerns/:id/note
  * Send a note to a concern
  */
 router.post('/concerns/:id/note', async (req, res) => {
-  console.log('\n========== NOTE REQUEST START ==========');
-  console.log('📝 Request body:', req.body);
-  console.log('📝 Concern ID:', req.params.id);
-  
+
   try {
     const { note, adminName } = req.body;
     const concernId = req.params.id;

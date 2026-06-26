@@ -41,7 +41,7 @@ const maskRfid = (rfid) => {
   return '****' + rfid.slice(-4);
 };
 
-export default function RegisterUserModal({ isOpen, onClose, onSuccess, prefillRfid = '' }) {
+export default function RegisterUserModal({ isOpen, onClose, onSuccess, prefillRfid = '', onSwitchToCashIn }) {
   const { theme, isDarkMode } = useTheme();
   const [step, setStep] = useState(1); // 1: RFID Scan, 2: User Details, 3: Summary, 4: Success
   const [loading, setLoading] = useState(false);
@@ -51,6 +51,8 @@ export default function RegisterUserModal({ isOpen, onClose, onSuccess, prefillR
   // Store the normalized RFID separately from the input
   const [rfidInput, setRfidInput] = useState('');
   const [normalizedRfid, setNormalizedRfid] = useState('');
+  const [rfidError, setRfidError] = useState('');
+  const [rfidTaken, setRfidTaken] = useState(false);
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -85,6 +87,8 @@ export default function RegisterUserModal({ isOpen, onClose, onSuccess, prefillR
     setStep(1);
     setRfidInput('');
     setNormalizedRfid('');
+    setRfidError('');
+    setRfidTaken(false);
     setFormData({
       firstName: '',
       middleName: '',
@@ -107,12 +111,23 @@ export default function RegisterUserModal({ isOpen, onClose, onSuccess, prefillR
   const handleRfidChange = (e) => {
     const value = e.target.value.toUpperCase();
     setRfidInput(value);
+    if (rfidError) setRfidError('');
+    if (rfidTaken) setRfidTaken(false);
+  };
+
+  // Switch to the cash-in flow for an already-registered user
+  const handleCashInInstead = () => {
+    const hexRfid = normalizeRfidHex(rfidInput.trim());
+    if (onSwitchToCashIn) onSwitchToCashIn(hexRfid);
+    resetForm();
   };
 
   // Check if RFID is already registered
   const handleRfidCheck = async () => {
+    setRfidError('');
+    setRfidTaken(false);
     if (!rfidInput.trim()) {
-      toast.error('Please scan or enter RFID');
+      setRfidError('Please scan or enter an RFID tag');
       return;
     }
 
@@ -125,7 +140,10 @@ export default function RegisterUserModal({ isOpen, onClose, onSuccess, prefillR
       const response = await api.get(`/admin/treasury/users/check-rfid?rfidUId=${hexRfid}`);
 
       if (!response.available) {
-        toast.error('This RFID is already registered to another user');
+        // Show the error INLINE in the modal and stay on step 1 — do not
+        // close the modal or redirect anywhere. Offer to cash-in instead.
+        setRfidError('This RFID is already registered to another user.');
+        setRfidTaken(true);
         setChecking(false);
         return;
       }
@@ -135,7 +153,7 @@ export default function RegisterUserModal({ isOpen, onClose, onSuccess, prefillR
       setStep(2);
     } catch (error) {
       console.error('RFID check error:', error);
-      toast.error(error.message || 'Error checking RFID');
+      setRfidError(error.message || 'Error checking RFID. Please try again.');
     } finally {
       setChecking(false);
     }
@@ -391,10 +409,50 @@ export default function RegisterUserModal({ isOpen, onClose, onSuccess, prefillR
                   className="w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-yellow-400/50 font-mono text-lg tracking-wider"
                   autoComplete="off"
                 />
-                {rfidInput && (
+                {rfidInput && !rfidError && (
                   <p style={{ color: theme.text.tertiary }} className="text-xs mt-2">
                     Will be stored as: <span className="font-mono">{normalizeRfidHex(rfidInput)}</span>
                   </p>
+                )}
+                {rfidError && (
+                  <div
+                    style={{
+                      marginTop: '12px',
+                      padding: '10px 14px',
+                      background: 'rgba(239,68,68,0.12)',
+                      border: '1px solid rgba(239,68,68,0.35)',
+                      borderRadius: '10px',
+                      color: '#EF4444',
+                      fontSize: '13px',
+                      fontWeight: 600
+                    }}
+                    className="flex items-center gap-2"
+                  >
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    <span>{rfidError}</span>
+                  </div>
+                )}
+                {rfidTaken && onSwitchToCashIn && (
+                  <button
+                    type="button"
+                    onClick={handleCashInInstead}
+                    style={{
+                      marginTop: '10px',
+                      width: '100%',
+                      padding: '10px 14px',
+                      background: 'rgba(16,185,129,0.15)',
+                      border: '1px solid rgba(16,185,129,0.35)',
+                      borderRadius: '10px',
+                      color: '#10B981',
+                      fontSize: '13px',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                    className="flex items-center justify-center gap-2 hover:opacity-80 transition-all"
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    <span>Cash-In for this user instead →</span>
+                  </button>
                 )}
               </div>
 

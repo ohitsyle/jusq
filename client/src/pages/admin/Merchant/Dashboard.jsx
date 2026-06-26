@@ -2,6 +2,7 @@
 // Main dashboard - Matches Treasury/Sysad admin design pattern (buttons open modals directly)
 
 import React, { useState, useEffect, useRef } from 'react';
+import { Home, Smartphone, Store } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 
@@ -55,7 +56,7 @@ export default function Dashboard() {
       {/* Header */}
       <div style={{ borderColor: theme.border.primary }} className="mb-6 border-b-2 pb-5">
         <h2 style={{ color: theme.accent.primary }} className="text-2xl font-bold m-0 mb-2 flex items-center gap-[10px]">
-          <span>🏠</span> Merchant Home
+          <Home className="w-5 h-5" /> Merchant Home
         </h2>
         <p style={{ color: theme.text.secondary }} className="text-[13px] m-0">
           Merchant management and monitoring dashboard • Auto-updates every 5 seconds
@@ -325,7 +326,7 @@ function DashboardAddMerchantModal({ theme, isDarkMode, onClose, onSuccess }) {
         {/* Modal Header */}
         <div style={{ borderColor: theme.border.primary }} className="p-6 border-b flex justify-between items-center">
           <h3 style={{ color: theme.accent.primary }} className="text-xl font-bold m-0 flex items-center gap-2">
-            <span>🏪</span> Add New Merchant
+            <Store className="w-5 h-5" /> Add New Merchant
           </h3>
           <button
             onClick={onClose}
@@ -554,7 +555,7 @@ function DashboardAddPhoneModal({ theme, isDarkMode, onClose, onSuccess }) {
         {/* Modal Header */}
         <div style={{ borderColor: theme.border.primary }} className="p-6 border-b-2 flex justify-between items-center">
           <h3 style={{ color: theme.accent.primary }} className="text-xl font-bold m-0 flex items-center gap-2">
-            <span>📱</span> Add New Phone
+            <Smartphone className="w-5 h-5" /> Add New Phone
           </h3>
           <button
             onClick={onClose}

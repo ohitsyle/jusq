@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
+import { ClipboardList, Home, MessageSquare, Settings, Smartphone, Store } from 'lucide-react';
 import MerchantHeader from './MerchantHeader';
 import Footer from './Footer';
 import api from '../../utils/api';
@@ -30,16 +31,16 @@ export default function MerchantLayout({ children }) {
 
   // Merchant tabs
   const merchantTabs = [
-    { path: '/admin/merchant', icon: '🏠', label: 'Home' },
-    { path: '/admin/merchant/merchants', icon: '🏪', label: 'Merchants' },
-    { path: '/admin/merchant/phones', icon: '📱', label: 'Phones' },
+    { path: '/admin/merchant', icon: Home, label: 'Home' },
+    { path: '/admin/merchant/merchants', icon: Store, label: 'Merchants' },
+    { path: '/admin/merchant/phones', icon: Smartphone, label: 'Phones' },
   ];
 
   // System tabs (shared with admin)
   const systemTabs = [
-    { path: '/admin/merchant/logs', icon: '📋', label: 'Logs' },
-    { path: '/admin/merchant/concerns', icon: '💬', label: 'Concerns' },
-    { path: '/admin/merchant/configurations', icon: '⚙️', label: 'Settings' },
+    { path: '/admin/merchant/logs', icon: ClipboardList, label: 'Logs' },
+    { path: '/admin/merchant/concerns', icon: MessageSquare, label: 'Concerns' },
+    { path: '/admin/merchant/configurations', icon: Settings, label: 'Settings' },
   ];
 
   return (
@@ -101,7 +102,7 @@ export default function MerchantLayout({ children }) {
                   }
                 }}
               >
-                <span className={`text-base transition-transform duration-300 ${isActive ? 'scale-110' : ''}`}>{tab.icon}</span>
+                <span className={`text-base transition-transform duration-300 ${isActive ? 'scale-110' : ''}`}><tab.icon className="w-[18px] h-[18px]" /></span>
                 <span>{tab.label}</span>
               </button>
             );
@@ -139,7 +140,7 @@ export default function MerchantLayout({ children }) {
                   }
                 }}
               >
-                <span className={`text-sm transition-transform duration-300 ${isActive ? 'scale-110' : ''}`}>{tab.icon}</span>
+                <span className={`text-sm transition-transform duration-300 ${isActive ? 'scale-110' : ''}`}><tab.icon className="w-[18px] h-[18px]" /></span>
                 <span>{tab.label}</span>
               </button>
             );

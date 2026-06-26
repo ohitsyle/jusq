@@ -646,9 +646,9 @@ export default function TransferCard() {
   };
 
   const handleTransferModalClose = () => {
+    // currentStep / newRfid are local to TransferModal and reset on remount —
+    // referencing them here previously threw a ReferenceError on close.
     setShowTransferModal(false);
-    setCurrentStep(1);
-    setNewRfid('');
     setSelectedUser(null);
     // Refresh users list after successful transfer
     loadUsers(true);
@@ -874,12 +874,12 @@ export default function TransferCard() {
                                 color: '#10B981',
                                 borderColor: 'rgba(16,185,129,0.3)'
                               }}
-                              className="px-3 py-1.5 rounded-lg hover:opacity-80 transition-all text-xs font-semibold border disabled:cursor-not-allowed disabled:opacity-50"
+                              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg hover:opacity-80 transition-all text-xs font-semibold border disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap"
                             >
                               {transferring ? (
-                                <Loader2 className="w-3 h-3 animate-spin" />
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
                               ) : (
-                                <ArrowRight className="w-3 h-3" />
+                                <ArrowRight className="w-3.5 h-3.5" />
                               )}
                               Transfer
                             </button>

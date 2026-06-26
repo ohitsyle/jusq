@@ -1,5 +1,6 @@
 // src/pages/admin/Treasury/RegistrationForm.jsx
 import React, { useState, useRef } from 'react';
+import { FileText, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
@@ -189,7 +190,7 @@ export default function RegistrationForm() {
       {/* Header */}
       <div style={{ borderColor: theme.border.primary }} className="mb-[30px] border-b-2 pb-5">
         <h2 style={{ color: theme.accent.primary }} className="text-2xl font-bold m-0 mb-2 flex items-center gap-[10px]">
-          <span>📝</span> Register User
+          <FileText className="w-5 h-5" /> Register User
         </h2>
         <p style={{ color: theme.text.secondary }} className="text-[13px] m-0">
           Create a new NUCash account for a student or employee
@@ -313,7 +314,7 @@ export default function RegistrationForm() {
         {/* Right Column - Role & PIN */}
         <div style={{ background: theme.bg.card, borderColor: theme.border.primary }} className="p-6 rounded-2xl border">
           <h3 style={{ color: theme.text.primary }} className="text-lg font-bold mb-4 flex items-center gap-2">
-            <span>⚙️</span> Account Settings
+            <Settings className="w-5 h-5" /> Account Settings
           </h3>
 
           {/* User Role */}

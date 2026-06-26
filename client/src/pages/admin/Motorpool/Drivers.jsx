@@ -1,5 +1,6 @@
 // src/admin/components/Drivers/DriversList.jsx
 import React, { useState, useEffect } from 'react';
+import { Users } from 'lucide-react';
 import api from '../../../utils/api';
 import SearchBar from '../../../components/shared/SearchBar';
 import ExportButton from '../../../components/shared/ExportButton';
@@ -293,7 +294,7 @@ export default function DriversList() {
         <div className="flex justify-between items-center mb-5">
           <div>
             <h2 className="text-2xl font-bold m-0 mb-2 flex items-center gap-[10px]" style={{ color: theme.accent.primary }}>
-              <span>👥</span> Driver Management
+              <Users className="w-5 h-5" /> Driver Management
             </h2>
             <p className="text-[13px] m-0" style={{ color: theme.text.secondary }}>
               {filteredDrivers.length > 0
@@ -319,20 +320,22 @@ export default function DriversList() {
         </div>
 
         {/* Search and Export Row */}
-        <div className="flex gap-3 items-center">
-          <SearchBar
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder="Search by name, ID, email, or shuttle..."
-          />
-          <ExportButton onClick={handleExport} disabled={filteredDrivers.length === 0} />
+        <div className="rounded-xl border-2 p-4" style={{ background: isDarkMode ? 'rgba(15,18,39,0.8)' : theme.bg.card, borderColor: theme.accent.primary }}>
+          <div className="flex gap-3 items-center flex-wrap">
+            <SearchBar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Search by name, ID, email, or shuttle..."
+            />
+            <ExportButton onClick={handleExport} disabled={filteredDrivers.length === 0} />
+          </div>
         </div>
       </div>
 
       {/* Table - Scrollable Area */}
       <div className="flex-1 overflow-y-auto pr-2">
       {filteredDrivers.length === 0 ? (
-        <div className="text-center py-[60px] text-[rgba(251,251,251,0.5)]">
+        <div className="text-center py-[60px]" style={{ color: theme.text.tertiary }}>
           <div className="text-5xl mb-4">📋</div>
           <div>{searchQuery ? 'No drivers match your search' : 'No drivers found'}</div>
           {searchQuery && (
@@ -445,7 +448,7 @@ export default function DriversList() {
                   background: currentPage === 1 ? (isDarkMode ? 'rgba(255,212,28,0.1)' : 'rgba(59,130,246,0.1)') : (isDarkMode ? 'rgba(255,212,28,0.2)' : 'rgba(59,130,246,0.2)'),
                   border: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}`,
                   borderRadius: '8px',
-                  color: currentPage === 1 ? 'rgba(251,251,251,0.3)' : theme.accent.primary,
+                  color: currentPage === 1 ? theme.text.tertiary : theme.accent.primary,
                   fontSize: '13px',
                   fontWeight: 600,
                   cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
@@ -453,7 +456,7 @@ export default function DriversList() {
               >
                 ← Previous
               </button>
-              <span style={{ color: 'rgba(251,251,251,0.7)', fontSize: '13px', fontWeight: 600 }}>
+              <span style={{ color: theme.text.secondary, fontSize: '13px', fontWeight: 600 }}>
                 Page {currentPage} of {totalPages}
               </span>
               <button
@@ -464,7 +467,7 @@ export default function DriversList() {
                   background: currentPage === totalPages ? (isDarkMode ? 'rgba(255,212,28,0.1)' : 'rgba(59,130,246,0.1)') : (isDarkMode ? 'rgba(255,212,28,0.2)' : 'rgba(59,130,246,0.2)'),
                   border: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}`,
                   borderRadius: '8px',
-                  color: currentPage === totalPages ? 'rgba(251,251,251,0.3)' : theme.accent.primary,
+                  color: currentPage === totalPages ? theme.text.tertiary : theme.accent.primary,
                   fontSize: '13px',
                   fontWeight: 600,
                   cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'
@@ -495,7 +498,7 @@ export default function DriversList() {
           animation: 'fadeIn 0.2s ease'
         }}>
           <div onClick={(e) => e.stopPropagation()} style={{
-            background: 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)',
+            background: isDarkMode ? 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)' : '#FFFFFF',
             borderRadius: '16px',
             maxWidth: '600px',
             width: '90%',
@@ -535,7 +538,7 @@ export default function DriversList() {
             <form onSubmit={handleSubmit} style={{ padding: '24px' }}>
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', fontWeight: 700, color: theme.accent.primary, textTransform: 'uppercase' }}>
-                  Driver ID {!editingDriver && <span style={{ fontSize: '11px', color: 'rgba(251,251,251,0.5)', fontWeight: 400 }}>(Auto-generated)</span>}
+                  Driver ID {!editingDriver && <span style={{ fontSize: '11px', color: theme.text.tertiary, fontWeight: 400 }}>(Auto-generated)</span>}
                 </label>
                 <input type="text" name="driverId" value={formData.driverId} disabled style={{
                   width: '100%',
@@ -543,7 +546,7 @@ export default function DriversList() {
                   border: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.2)' : 'rgba(59,130,246,0.2)'}`,
                   borderRadius: '8px',
                   background: 'rgba(100,100,100,0.2)',
-                  color: 'rgba(251,251,251,0.5)',
+                  color: theme.text.tertiary,
                   fontSize: '14px',
                   boxSizing: 'border-box',
                   cursor: 'not-allowed'
@@ -558,8 +561,8 @@ export default function DriversList() {
                     padding: '12px',
                     border: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}`,
                     borderRadius: '8px',
-                    background: 'rgba(251,251,251,0.05)',
-                    color: 'rgba(251,251,251,0.9)',
+                    background: isDarkMode ? 'rgba(251,251,251,0.05)' : 'rgba(0,0,0,0.04)',
+                    color: theme.text.primary,
                     fontSize: '14px',
                     boxSizing: 'border-box'
                   }} />
@@ -571,8 +574,8 @@ export default function DriversList() {
                     padding: '12px',
                     border: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}`,
                     borderRadius: '8px',
-                    background: 'rgba(251,251,251,0.05)',
-                    color: 'rgba(251,251,251,0.9)',
+                    background: isDarkMode ? 'rgba(251,251,251,0.05)' : 'rgba(0,0,0,0.04)',
+                    color: theme.text.primary,
                     fontSize: '14px',
                     boxSizing: 'border-box'
                   }} />
@@ -584,8 +587,8 @@ export default function DriversList() {
                     padding: '12px',
                     border: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}`,
                     borderRadius: '8px',
-                    background: 'rgba(251,251,251,0.05)',
-                    color: 'rgba(251,251,251,0.9)',
+                    background: isDarkMode ? 'rgba(251,251,251,0.05)' : 'rgba(0,0,0,0.04)',
+                    color: theme.text.primary,
                     fontSize: '14px',
                     boxSizing: 'border-box',
                     textAlign: 'center',
@@ -601,8 +604,8 @@ export default function DriversList() {
                   padding: '12px',
                   border: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}`,
                   borderRadius: '8px',
-                  background: 'rgba(251,251,251,0.05)',
-                  color: 'rgba(251,251,251,0.9)',
+                  background: isDarkMode ? 'rgba(251,251,251,0.05)' : 'rgba(0,0,0,0.04)',
+                  color: theme.text.primary,
                   fontSize: '14px',
                   boxSizing: 'border-box'
                 }} />
@@ -610,7 +613,7 @@ export default function DriversList() {
 
               <div style={{ marginBottom: '24px' }}>
                 <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', fontWeight: 700, color: theme.accent.primary, textTransform: 'uppercase' }}>
-                  6-Digit PIN {editingDriver && <span style={{ fontSize: '11px', color: 'rgba(251,251,251,0.5)', fontWeight: 400 }}>(leave blank to keep current)</span>}
+                  6-Digit PIN {editingDriver && <span style={{ fontSize: '11px', color: theme.text.tertiary, fontWeight: 400 }}>(leave blank to keep current)</span>}
                 </label>
                 <input
                   type="text"
@@ -626,8 +629,8 @@ export default function DriversList() {
                     padding: '12px',
                     border: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}`,
                     borderRadius: '8px',
-                    background: 'rgba(251,251,251,0.05)',
-                    color: 'rgba(251,251,251,0.9)',
+                    background: isDarkMode ? 'rgba(251,251,251,0.05)' : 'rgba(0,0,0,0.04)',
+                    color: theme.text.primary,
                     fontSize: '18px',
                     boxSizing: 'border-box',
                     letterSpacing: '8px',
@@ -635,7 +638,7 @@ export default function DriversList() {
                     fontWeight: 700
                   }}
                 />
-                <p style={{ fontSize: '11px', color: 'rgba(251,251,251,0.5)', marginTop: '8px', marginBottom: 0 }}>
+                <p style={{ fontSize: '11px', color: theme.text.tertiary, marginTop: '8px', marginBottom: 0 }}>
                   Numbers only, exactly 6 digits
                 </p>
               </div>
@@ -657,8 +660,8 @@ export default function DriversList() {
                     padding: '12px',
                     border: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}`,
                     borderRadius: '8px',
-                    background: 'rgba(251,251,251,0.05)',
-                    color: 'rgba(251,251,251,0.9)',
+                    background: isDarkMode ? 'rgba(251,251,251,0.05)' : 'rgba(0,0,0,0.04)',
+                    color: theme.text.primary,
                     fontSize: '14px',
                     boxSizing: 'border-box'
                   }}
@@ -681,8 +684,8 @@ export default function DriversList() {
                     padding: '12px',
                     border: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}`,
                     borderRadius: '8px',
-                    background: 'rgba(251,251,251,0.05)',
-                    color: 'rgba(251,251,251,0.9)',
+                    background: isDarkMode ? 'rgba(251,251,251,0.05)' : 'rgba(0,0,0,0.04)',
+                    color: theme.text.primary,
                     fontSize: '14px',
                     boxSizing: 'border-box',
                     colorScheme: 'dark'
@@ -694,9 +697,9 @@ export default function DriversList() {
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', paddingTop: '20px', borderTop: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.2)' : 'rgba(59,130,246,0.2)'}` }}>
                 <button type="button" onClick={() => setIsModalOpen(false)} style={{
                   padding: '12px 24px',
-                  background: 'rgba(251,251,251,0.1)',
-                  color: 'rgba(251,251,251,0.7)',
-                  border: '1px solid rgba(251,251,251,0.2)',
+                  background: (isDarkMode ? 'rgba(251,251,251,0.1)' : 'rgba(0,0,0,0.06)'),
+                  color: theme.text.secondary,
+                  border: (isDarkMode ? '1px solid rgba(251,251,251,0.2)' : '1px solid rgba(0,0,0,0.12)'),
                   borderRadius: '8px',
                   fontSize: '14px',
                   fontWeight: 600,

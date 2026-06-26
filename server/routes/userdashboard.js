@@ -129,7 +129,7 @@ const verifyUserToken = async (req, res, next) => {
 
     // Get user from database
     const User = (await import('../models/User.js')).default;
-    const user = await User.findOne({ email: decoded.email });
+    const user = await User.findById(decoded.id);
 
     if (!user) {
       return res.status(401).json({ error: 'User not found' });
@@ -327,7 +327,8 @@ router.get('/profile', verifyUserToken, async (req, res) => {
       email: user.email,
       role: user.role,
       balance: user.balance,
-      isActive: user.isActive
+      isActive: user.isActive,
+      pinChangedAt: user.pinChangedAt || null
     });
   } catch (error) {
     console.error('Error fetching profile:', error);
@@ -663,6 +664,7 @@ router.post('/change-pin', verifyUserToken, async (req, res) => {
     // OTP is valid, change the PIN
     const salt = await bcrypt.genSalt(10);
     user.pin = await bcrypt.hash(storedData.newPin, salt);
+    user.pinChangedAt = new Date();
     await user.save();
 
     // Clear OTP

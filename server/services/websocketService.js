@@ -18,7 +18,7 @@ class WebSocketService {
         origin: [
           'http://localhost:5173',
           'http://localhost:3000',
-          'http://18.166.29.239:3000',
+          'http://localhost:3000',
           'http://172.20.10.2:3000'
         ],
         methods: ['GET', 'POST'],

@@ -77,6 +77,12 @@ const UserSchema = new mongoose.Schema({
     required: [true, 'PIN is required']
   },
 
+  // When the user last changed their PIN (null = never changed since registration)
+  pinChangedAt: {
+    type: Date,
+    default: null
+  },
+
   // Financial
   balance: {
     type: Number,

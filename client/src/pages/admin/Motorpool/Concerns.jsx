@@ -9,7 +9,7 @@ import StatusFilter from '../../../components/shared/StatusFilter';
 import DateRangeFilter from '../../../components/shared/DateRangeFilter';
 import ExportButton from '../../../components/shared/ExportButton';
 import { exportToCSV } from '../../../utils/csvExport';
-import { Clock, Loader2, CheckCircle } from 'lucide-react';
+import { Clock, Loader2, CheckCircle, Bus } from 'lucide-react';
 
 export default function MotorpoolConcerns() {
   const { theme, isDarkMode } = useTheme();
@@ -205,7 +205,11 @@ export default function MotorpoolConcerns() {
       Rating: c.rating || '',
       Date: c.submittedAt || c.createdAt ? new Date(c.submittedAt || c.createdAt).toLocaleDateString() : ''
     }));
-    exportToCSV(dataToExport, 'motorpool_concerns');
+    const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+
+    const exportMeta = { adminName: adminData.firstName ? `${adminData.firstName} ${adminData.lastName || ''}`.trim() : 'Admin', department: adminData.role ? adminData.role.charAt(0).toUpperCase() + adminData.role.slice(1) : undefined };
+
+    exportToCSV(dataToExport, 'motorpool_concerns', { ...exportMeta, title: 'Concerns & Feedback Report' });
   };
 
   // Filter concerns
@@ -253,6 +257,17 @@ export default function MotorpoolConcerns() {
       default: return theme.text.secondary;
     }
   };
+
+  // Feedback isn't an actionable concern, so it shouldn't show "Pending" —
+  // show "Received" until it's responded to/resolved.
+  const getStatusDisplay = (concern) => {
+    const isFeedback = concern.submissionType === 'feedback';
+    if (isFeedback && (!concern.status || concern.status === 'pending')) {
+      return { label: 'Received', color: '#06B6D4' };
+    }
+    return { label: (concern.status || 'pending').replace('_', ' '), color: getStatusColor(concern.status) };
+  };
+
 
   // Aging system - matches Sysad style
   const calculateAging = (concern) => {
@@ -307,7 +322,7 @@ export default function MotorpoolConcerns() {
       {/* Header */}
       <div style={{ borderColor: theme.border.primary }} className="mb-6 border-b-2 pb-5">
         <h2 style={{ color: theme.accent.primary }} className="text-2xl font-bold m-0 mb-2 flex items-center gap-[10px]">
-          <span>🚐</span> Concerns & Feedback
+          <Bus className="w-5 h-5" /> Concerns & Feedback
         </h2>
         <p style={{ color: theme.text.secondary }} className="text-[13px] m-0">
           {filteredConcerns.length > 0
@@ -473,8 +488,8 @@ export default function MotorpoolConcerns() {
                         </td>
                       ) : (
                         <td className="p-4">
-                          <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '20px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', background: `${getStatusColor(concern.status)}20`, color: getStatusColor(concern.status) }}>
-                            {concern.status?.replace('_', ' ') || 'Pending'}
+                          <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '20px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', background: `${getStatusDisplay(concern).color}20`, color: getStatusDisplay(concern).color }}>
+                            {getStatusDisplay(concern).label}
                           </span>
                         </td>
                       )}
@@ -538,8 +553,8 @@ export default function MotorpoolConcerns() {
             {/* Header */}
             <div style={{ padding: '24px', borderBottom: `2px solid ${theme.border.primary}`, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
-                <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '20px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', background: `${getStatusColor(selectedConcern.status)}20`, color: getStatusColor(selectedConcern.status), marginBottom: '8px' }}>
-                  {selectedConcern.status?.replace('_', ' ') || 'Pending'}
+                <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '20px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', background: `${getStatusDisplay(selectedConcern).color}20`, color: getStatusDisplay(selectedConcern).color, marginBottom: '8px' }}>
+                  {getStatusDisplay(selectedConcern).label}
                 </span>
                 <h2 style={{ fontSize: '20px', fontWeight: 700, color: theme.text.primary, margin: 0 }}>
                   {selectedConcern.subject || (selectedConcern.selectedConcerns?.length > 0 ? selectedConcern.selectedConcerns.join(', ') : 'No Subject')}

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
+import { Bus, ClipboardList, Home, Map, MapPin, MessageSquare, Settings, Smartphone, UserRound } from 'lucide-react';
 import MotorpoolHeader from './MotorpoolHeader';
 import Footer from './Footer';
 import api from '../../utils/api';
@@ -30,19 +31,19 @@ export default function AdminLayout({ children }) {
 
   // Motorpool tabs
   const motorpoolTabs = [
-    { path: '/admin/motorpool', icon: '🏠', label: 'Home' },
-    { path: '/admin/motorpool/routes', icon: '🗺️', label: 'Routes' },
-    { path: '/admin/motorpool/drivers', icon: '👨‍✈️', label: 'Drivers' },
-    { path: '/admin/motorpool/shuttles', icon: '🚐', label: 'Shuttles' },
-    { path: '/admin/motorpool/trips', icon: '📍', label: 'Trips' },
-    { path: '/admin/motorpool/phones', icon: '📱', label: 'Phones' },
+    { path: '/admin/motorpool', icon: Home, label: 'Home' },
+    { path: '/admin/motorpool/routes', icon: Map, label: 'Routes' },
+    { path: '/admin/motorpool/drivers', icon: UserRound, label: 'Drivers' },
+    { path: '/admin/motorpool/shuttles', icon: Bus, label: 'Shuttles' },
+    { path: '/admin/motorpool/trips', icon: MapPin, label: 'Trips' },
+    { path: '/admin/motorpool/phones', icon: Smartphone, label: 'Phones' },
   ];
 
   // System tabs
   const systemTabs = [
-    { path: '/admin/logs', icon: '📋', label: 'Logs' },
-    { path: '/admin/motorpool/concerns', icon: '💬', label: 'Concerns' },
-    { path: '/admin/motorpool/configurations', icon: '⚙️', label: 'Settings' },
+    { path: '/admin/logs', icon: ClipboardList, label: 'Logs' },
+    { path: '/admin/motorpool/concerns', icon: MessageSquare, label: 'Concerns' },
+    { path: '/admin/motorpool/configurations', icon: Settings, label: 'Settings' },
   ];
 
   return (
@@ -104,7 +105,7 @@ export default function AdminLayout({ children }) {
                   }
                 }}
               >
-                <span className={`text-base transition-transform duration-300 ${isActive ? 'scale-110' : ''}`}>{tab.icon}</span>
+                <span className={`text-base transition-transform duration-300 ${isActive ? 'scale-110' : ''}`}><tab.icon className="w-[18px] h-[18px]" /></span>
                 <span>{tab.label}</span>
               </button>
             );
@@ -142,7 +143,7 @@ export default function AdminLayout({ children }) {
                   }
                 }}
               >
-                <span className={`text-sm transition-transform duration-300 ${isActive ? 'scale-110' : ''}`}>{tab.icon}</span>
+                <span className={`text-sm transition-transform duration-300 ${isActive ? 'scale-110' : ''}`}><tab.icon className="w-[18px] h-[18px]" /></span>
                 <span>{tab.label}</span>
               </button>
             );

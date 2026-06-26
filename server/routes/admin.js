@@ -914,7 +914,29 @@ router.post('/log-tab-export', async (req, res) => {
 
 router.get('/user-concerns', async (req, res) => {
   try {
-    const concerns = await UserConcern.find().sort({ submittedAt: -1 });
+    // Server-side department isolation. Mirrors each page's existing client
+    // filter so the visible result is unchanged, but the raw API no longer
+    // returns other departments' concerns. Unknown/no role (e.g. the mobile
+    // admin app, which sends no role header) falls through to all — preserving
+    // current behaviour with no breakage.
+    const role = (req.adminRole || req.adminInfo?.adminRole || '').toLowerCase();
+    let filter = {};
+    if (role === 'motorpool') {
+      filter = {
+        $or: [
+          { reportTo: 'NU Shuttle Service' },
+          { reportTo: { $regex: 'motorpool', $options: 'i' } },
+          { reportTo: { $regex: 'shuttle', $options: 'i' } }
+        ]
+      };
+    } else if (role === 'merchant') {
+      filter = { reportTo: 'Merchant Office' };
+    } else if (role === 'accounting' || role === 'treasury') {
+      filter = { reportTo: 'Treasury Office' };
+    }
+    // sysad and unknown roles see everything.
+
+    const concerns = await UserConcern.find(filter).sort({ submittedAt: -1 });
     res.json({ success: true, concerns });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -980,8 +1002,9 @@ router.patch('/user-concerns/:id/status', async (req, res) => {
       { new: true }
     );
 
-    // If not found by concernId, try by _id
-    if (!concern) {
+    // If not found by concernId, try by _id (only if it's a valid ObjectId,
+    // otherwise findById throws a Cast error instead of a clean 404).
+    if (!concern && /^[0-9a-fA-F]{24}$/.test(id)) {
       concern = await UserConcern.findByIdAndUpdate(
         id,
         updateData,

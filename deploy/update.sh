@@ -11,7 +11,7 @@ git push origin main
 
 # Step 2: Update EC2 server
 echo "🔄 Updating EC2 server..."
-ssh -i "/Users/brylle/Downloads/nucash.pem" ubuntu@18.166.29.239 << 'EOF'
+ssh -i "/Users/brylle/Downloads/nucash.pem" ubuntu@54.251.11.39 << 'EOF'
 cd /var/www/nucash
 git pull origin main
 cd server

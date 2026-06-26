@@ -53,7 +53,7 @@ export default function UserConcerns() {
   });
 
   // Stats
-  const pendingCount = concerns.filter(c => c.status === 'pending').length;
+  const pendingCount = concerns.filter(c => c.status === 'pending' && c.submissionType !== 'feedback').length;
   const inProgressCount = concerns.filter(c => c.status === 'in_progress').length;
   const resolvedCount = concerns.filter(c => c.status === 'resolved').length;
 
@@ -73,6 +73,15 @@ export default function UserConcerns() {
       case 'resolved': return <CheckCircle className="w-4 h-4" />;
       default: return <AlertCircle className="w-4 h-4" />;
     }
+  };
+
+  // Feedback isn't an actionable concern, so show "Received" instead of "Pending".
+  const getStatusDisplay = (concern) => {
+    const isFeedback = concern.submissionType === 'feedback';
+    if (isFeedback && (!concern.status || concern.status === 'pending')) {
+      return { label: 'Received', color: '#06B6D4' };
+    }
+    return { label: (concern.status || 'pending').replace('_', ' '), color: getStatusColor(concern.status) };
   };
 
   const formatDate = (dateStr) => {
@@ -236,18 +245,28 @@ export default function UserConcerns() {
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2 flex-wrap">
+                      {/* Type badge — distinguishes feedback from assistance concerns */}
                       <span
                         style={{
-                          background: `${getStatusColor(concern.status)}20`,
-                          color: getStatusColor(concern.status)
+                          background: concern.submissionType === 'feedback' ? 'rgba(16,185,129,0.2)' : 'rgba(59,130,246,0.2)',
+                          color: concern.submissionType === 'feedback' ? '#10B981' : '#3B82F6'
+                        }}
+                        className="px-2 py-1 rounded text-xs font-bold uppercase"
+                      >
+                        {concern.submissionType === 'feedback' ? 'Feedback' : 'Concern'}
+                      </span>
+                      <span
+                        style={{
+                          background: `${getStatusDisplay(concern).color}20`,
+                          color: getStatusDisplay(concern).color
                         }}
                         className="px-2 py-1 rounded text-xs font-semibold capitalize flex items-center gap-1"
                       >
                         {getStatusIcon(concern.status)}
-                        {concern.status?.replace('_', ' ')}
+                        {getStatusDisplay(concern).label}
                       </span>
                       <span style={{ color: theme.text.primary }} className="font-semibold">
-                        {concern.subject || concern.selectedConcerns?.join(', ') || 'No subject'}
+                        {concern.subject || concern.selectedConcerns?.join(', ') || (concern.submissionType === 'feedback' ? 'Feedback' : 'No subject')}
                       </span>
                     </div>
                     <p style={{ color: theme.text.secondary }} className="text-sm line-clamp-1">

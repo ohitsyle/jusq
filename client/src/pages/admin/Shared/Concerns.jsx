@@ -1,6 +1,8 @@
 // src/admin/components/Concerns/ConcernsList.jsx
 // User concerns management matching treasury concerns logic
 import React, { useState, useEffect } from 'react';
+import { AlertTriangle } from 'lucide-react';
+import { useTheme } from '../../../context/ThemeContext';
 import { getConcerns, getConcernDetails, updateConcernStatus } from '../../../services/concernsApi';
 import SearchBar from '../../../components/shared/SearchBar';
 import ExportButton from '../../../components/shared/ExportButton';
@@ -10,6 +12,7 @@ import ConcernDetailModal from '../../../components/modals/ConcernDetailModal';
 import { exportToCSV, prepareDataForExport } from '../../../utils/csvExport';
 
 export default function ConcernsList() {
+    const { theme, isDarkMode } = useTheme();
   const [concerns, setConcerns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [alert, setAlert] = useState(null);
@@ -116,7 +119,11 @@ export default function ConcernsList() {
 
   const handleExport = () => {
     const dataToExport = prepareDataForExport(filteredConcerns);
-    exportToCSV(dataToExport, 'concerns');
+    const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+
+    const exportMeta = { adminName: adminData.firstName ? `${adminData.firstName} ${adminData.lastName || ''}`.trim() : 'Admin', department: adminData.role ? adminData.role.charAt(0).toUpperCase() + adminData.role.slice(1) : undefined };
+
+    exportToCSV(dataToExport, 'concerns', { ...exportMeta, title: 'Concerns & Feedback Report' });
   };
 
   const filteredConcerns = concerns.filter(concern => {
@@ -174,7 +181,7 @@ export default function ConcernsList() {
   }, [searchQuery, statusFilter, priorityFilter, categoryFilter, startDate, endDate, activeTab]);
 
   if (loading) {
-    return <div className="text-center py-[60px] text-[#FFD41C]">Loading concerns...</div>;
+    return <div style={{ color: theme.accent.primary }} className="text-center py-[60px]">Loading concerns...</div>;
   }
 
   return (
@@ -197,12 +204,12 @@ export default function ConcernsList() {
         </div>
       )}
 
-      <div className="mb-[30px] border-b-2 border-[rgba(255,212,28,0.2)] pb-5">
+      <div style={{ borderBottomColor: theme.border.primary }} className="mb-[30px] border-b-2 pb-5">
         <div style={{ marginBottom: '20px' }}>
-          <h2 className="text-2xl font-bold text-[#FFD41C] m-0 mb-2 flex items-center gap-[10px]">
+          <h2 style={{ color: theme.accent.primary }} className="text-2xl font-bold m-0 mb-2 flex items-center gap-[10px]">
             <span>📢</span> User Concerns
           </h2>
-          <p className="text-[13px] text-[rgba(251,251,251,0.6)] m-0">
+          <p style={{ color: theme.text.secondary }} className="text-[13px] m-0">
             {filteredConcerns.length > 0
               ? `Showing ${startIndex + 1}-${Math.min(endIndex, filteredConcerns.length)} of ${filteredConcerns.length} • Page ${currentPage} of ${totalPages}`
               : `Support tickets and feedback • Total: ${concerns.length}`
@@ -262,7 +269,8 @@ export default function ConcernsList() {
           </button>
         </div>
 
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+        <div className="rounded-xl border-2 p-4" style={{ background: isDarkMode ? 'rgba(15,18,39,0.8)' : theme.bg.card, borderColor: theme.accent.primary }}>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
           <SearchBar
             value={searchQuery}
             onChange={setSearchQuery}
@@ -314,17 +322,18 @@ export default function ConcernsList() {
           />
           <ExportButton onClick={handleExport} disabled={filteredConcerns.length === 0} />
         </div>
+        </div>
       </div>
 
       {/* Scrollable Area */}
       <div className="flex-1 overflow-y-auto pr-2">
       {concerns.length === 0 ? (
-        <div className="text-center py-[60px] text-[rgba(251,251,251,0.5)]">
+        <div style={{ color: theme.text.tertiary }} className="text-center py-[60px]">
           <div className="text-5xl mb-4">📢</div>
           <div>No concerns found</div>
         </div>
       ) : filteredConcerns.length === 0 ? (
-        <div className="text-center py-[60px] text-[rgba(251,251,251,0.5)]">
+        <div style={{ color: theme.text.tertiary }} className="text-center py-[60px]">
           <div className="text-5xl mb-4">🔍</div>
           <div style={{ marginBottom: '12px' }}>No concerns match your search</div>
           <button onClick={() => setSearchQuery('')} style={{
@@ -332,7 +341,7 @@ export default function ConcernsList() {
             background: 'rgba(255,212,28,0.15)',
             border: '2px solid rgba(255,212,28,0.3)',
             borderRadius: '8px',
-            color: '#FFD41C',
+            color: theme.accent.primary,
             fontSize: '13px',
             fontWeight: 600,
             cursor: 'pointer'
@@ -341,39 +350,39 @@ export default function ConcernsList() {
           </button>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-[rgba(255,212,28,0.2)]">
+        <div style={{ borderColor: theme.border.primary }} className="overflow-x-auto rounded-xl border">
           <table className="w-full border-collapse text-[13px]">
             <thead>
               <tr className="bg-[rgba(255,212,28,0.1)]">
-                <th className="text-left p-4 text-[11px] font-extrabold text-[#FFD41C] uppercase border-b-2 border-[rgba(255,212,28,0.3)]">ID</th>
-                <th className="text-left p-4 text-[11px] font-extrabold text-[#FFD41C] uppercase border-b-2 border-[rgba(255,212,28,0.3)]">User</th>
-                <th className="text-left p-4 text-[11px] font-extrabold text-[#FFD41C] uppercase border-b-2 border-[rgba(255,212,28,0.3)]">Subject</th>
+                <th style={{ color: theme.accent.primary, borderBottomColor: theme.border.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2">ID</th>
+                <th style={{ color: theme.accent.primary, borderBottomColor: theme.border.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2">User</th>
+                <th style={{ color: theme.accent.primary, borderBottomColor: theme.border.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2">Subject</th>
                 {activeTab === 'all' && (
-                  <th className="text-left p-4 text-[11px] font-extrabold text-[#FFD41C] uppercase border-b-2 border-[rgba(255,212,28,0.3)]">Type</th>
+                  <th style={{ color: theme.accent.primary, borderBottomColor: theme.border.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2">Type</th>
                 )}
                 {activeTab === 'feedback' && (
-                  <th className="text-left p-4 text-[11px] font-extrabold text-[#FFD41C] uppercase border-b-2 border-[rgba(255,212,28,0.3)]">Rating</th>
+                  <th style={{ color: theme.accent.primary, borderBottomColor: theme.border.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2">Rating</th>
                 )}
                 {activeTab !== 'feedback' && (
                   <>
-                    <th className="text-left p-4 text-[11px] font-extrabold text-[#FFD41C] uppercase border-b-2 border-[rgba(255,212,28,0.3)]">Priority</th>
-                    <th className="text-left p-4 text-[11px] font-extrabold text-[#FFD41C] uppercase border-b-2 border-[rgba(255,212,28,0.3)]">Status</th>
+                    <th style={{ color: theme.accent.primary, borderBottomColor: theme.border.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2">Priority</th>
+                    <th style={{ color: theme.accent.primary, borderBottomColor: theme.border.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2">Status</th>
                   </>
                 )}
-                <th className="text-left p-4 text-[11px] font-extrabold text-[#FFD41C] uppercase border-b-2 border-[rgba(255,212,28,0.3)]">Date</th>
-                <th style={{ textAlign: 'right', padding: '16px', fontSize: '11px', fontWeight: 800, color: '#FFD41C', textTransform: 'uppercase', borderBottom: '2px solid rgba(255,212,28,0.3)' }}>Actions</th>
+                <th style={{ color: theme.accent.primary, borderBottomColor: theme.border.primary }} className="text-left p-4 text-[11px] font-extrabold uppercase border-b-2">Date</th>
+                <th style={{ textAlign: 'right', padding: '16px', fontSize: '11px', fontWeight: 800, color: theme.accent.primary, textTransform: 'uppercase', borderBottom: '2px solid rgba(255,212,28,0.3)' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {currentItems.map((concern) => (
                 <tr key={concern._id} style={{ borderBottom: '1px solid rgba(255,212,28,0.1)' }}>
-                  <td style={{ padding: '16px', color: 'rgba(251,251,251,0.9)' }}>
+                  <td style={{ padding: '16px', color: theme.text.primary }}>
                     <strong>{concern.concernId || concern._id.slice(-6)}</strong>
                   </td>
-                  <td style={{ padding: '16px', color: 'rgba(251,251,251,0.9)' }}>
+                  <td style={{ padding: '16px', color: theme.text.primary }}>
                     {concern.userName || 'N/A'}
                   </td>
-                  <td style={{ padding: '16px', color: 'rgba(251,251,251,0.9)' }}>
+                  <td style={{ padding: '16px', color: theme.text.primary }}>
                     {concern.subject ||
                      (concern.selectedConcerns && concern.selectedConcerns.length > 0
                        ? `${concern.selectedConcerns[0]}${concern.selectedConcerns.length > 1 ? ` +${concern.selectedConcerns.length - 1}` : ''}`
@@ -407,7 +416,7 @@ export default function ConcernsList() {
                             ⭐
                           </span>
                         ))}
-                        <span style={{ marginLeft: '8px', color: 'rgba(251,251,251,0.7)', fontSize: '12px' }}>
+                        <span style={{ marginLeft: '8px', color: theme.text.secondary, fontSize: '12px' }}>
                           ({concern.rating || 0}/5)
                         </span>
                       </div>
@@ -434,7 +443,7 @@ export default function ConcernsList() {
                             {concern.priority || 'low'}
                           </span>
                         ) : (
-                          <span style={{ color: 'rgba(251,251,251,0.4)', fontSize: '11px' }}>—</span>
+                          <span style={{ color: theme.text.muted, fontSize: '11px' }}>—</span>
                         )}
                       </td>
                       <td style={{ padding: '16px' }}>
@@ -446,7 +455,7 @@ export default function ConcernsList() {
                               padding: '6px 12px',
                               borderRadius: '6px',
                               border: '1px solid rgba(255,212,28,0.3)',
-                              background: 'rgba(255,255,255,0.05)',
+                              background: theme.bg.tertiary,
                               color: concern.status === 'resolved' ? '#22C55E' :
                                      concern.status === 'in_progress' ? '#3B82F6' :
                                      concern.status === 'closed' ? '#6B7280' : '#FBBF24',
@@ -461,12 +470,12 @@ export default function ConcernsList() {
                             <option value="closed">Closed</option>
                           </select>
                         ) : (
-                          <span style={{ color: 'rgba(251,251,251,0.4)', fontSize: '11px' }}>—</span>
+                          <span style={{ color: theme.text.muted, fontSize: '11px' }}>—</span>
                         )}
                       </td>
                     </>
                   )}
-                  <td style={{ padding: '16px', color: 'rgba(251,251,251,0.9)' }}>
+                  <td style={{ padding: '16px', color: theme.text.primary }}>
                     {new Date(concern.submittedAt || concern.createdAt).toLocaleDateString()}
                   </td>
                   <td style={{ padding: '16px', textAlign: 'right' }}>
@@ -510,7 +519,7 @@ export default function ConcernsList() {
               >
                 ← Previous
               </button>
-              <span style={{ color: 'rgba(251,251,251,0.7)', fontSize: '13px', fontWeight: 600 }}>
+              <span style={{ color: theme.text.secondary, fontSize: '13px', fontWeight: 600 }}>
                 Page {currentPage} of {totalPages}
               </span>
               <button
@@ -566,7 +575,7 @@ export default function ConcernsList() {
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)',
+              background: isDarkMode ? 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)' : theme.bg.secondary,
               borderRadius: '16px',
               maxWidth: '600px',
               width: '90%',
@@ -580,17 +589,17 @@ export default function ConcernsList() {
             {/* Modal Header */}
             <div style={{
               padding: '24px',
-              borderBottom: '2px solid rgba(255,212,28,0.2)',
+              borderBottom: `2px solid ${theme.border.primary}`,
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'flex-start',
               gap: '16px'
             }}>
               <div style={{ flex: 1 }}>
-                <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#FFD41C', margin: 0, marginBottom: '8px' }}>
+                <h2 style={{ fontSize: '22px', fontWeight: 700, color: theme.accent.primary, margin: 0, marginBottom: '8px' }}>
                   Resolve Concern
                 </h2>
-                <p style={{ fontSize: '13px', color: 'rgba(251,251,251,0.6)', margin: 0 }}>
+                <p style={{ fontSize: '13px', color: theme.text.secondary, margin: 0 }}>
                   Mark this concern as resolved and notify the user
                 </p>
               </div>
@@ -627,12 +636,12 @@ export default function ConcernsList() {
                 marginBottom: '20px'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '20px' }}>⚠️</span>
+                  <AlertTriangle className="w-5 h-5" style={{ fontSize: '20px' }} />
                   <span style={{ fontSize: '14px', fontWeight: 700, color: '#FBBF24' }}>
                     Confirm Resolution
                   </span>
                 </div>
-                <p style={{ fontSize: '13px', color: 'rgba(251,251,251,0.7)', margin: 0, lineHeight: '1.5' }}>
+                <p style={{ fontSize: '13px', color: theme.text.secondary, margin: 0, lineHeight: '1.5' }}>
                   This will mark the concern as resolved and send an email notification to the user.
                 </p>
               </div>
@@ -640,7 +649,7 @@ export default function ConcernsList() {
               {/* Concern Information */}
               <div style={{
                 background: 'rgba(255,212,28,0.05)',
-                border: '1px solid rgba(255,212,28,0.2)',
+                border: `1px solid ${theme.border.primary}`,
                 borderRadius: '12px',
                 padding: '16px',
                 marginBottom: '20px'
@@ -648,7 +657,7 @@ export default function ConcernsList() {
                 <h3 style={{
                   fontSize: '14px',
                   fontWeight: 700,
-                  color: '#FFD41C',
+                  color: theme.accent.primary,
                   textTransform: 'uppercase',
                   marginBottom: '12px'
                 }}>
@@ -656,24 +665,24 @@ export default function ConcernsList() {
                 </h3>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '10px' }}>
                   <div>
-                    <div style={{ fontSize: '11px', color: 'rgba(251,251,251,0.5)', marginBottom: '4px' }}>
+                    <div style={{ fontSize: '11px', color: theme.text.tertiary, marginBottom: '4px' }}>
                       Concern ID
                     </div>
-                    <div style={{ fontSize: '14px', color: 'rgba(251,251,251,0.9)', fontFamily: 'monospace', fontWeight: 600 }}>
+                    <div style={{ fontSize: '14px', color: theme.text.primary, fontFamily: 'monospace', fontWeight: 600 }}>
                       {selectedConcern.concernId}
                     </div>
                   </div>
                   <div>
-                    <div style={{ fontSize: '11px', color: 'rgba(251,251,251,0.5)', marginBottom: '4px' }}>User</div>
-                    <div style={{ fontSize: '14px', color: 'rgba(251,251,251,0.9)', fontWeight: 600 }}>
+                    <div style={{ fontSize: '11px', color: theme.text.tertiary, marginBottom: '4px' }}>User</div>
+                    <div style={{ fontSize: '14px', color: theme.text.primary, fontWeight: 600 }}>
                       {selectedConcern.userName}
                     </div>
                   </div>
                   <div>
-                    <div style={{ fontSize: '11px', color: 'rgba(251,251,251,0.5)', marginBottom: '4px' }}>
+                    <div style={{ fontSize: '11px', color: theme.text.tertiary, marginBottom: '4px' }}>
                       Subject
                     </div>
-                    <div style={{ fontSize: '14px', color: 'rgba(251,251,251,0.9)' }}>
+                    <div style={{ fontSize: '14px', color: theme.text.primary }}>
                       {selectedConcern.subject}
                     </div>
                   </div>
@@ -685,7 +694,7 @@ export default function ConcernsList() {
                 <h3 style={{
                   fontSize: '14px',
                   fontWeight: 700,
-                  color: '#FFD41C',
+                  color: theme.accent.primary,
                   textTransform: 'uppercase',
                   marginBottom: '8px'
                 }}>
@@ -700,9 +709,9 @@ export default function ConcernsList() {
                     width: '100%',
                     padding: '12px',
                     borderRadius: '8px',
-                    border: '2px solid rgba(255,212,28,0.2)',
-                    background: 'rgba(255,255,255,0.05)',
-                    color: '#FBFBFB',
+                    border: `2px solid ${theme.border.primary}`,
+                    background: theme.bg.tertiary,
+                    color: theme.text.primary,
                     fontSize: '13px',
                     lineHeight: '1.5',
                     resize: 'vertical',
@@ -711,7 +720,7 @@ export default function ConcernsList() {
                     boxSizing: 'border-box'
                   }}
                 />
-                <p style={{ fontSize: '11px', color: 'rgba(251,251,251,0.5)', marginTop: '8px', margin: '8px 0 0 0' }}>
+                <p style={{ fontSize: '11px', color: theme.text.tertiary, marginTop: '8px', margin: '8px 0 0 0' }}>
                   This message will be included in the email notification to the user.
                 </p>
               </div>
@@ -731,7 +740,7 @@ export default function ConcernsList() {
                 style={{
                   padding: '12px 24px',
                   background: 'rgba(255,255,255,0.1)',
-                  color: '#FBFBFB',
+                  color: theme.text.primary,
                   border: '1px solid rgba(255,255,255,0.2)',
                   borderRadius: '8px',
                   cursor: resolving ? 'not-allowed' : 'pointer',
@@ -748,7 +757,7 @@ export default function ConcernsList() {
                 style={{
                   padding: '12px 24px',
                   background: resolving ? 'rgba(34,197,94,0.3)' : '#22C55E',
-                  color: resolving ? '#22C55E' : '#0f1227',
+                  color: '#FFFFFF',
                   border: 'none',
                   borderRadius: '8px',
                   cursor: resolving ? 'not-allowed' : 'pointer',
