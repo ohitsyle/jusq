@@ -6,6 +6,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import UserHeader from './UserHeader';
 import Footer from './Footer';
+import { Home, ScrollText, ClipboardList } from 'lucide-react';
 
 export default function UserLayout({ children }) {
   const navigate = useNavigate();
@@ -35,9 +36,9 @@ export default function UserLayout({ children }) {
 
   // User dashboard tabs
   const userTabs = [
-    { path: '/user/dashboard', icon: '🏠', label: 'Home' },
-    { path: '/user/history', icon: '📜', label: 'History' },
-    { path: '/user/concerns', icon: '📋', label: 'My Concerns' },
+    { path: '/user/dashboard', Icon: Home, label: 'Home' },
+    { path: '/user/history', Icon: ScrollText, label: 'History' },
+    { path: '/user/concerns', Icon: ClipboardList, label: 'My Concerns' },
   ];
 
   // System tabs - removed FAQs
@@ -102,7 +103,7 @@ export default function UserLayout({ children }) {
                   }
                 }}
               >
-                <span className={`text-sm sm:text-base transition-transform duration-300 ${isActive ? 'scale-110' : ''}`}>{tab.icon}</span>
+                <tab.Icon className={`w-4 h-4 sm:w-[18px] sm:h-[18px] transition-transform duration-300 ${isActive ? 'scale-110' : ''}`} />
                 <span className="hidden xs:inline sm:inline">{tab.label}</span>
               </button>
             );

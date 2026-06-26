@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react';
 import { useTheme } from '../../context/ThemeContext';
-import { ChevronDown, Search, HelpCircle, CreditCard, Wallet, Shield, Smartphone, Users } from 'lucide-react';
+import { ChevronDown, Search, HelpCircle, CreditCard, Wallet, Shield, Smartphone, Users, ClipboardList, User, BarChart3, Lock, MessageSquare, Wrench } from 'lucide-react';
 
 export default function FAQ() {
   const { theme, isDarkMode } = useTheme();
@@ -12,12 +12,12 @@ export default function FAQ() {
   const [expandedItems, setExpandedItems] = useState({});
 
   const categories = [
-    { id: 'all', label: 'All FAQs', icon: '📋' },
-    { id: 'account', label: 'Account', icon: '👤' },
-    { id: 'balance', label: 'Balance & Cash-In', icon: '💰' },
-    { id: 'transactions', label: 'Transactions', icon: '📊' },
-    { id: 'security', label: 'Security', icon: '🔐' },
-    { id: 'technical', label: 'Technical', icon: '🔧' }
+    { id: 'all', label: 'All FAQs', Icon: ClipboardList },
+    { id: 'account', label: 'Account', Icon: User },
+    { id: 'balance', label: 'Balance & Cash-In', Icon: Wallet },
+    { id: 'transactions', label: 'Transactions', Icon: BarChart3 },
+    { id: 'security', label: 'Security', Icon: Lock },
+    { id: 'technical', label: 'Technical', Icon: Wrench }
   ];
 
   const faqs = [
@@ -190,7 +190,7 @@ export default function FAQ() {
             }}
             className="w-14 h-14 rounded-xl flex items-center justify-center text-3xl"
           >
-            ❓
+            <HelpCircle className="w-7 h-7" />
           </div>
           <div>
             <h2 style={{ color: theme.accent.primary }} className="text-2xl font-bold m-0">
@@ -285,7 +285,7 @@ export default function FAQ() {
               }}
               className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 text-4xl opacity-50"
             >
-              🔍
+              <Search className="w-10 h-10" />
             </div>
             <p style={{ color: theme.text.secondary }} className="text-lg font-semibold">No FAQs found</p>
             <p style={{ color: theme.text.tertiary }} className="text-sm mt-1">
@@ -321,7 +321,7 @@ export default function FAQ() {
                     }}
                     className="w-10 h-10 rounded-lg flex items-center justify-center text-lg flex-shrink-0"
                   >
-                    {categories.find(c => c.id === faq.category)?.icon || '❓'}
+                    {(() => { const Cat = categories.find(c => c.id === faq.category); const Ic = Cat?.Icon || HelpCircle; return <Ic className="w-5 h-5" />; })()}
                   </div>
                   <span style={{ color: theme.text.primary }} className="font-semibold text-[15px]">
                     {faq.question}
@@ -376,7 +376,7 @@ export default function FAQ() {
             }}
             className="w-14 h-14 rounded-xl flex items-center justify-center text-3xl flex-shrink-0"
           >
-            💬
+            <MessageSquare className="w-7 h-7" />
           </div>
           <div className="flex-1 text-center sm:text-left">
             <h4 style={{ color: theme.text.primary }} className="font-bold text-lg mb-1">

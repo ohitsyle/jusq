@@ -337,6 +337,36 @@ router.get('/profile', verifyUserToken, async (req, res) => {
 });
 
 /**
+ * GET /api/user/merchants
+ * Get list of merchants for the concern/feedback area picker.
+ * IMPORTANT: must be defined BEFORE the `/:userId` param route below, otherwise
+ * Express matches `/merchants` as `/:userId` (userId="merchants") and this never runs.
+ */
+router.get('/merchants', verifyUserToken, async (req, res) => {
+  try {
+    const Merchant = (await import('../models/Merchant.js')).default;
+
+    // Return all merchants (matches the admin merchant list). A student can
+    // report a concern to a store regardless of the merchant's own login state.
+    const merchants = await Merchant.find()
+      .select('merchantId businessName')
+      .sort({ businessName: 1 })
+      .lean();
+
+    return res.json({
+      success: true,
+      merchants: merchants.map(m => ({
+        value: m.businessName,
+        label: m.businessName
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching merchants:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+/**
  * GET /api/user/:userId
  * Get user info and balance (by userId param - for admin use)
  */
@@ -503,32 +533,6 @@ router.post('/feedback', verifyUserToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating feedback:', error);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-/**
- * GET /api/user/merchants
- * Get list of active merchants for concern dropdown
- */
-router.get('/merchants', verifyUserToken, async (req, res) => {
-  try {
-    const Merchant = (await import('../models/Merchant.js')).default;
-
-    const merchants = await Merchant.find({ isActive: true })
-      .select('merchantId businessName')
-      .sort({ businessName: 1 })
-      .lean();
-
-    return res.json({
-      success: true,
-      merchants: merchants.map(m => ({
-        value: m.businessName,
-        label: m.businessName
-      }))
-    });
-  } catch (error) {
-    console.error('Error fetching merchants:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

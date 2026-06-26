@@ -30,8 +30,10 @@
 	<true/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
+		<!-- The backend is served over HTTP (no TLS) at a configurable IP, so
+		     ATS must permit cleartext loads or all API requests fail on iOS. -->
 		<key>NSAllowsArbitraryLoads</key>
-		<false/>
+		<true/>
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>

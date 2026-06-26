@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../utils/api';
-import { Eye, EyeOff, Calendar, FileText, ChevronRight, X, ChevronLeft, Check } from 'lucide-react';
+import { Eye, EyeOff, Calendar, FileText, ChevronRight, X, ChevronLeft, Check, MessageSquare, Monitor, Wallet, Store, Bus, Banknote, ShoppingBag, Undo2, LifeBuoy } from 'lucide-react';
 
 export default function UserDashboard() {
   const { theme, isDarkMode } = useTheme();
@@ -336,7 +336,7 @@ export default function UserDashboard() {
             className="p-4 rounded-xl border flex items-center gap-3 transition-all hover:scale-[1.02] hover:shadow-md text-left"
           >
             <div className="w-10 h-10 rounded-full flex items-center justify-center text-xl" style={{ background: 'rgba(245,158,11,0.2)' }}>
-              🆘
+              <LifeBuoy className="w-6 h-6" style={{ color: "#F59E0B" }} />
             </div>
             <div className="flex-1">
               <h4 style={{ color: '#F59E0B' }} className="font-bold text-sm">Report a Concern</h4>
@@ -356,7 +356,7 @@ export default function UserDashboard() {
             className="p-4 rounded-xl border flex items-center gap-3 transition-all hover:scale-[1.02] hover:shadow-md text-left"
           >
             <div className="w-10 h-10 rounded-full flex items-center justify-center text-xl" style={{ background: 'rgba(59,130,246,0.2)' }}>
-              💬
+              <MessageSquare className="w-6 h-6" style={{ color: "#3B82F6" }} />
             </div>
             <div className="flex-1">
               <h4 style={{ color: '#3B82F6' }} className="font-bold text-sm">Share Feedback</h4>
@@ -429,7 +429,13 @@ export default function UserDashboard() {
                       <div style={{
                         background: isRefund ? 'rgba(59,130,246,0.2)' : (txType === 'credit' ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)')
                       }} className="w-10 h-10 rounded-full flex items-center justify-center text-lg">
-                        {isRefund ? '↩️' : (txType === 'credit' ? '💵' : tx.shuttleId ? '🚐' : '🛒')}
+                        {isRefund
+                          ? <Undo2 className="w-5 h-5" style={{ color: '#3B82F6' }} />
+                          : txType === 'credit'
+                          ? <Banknote className="w-5 h-5" style={{ color: '#10B981' }} />
+                          : tx.shuttleId
+                          ? <Bus className="w-5 h-5" style={{ color: '#EF4444' }} />
+                          : <ShoppingBag className="w-5 h-5" style={{ color: '#EF4444' }} />}
                       </div>
                       <div>
                         <p style={{ color: theme.text.primary }} className="font-semibold text-sm">
@@ -489,10 +495,10 @@ function ConcernModal({ onClose, theme, isDarkMode }) {
   const [loadingMerchants, setLoadingMerchants] = useState(false);
 
   const departments = [
-    { value: 'sysad', label: 'NUCash System', icon: '💻', desc: 'Technical issues, app problems' },
-    { value: 'treasury', label: 'Finance', icon: '💰', desc: 'Balance, cash-in, payments' },
-    { value: 'merchants', label: 'Merchants', icon: '🏪', desc: 'Store-related concerns' },
-    { value: 'motorpool', label: 'Shuttle Service', icon: '🚐', desc: 'Transportation concerns' }
+    { value: 'sysad', label: 'NUCash System', Icon: Monitor, desc: 'Technical issues, app problems' },
+    { value: 'treasury', label: 'Finance', Icon: Wallet, desc: 'Balance, cash-in, payments' },
+    { value: 'merchants', label: 'Merchants', Icon: Store, desc: 'Store-related concerns' },
+    { value: 'motorpool', label: 'Shuttle Service', Icon: Bus, desc: 'Transportation concerns' }
   ];
 
   useEffect(() => {
@@ -610,7 +616,7 @@ function ConcernModal({ onClose, theme, isDarkMode }) {
         >
           <div className="flex items-center gap-3">
             <div style={{ background: 'rgba(245,158,11,0.2)' }} className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl">
-              🆘
+              <LifeBuoy className="w-6 h-6" style={{ color: "#F59E0B" }} />
             </div>
             <div>
               <h2 style={{ color: '#F59E0B' }} className="text-xl font-bold">Report a Concern</h2>
@@ -661,7 +667,7 @@ function ConcernModal({ onClose, theme, isDarkMode }) {
                   className="w-full p-4 rounded-xl flex items-center gap-4 transition-all hover:scale-[1.02] text-left"
                 >
                   <div style={{ background: 'rgba(245,158,11,0.15)' }} className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0">
-                    {dept.icon}
+                    <dept.Icon className="w-6 h-6" style={{ color: theme.text.primary }} />
                   </div>
                   <div className="flex-1">
                     <p style={{ color: theme.text.primary }} className="font-bold">{dept.label}</p>
@@ -709,7 +715,7 @@ function ConcernModal({ onClose, theme, isDarkMode }) {
                       className="w-full p-4 rounded-xl flex items-center gap-4 transition-all hover:scale-[1.01] text-left"
                     >
                       <div style={{ background: 'rgba(245,158,11,0.15)' }} className="w-10 h-10 rounded-lg flex items-center justify-center text-xl">
-                        🏪
+                        <Store className="w-5 h-5" style={{ color: theme.text.primary }} />
                       </div>
                       <p style={{ color: theme.text.primary }} className="font-semibold flex-1">{m.label}</p>
                       {merchant === m.value && (
@@ -878,10 +884,10 @@ function FeedbackModal({ onClose, theme, isDarkMode }) {
   const [loadingMerchants, setLoadingMerchants] = useState(false);
 
   const departments = [
-    { value: 'sysad', label: 'NUCash System', icon: '💻', desc: 'App experience feedback' },
-    { value: 'treasury', label: 'Finance', icon: '💰', desc: 'Service experience' },
-    { value: 'merchants', label: 'Merchants', icon: '🏪', desc: 'Store experience' },
-    { value: 'motorpool', label: 'Shuttle Service', icon: '🚐', desc: 'Transport experience' }
+    { value: 'sysad', label: 'NUCash System', Icon: Monitor, desc: 'App experience feedback' },
+    { value: 'treasury', label: 'Finance', Icon: Wallet, desc: 'Service experience' },
+    { value: 'merchants', label: 'Merchants', Icon: Store, desc: 'Store experience' },
+    { value: 'motorpool', label: 'Shuttle Service', Icon: Bus, desc: 'Transport experience' }
   ];
 
   useEffect(() => {
@@ -1004,7 +1010,7 @@ function FeedbackModal({ onClose, theme, isDarkMode }) {
         >
           <div className="flex items-center gap-3">
             <div style={{ background: 'rgba(59,130,246,0.2)' }} className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl">
-              💬
+              <MessageSquare className="w-6 h-6" style={{ color: "#3B82F6" }} />
             </div>
             <div>
               <h2 style={{ color: '#3B82F6' }} className="text-xl font-bold">Share Feedback</h2>
@@ -1055,7 +1061,7 @@ function FeedbackModal({ onClose, theme, isDarkMode }) {
                   className="w-full p-4 rounded-xl flex items-center gap-4 transition-all hover:scale-[1.02] text-left"
                 >
                   <div style={{ background: 'rgba(59,130,246,0.15)' }} className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0">
-                    {dept.icon}
+                    <dept.Icon className="w-6 h-6" style={{ color: theme.text.primary }} />
                   </div>
                   <div className="flex-1">
                     <p style={{ color: theme.text.primary }} className="font-bold">{dept.label}</p>
@@ -1103,7 +1109,7 @@ function FeedbackModal({ onClose, theme, isDarkMode }) {
                       className="w-full p-4 rounded-xl flex items-center gap-4 transition-all hover:scale-[1.01] text-left"
                     >
                       <div style={{ background: 'rgba(59,130,246,0.15)' }} className="w-10 h-10 rounded-lg flex items-center justify-center text-xl">
-                        🏪
+                        <Store className="w-5 h-5" style={{ color: theme.text.primary }} />
                       </div>
                       <p style={{ color: theme.text.primary }} className="font-semibold flex-1">{m.label}</p>
                       {merchant === m.value && (

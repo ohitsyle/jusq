@@ -4,6 +4,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import ThemeToggle from '../common/ThemeToggle';
+import { User, LogOut } from 'lucide-react';
 
 export default function UserHeader({ userData, onLogout, onOpenProfile }) {
   const { theme, isDarkMode } = useTheme();
@@ -127,7 +128,7 @@ export default function UserHeader({ userData, onLogout, onOpenProfile }) {
                 onMouseEnter={(e) => { e.currentTarget.style.background = isDarkMode ? 'rgba(255, 212, 28, 0.1)' : 'rgba(59, 130, 246, 0.1)'; e.currentTarget.style.color = theme.accent.primary; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = theme.text.primary; }}
               >
-                <span style={{ fontSize: '16px' }}>👤</span>
+                <User className="w-4 h-4" />
                 <span>Manage Profile</span>
               </button>
 
@@ -139,7 +140,7 @@ export default function UserHeader({ userData, onLogout, onOpenProfile }) {
                 onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
               >
-                <span style={{ fontSize: '16px' }}>🚪</span>
+                <LogOut className="w-4 h-4" />
                 <span>Logout</span>
               </button>
             </div>

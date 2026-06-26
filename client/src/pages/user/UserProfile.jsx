@@ -6,7 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../utils/api';
 import { toast } from 'react-toastify';
-import { User, Shield, Eye, EyeOff, AlertTriangle, CheckCircle, X } from 'lucide-react';
+import { User, Shield, Eye, EyeOff, AlertTriangle, CheckCircle, X, KeyRound, Lock, Mail, ClipboardList, Clock } from 'lucide-react';
 
 export default function UserProfile() {
   const { theme, isDarkMode } = useTheme();
@@ -237,7 +237,7 @@ export default function UserProfile() {
       if (data?.success) {
         toast.success('Account deactivated successfully');
         
-        // 🔥 FORCE LOGOUT - Clear all auth data
+        // FORCE LOGOUT - Clear all auth data
         setTimeout(() => {
           localStorage.removeItem('userToken');
           localStorage.removeItem('userData');
@@ -426,7 +426,7 @@ export default function UserProfile() {
           alignItems: 'center',
           gap: '10px'
         }}>
-          <span>🔐</span> Security Settings
+          <KeyRound className="inline-block w-5 h-5 align-[-3px]" /> Security Settings
         </h3>
         <p style={{
           fontSize: '14px',
@@ -453,7 +453,7 @@ export default function UserProfile() {
             alignItems: 'center',
             gap: '10px'
           }}>
-            <span>⚠️</span>
+            <AlertTriangle className="inline-block w-5 h-5 align-[-3px]" />
             <span>{pinError}</span>
           </div>
         )}
@@ -480,7 +480,7 @@ export default function UserProfile() {
               alignItems: 'center',
               gap: '8px'
             }}>
-              <span>🔑</span> Change PIN
+              <KeyRound className="inline-block w-5 h-5 align-[-3px]" /> Change PIN
             </h4>
 
             {/* Last PIN change */}
@@ -495,7 +495,7 @@ export default function UserProfile() {
               alignItems: 'center',
               gap: '8px'
             }}>
-              <span>🕓</span>
+              <Clock className="inline-block w-4 h-4 align-[-2px]" />
               <span>
                 Last PIN change:{' '}
                 <span style={{ color: theme.text.primary, fontWeight: 600 }}>
@@ -737,7 +737,7 @@ export default function UserProfile() {
                     </>
                   ) : (
                     <>
-                      <span>📧</span>
+                      <Mail className="inline-block w-4 h-4 align-[-3px]" />
                       <span>Send OTP</span>
                     </>
                   )}
@@ -760,7 +760,7 @@ export default function UserProfile() {
                     margin: '0 auto 16px',
                     fontSize: '28px'
                   }}>
-                    📧
+                    <Mail className="w-7 h-7" />
                   </div>
                   <p style={{
                     fontSize: '14px',
@@ -962,7 +962,7 @@ export default function UserProfile() {
                 alignItems: 'center',
                 gap: '8px'
               }}>
-                <span>⚠️</span>
+                <AlertTriangle className="inline-block w-5 h-5 align-[-3px]" />
                 <span>{deactivateError}</span>
               </div>
             )}
@@ -990,7 +990,7 @@ export default function UserProfile() {
                     margin: '0 auto 20px',
                     fontSize: '36px'
                   }}>
-                    🔒
+                    <Lock className="w-7 h-7" />
                   </div>
 
                   <p style={{
@@ -1022,7 +1022,7 @@ export default function UserProfile() {
                       gap: '6px',
                       justifyContent: 'center'
                     }}>
-                      ⚠️ Important
+                      <AlertTriangle className="inline-block w-4 h-4 align-[-3px] mr-1" /> Important
                     </p>
                     <p style={{
                       fontSize: '11px',
@@ -1071,7 +1071,7 @@ export default function UserProfile() {
                     </>
                   ) : (
                     <>
-                      <span>📧</span>
+                      <Mail className="inline-block w-4 h-4 align-[-3px]" />
                       <span>Send Verification Code</span>
                     </>
                   )}
@@ -1094,7 +1094,7 @@ export default function UserProfile() {
                     margin: '0 auto 12px',
                     fontSize: '28px'
                   }}>
-                    📧
+                    <Mail className="w-7 h-7" />
                   </div>
                   <p style={{
                     fontSize: '13px',
@@ -1287,7 +1287,7 @@ export default function UserProfile() {
                 alignItems: 'center',
                 gap: '6px'
               }}>
-                ⚠️ Warning
+                <AlertTriangle className="inline-block w-4 h-4 align-[-3px] mr-1" /> Warning
               </p>
               <p style={{
                 fontSize: '12px',
@@ -1392,7 +1392,7 @@ export default function UserProfile() {
           alignItems: 'center',
           gap: '10px'
         }}>
-          <span>👤</span> My Profile
+          <User className="inline-block w-5 h-5 align-[-3px]" /> My Profile
         </h2>
         <p style={{
           fontSize: '13px',
@@ -1432,7 +1432,7 @@ export default function UserProfile() {
             transition: 'all 0.2s ease'
           }}
         >
-          <span>📋</span>
+          <ClipboardList className="inline-block w-5 h-5 align-[-3px]" />
           <span className="tab-text">Personal Information</span>
         </button>
         <button
@@ -1458,7 +1458,7 @@ export default function UserProfile() {
             transition: 'all 0.2s ease'
           }}
         >
-          <span>🔐</span>
+          <KeyRound className="inline-block w-5 h-5 align-[-3px]" />
           <span className="tab-text">Security Settings</span>
         </button>
       </div>
@@ -1545,7 +1545,7 @@ export default function UserProfile() {
                 margin: '0 auto 24px',
                 fontSize: '48px'
               }}>
-                ✅
+                <CheckCircle className="w-7 h-7" />
               </div>
               
               <p style={{
@@ -1681,7 +1681,7 @@ export default function UserProfile() {
                   alignItems: 'center',
                   gap: '8px'
                 }}>
-                  <span>⚠️</span>
+                  <AlertTriangle className="inline-block w-5 h-5 align-[-3px]" />
                   <span>{deactivateError}</span>
                 </div>
               )}
@@ -1698,7 +1698,7 @@ export default function UserProfile() {
                   margin: '0 auto 16px',
                   fontSize: '36px'
                 }}>
-                  📧
+                  <Mail className="w-7 h-7" />
                 </div>
                 <p style={{
                   fontSize: '15px',

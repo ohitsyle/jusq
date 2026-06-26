@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../utils/api';
 import { toast } from 'react-toastify';
-import { Search, X, Clock, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { Search, X, Clock, CheckCircle, AlertCircle, Loader2, ClipboardList, FileText, MessageSquare } from 'lucide-react';
 
 export default function UserConcerns() {
   const { theme, isDarkMode } = useTheme();
@@ -115,7 +115,7 @@ export default function UserConcerns() {
       {/* Header */}
       <div style={{ borderColor: theme.border.primary }} className="mb-6 border-b-2 pb-5">
         <h2 style={{ color: theme.accent.primary }} className="text-2xl font-bold m-0 mb-2 flex items-center gap-[10px]">
-          <span>📋</span> My Concerns
+          <ClipboardList className="inline-block w-5 h-5 align-[-3px]" /> My Concerns
         </h2>
         <p style={{ color: theme.text.secondary }} className="text-[13px] m-0">
           Track the status of your submitted concerns and feedback
@@ -226,7 +226,7 @@ export default function UserConcerns() {
         <div style={{ background: theme.bg.card, borderColor: theme.border.primary }} className="rounded-2xl border overflow-hidden">
           {filteredConcerns.length === 0 ? (
             <div style={{ color: theme.text.tertiary }} className="text-center py-20">
-              <div className="text-5xl mb-4">📋</div>
+              <div className="mb-4 flex justify-center"><ClipboardList className="w-14 h-14" /></div>
               <p className="font-semibold">No concerns found</p>
               <p className="text-sm mt-2">
                 {concerns.length === 0
@@ -363,7 +363,7 @@ export default function UserConcerns() {
                   transition: 'all 0.2s'
                 }}
               >
-                📋 Details
+                <ClipboardList className="inline-block w-4 h-4 align-[-3px] mr-1" /> Details
               </button>
               <button
                 onClick={() => setModalTab('notes')}
@@ -379,7 +379,7 @@ export default function UserConcerns() {
                   transition: 'all 0.2s'
                 }}
               >
-                📝 Notes History {selectedConcern.notes?.length > 0 && `(${selectedConcern.notes.length})`}
+                <FileText className="inline-block w-4 h-4 align-[-3px] mr-1" /> Notes History {selectedConcern.notes?.length > 0 && `(${selectedConcern.notes.length})`}
               </button>
             </div>
 
@@ -521,7 +521,7 @@ export default function UserConcerns() {
                 <div>
                   {(!selectedConcern.notes || selectedConcern.notes.length === 0) && selectedConcern.status !== 'resolved' ? (
                     <div style={{ textAlign: 'center', padding: '40px 20px', color: theme.text.tertiary }}>
-                      <div style={{ fontSize: '48px', marginBottom: '16px' }}>📝</div>
+                      <div className="mb-4 flex justify-center"><FileText className="w-12 h-12" /></div>
                       <p style={{ fontSize: '14px', margin: 0 }}>No updates yet</p>
                       <p style={{ fontSize: '12px', color: theme.text.muted, marginTop: '8px' }}>
                         Admin updates will appear here as they work on your concern
@@ -542,7 +542,7 @@ export default function UserConcerns() {
                         >
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                             <span style={{ color: theme.accent.primary, fontSize: '12px', fontWeight: 700 }}>
-                              📨 {note.adminName || 'Admin'}
+                              <MessageSquare className="inline-block w-3.5 h-3.5 align-[-2px] mr-1" /> {note.adminName || 'Admin'}
                             </span>
                             <span style={{ color: theme.text.muted, fontSize: '11px' }}>
                               {note.timestamp ? formatDate(note.timestamp) : ''}
@@ -566,7 +566,7 @@ export default function UserConcerns() {
                         >
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                             <span style={{ color: '#10B981', fontSize: '12px', fontWeight: 700 }}>
-                              ✓ RESOLVED
+                              <CheckCircle className="inline-block w-3.5 h-3.5 align-[-2px] mr-1" /> RESOLVED
                             </span>
                             <span style={{ color: '#10B981', fontSize: '11px', fontWeight: 600 }}>
                               {selectedConcern.resolvedDate ? formatDate(selectedConcern.resolvedDate) : ''}

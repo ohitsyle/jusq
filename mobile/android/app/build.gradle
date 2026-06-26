@@ -84,6 +84,9 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+        // Backend is HTTP (no TLS) at a configurable IP. Without this, release
+        // builds set usesCleartextTraffic=false and every API request fails.
+        manifestPlaceholders = [usesCleartextTraffic: "true"]
     }
     signingConfigs {
         debug {

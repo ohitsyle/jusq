@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../utils/api';
 import { toast } from 'react-toastify';
-import { Mail, Search, Filter, Calendar, X, CheckCircle, Eye } from 'lucide-react';
+import { Mail, Search, Filter, Calendar, X, CheckCircle, Eye, ScrollText, ClipboardList, Undo2, Banknote, Bus, ShoppingBag } from 'lucide-react';
 
 export default function TransactionHistory() {
   const { theme, isDarkMode } = useTheme();
@@ -190,7 +190,7 @@ export default function TransactionHistory() {
       <div style={{ borderColor: isDarkMode ? 'rgba(255,212,28,0.2)' : 'rgba(59,130,246,0.2)' }} className="mb-6 border-b-2 pb-5">
         <div className="mb-5">
           <h2 style={{ color: theme.accent.primary }} className="text-2xl font-bold m-0 mb-2 flex items-center gap-[10px]">
-            <span>📜</span> Transaction History
+            <ScrollText className="inline-block w-5 h-5 align-[-3px]" /> Transaction History
           </h2>
           <p style={{ color: theme.text.secondary }} className="text-[13px] m-0">
             Showing {filteredTransactions.length} of {pagination.total || transactions.length} transactions • Auto-refreshes every 30s
@@ -288,7 +288,7 @@ export default function TransactionHistory() {
       <div className="flex-1 overflow-y-auto">
         {filteredTransactions.length === 0 ? (
           <div style={{ color: theme.text.tertiary }} className="text-center py-20">
-            <div className="text-5xl mb-4">📋</div>
+            <div className="mb-4 flex justify-center"><ClipboardList className="w-14 h-14" /></div>
             <p>No transactions found</p>
             <p className="text-sm mt-2">Try adjusting your filters</p>
           </div>
@@ -335,7 +335,13 @@ export default function TransactionHistory() {
                           <div style={{
                             background: isRefund ? 'rgba(59,130,246,0.2)' : (txType === 'credit' ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)')
                           }} className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm flex-shrink-0">
-                            {isRefund ? '↩️' : (txType === 'credit' ? '💵' : tx.shuttleId ? '🚐' : '🛒')}
+                            {isRefund
+                              ? <Undo2 className="w-4 h-4" style={{ color: '#3B82F6' }} />
+                              : txType === 'credit'
+                              ? <Banknote className="w-4 h-4" style={{ color: '#10B981' }} />
+                              : tx.shuttleId
+                              ? <Bus className="w-4 h-4" style={{ color: '#EF4444' }} />
+                              : <ShoppingBag className="w-4 h-4" style={{ color: '#EF4444' }} />}
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="font-semibold text-xs sm:text-sm truncate lg:whitespace-normal" title={description}>
@@ -587,7 +593,13 @@ function TransactionDetailModal({ transaction, onClose, theme, isDarkMode, getTr
               }}
               className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
             >
-              {isRefund ? '↩️' : (txType === 'credit' ? '💵' : transaction.shuttleId ? '🚐' : '🛒')}
+              {isRefund
+                ? <Undo2 className="w-6 h-6" style={{ color: '#3B82F6' }} />
+                : txType === 'credit'
+                ? <Banknote className="w-6 h-6" style={{ color: '#10B981' }} />
+                : transaction.shuttleId
+                ? <Bus className="w-6 h-6" style={{ color: '#EF4444' }} />
+                : <ShoppingBag className="w-6 h-6" style={{ color: '#EF4444' }} />}
             </div>
             <div>
               <h2 style={{ color: isRefund ? '#3B82F6' : (txType === 'credit' ? '#10B981' : '#EF4444') }} className="text-xl font-bold">

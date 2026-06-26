@@ -2,7 +2,7 @@
 // Real-time WebSocket client for instant updates from motorpool dashboard
 // Using HTTP polling fallback for React Native compatibility
 
-import { getStoredServerURL } from '../config/api.config';
+import { getStoredServerURL, getAPIConfig } from '../config/api.config';
 
 class WebSocketService {
   constructor() {
@@ -28,8 +28,11 @@ class WebSocketService {
 
   async _connect() {
     try {
-      // Get the server URL
-      const serverURL = await getStoredServerURL();
+      // Get the server URL. Prefer the active base URL (which defaults to the
+      // AWS server) and only fall back to a manually-stored IP. Using the
+      // stored URL alone broke real-time polling whenever the default server
+      // was in use, since nothing is stored in that case.
+      const serverURL = getAPIConfig().baseURL || (await getStoredServerURL());
       if (!serverURL) {
         console.warn('⚠️ No server URL configured for WebSocket');
         return false;
