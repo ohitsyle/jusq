@@ -40,7 +40,7 @@ const AdminSchema = new mongoose.Schema({
   role: {
     type: String,
     enum: {
-      values: ["motorpool", "merchant", "treasury", "accounting", "sysad"],
+      values: ["motorpool", "merchant", "treasury", "accounting", "sysad", "marketing"],
       message: '{VALUE} is not a valid admin role'
     },
     required: true

@@ -250,7 +250,7 @@ router.get('/transactions', verifyUserToken, async (req, res) => {
         transactionId: tx.transactionId,
         date: new Date(tx.createdAt).toLocaleDateString('en-PH'),
         time: new Date(tx.createdAt).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }),
-        details: tx.transactionType === 'credit' ? 'Cash In' : (tx.merchantId ? 'Purchase' : 'Payment'),
+        details: tx.description || (tx.transactionType === 'credit' ? 'Cash In' : (tx.merchantId ? 'Purchase' : 'Payment')),
         amount: tx.amount,
         type: tx.transactionType,
         transactionType: tx.transactionType,
@@ -261,6 +261,8 @@ router.get('/transactions', verifyUserToken, async (req, res) => {
         merchantId: tx.merchantId,
         merchantName: tx.merchantName,
         businessName: tx.businessName,
+        description: tx.description || '',
+        transferPeerSchoolId: tx.transferPeerSchoolId || null,
         createdAt: tx.createdAt
       };
     });
@@ -363,6 +365,265 @@ router.get('/merchants', verifyUserToken, async (req, res) => {
   } catch (error) {
     console.error('Error fetching merchants:', error);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+/**
+ * GET /api/user/trips
+ * The logged-in user's shuttle trip history ("where they went"), joined with
+ * route + shuttle details. Defined BEFORE /:userId to avoid route shadowing.
+ */
+router.get('/trips', verifyUserToken, async (req, res) => {
+  try {
+    const user = req.user;
+    const Transaction = (await import('../models/Transaction.js')).default;
+    const Route = (await import('../models/Route.js')).default;
+    const Shuttle = (await import('../models/Shuttle.js')).default;
+
+    // Shuttle-related transactions for this user (payments + refunds)
+    const txs = await Transaction.find({
+      userId: user._id,
+      shuttleId: { $exists: true, $ne: null }
+    }).sort({ createdAt: -1 }).limit(100).lean();
+
+    const routeIds = [...new Set(txs.map(t => t.routeId).filter(Boolean))];
+    const shuttleIds = [...new Set(txs.map(t => t.shuttleId).filter(Boolean))];
+
+    const [routes, shuttles] = await Promise.all([
+      Route.find({ routeId: { $in: routeIds } }).lean(),
+      Shuttle.find({ shuttleId: { $in: shuttleIds } }).lean()
+    ]);
+    const routeMap = Object.fromEntries(routes.map(r => [r.routeId, r]));
+    const shuttleMap = Object.fromEntries(shuttles.map(s => [s.shuttleId, s]));
+
+    const trips = txs.map(t => {
+      const r = routeMap[t.routeId] || {};
+      const s = shuttleMap[t.shuttleId] || {};
+      return {
+        id: t.transactionId || t._id,
+        date: t.createdAt,
+        fare: t.amount,
+        status: t.status,
+        isRefund: t.status === 'Refunded',
+        routeName: r.routeName || 'NU Shuttle Service',
+        from: r.fromName || null,
+        to: r.toName || null,
+        plateNumber: s.plateNumber || null,
+        vehicle: s.vehicleModel || s.vehicleType || null
+      };
+    });
+
+    res.json({ trips, totalTrips: trips.filter(t => !t.isRefund).length });
+  } catch (error) {
+    console.error('Error fetching trips:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+/**
+ * GET /api/user/promos
+ * Active promotions for end-users + whether the promotions tab is enabled.
+ * Defined BEFORE /:userId to avoid route shadowing.
+ */
+router.get('/promos', verifyUserToken, async (req, res) => {
+  try {
+    const PromotionCampaign = (await import('../models/PromotionCampaign.js')).default;
+    const Configuration = (await import('../models/Configuration.js')).default;
+
+    const cfg = await Configuration.findOne({ configType: 'tabVisibility', adminRole: 'global' });
+    const tabEnabled = cfg?.tabVisibility?.promotions ?? true;
+
+    const promos = await PromotionCampaign.find({ active: true }).sort({ createdAt: -1 }).lean();
+    res.json({ tabEnabled, promos });
+  } catch (error) {
+    console.error('Error fetching promos:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+/**
+ * GET /api/user/lookup/:schoolId
+ * Look up a transfer recipient by school ID (digits only). Returns minimal,
+ * non-sensitive info (no balance). Defined BEFORE /:userId to avoid shadowing.
+ */
+router.get('/lookup/:schoolId', verifyUserToken, async (req, res) => {
+  try {
+    const digits = String(req.params.schoolId || '').replace(/\D/g, '');
+    if (!digits) return res.json({ found: false });
+
+    const recipient = await User.findOne({ schoolUId: digits });
+    if (!recipient) return res.json({ found: false });
+
+    // Can't send to yourself
+    if (String(recipient._id) === String(req.user._id)) {
+      return res.json({ found: false, self: true });
+    }
+    // Recipient must be an active, non-deactivated account
+    if (!recipient.isActive || recipient.isDeactivated) {
+      return res.json({ found: false, inactive: true });
+    }
+
+    return res.json({
+      found: true,
+      schoolUId: recipient.schoolUId,
+      firstName: recipient.firstName,
+      lastName: recipient.lastName,
+      fullName: `${recipient.firstName || ''} ${recipient.lastName || ''}`.trim(),
+      accountType: recipient.role
+    });
+  } catch (error) {
+    console.error('Error looking up recipient:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+/**
+ * POST /api/user/transfer
+ * Student-to-student balance transfer. Body: { recipientSchoolId, amount, pin }.
+ * Uses atomic $inc with a balance guard so a sender can never overspend or
+ * double-spend under concurrency. Defined BEFORE /:userId to avoid shadowing.
+ */
+router.post('/transfer', verifyUserToken, async (req, res) => {
+  try {
+    const sender = req.user;
+    const { recipientSchoolId, amount, pin } = req.body;
+
+    // Validate inputs
+    const digits = String(recipientSchoolId || '').replace(/\D/g, '');
+    const amt = Math.round((parseFloat(amount) || 0) * 100) / 100;
+    if (!digits) return res.status(400).json({ error: 'Recipient school ID is required' });
+    if (!amt || amt <= 0) return res.status(400).json({ error: 'Enter a valid amount' });
+    if (!pin) return res.status(400).json({ error: 'PIN is required' });
+
+    // Account state checks for the sender
+    if (!sender.isActive || sender.isDeactivated) {
+      return res.status(403).json({ error: 'Your account cannot send transfers right now' });
+    }
+
+    // Verify sender PIN. NOTE: use 422 (not 401) — the web client force-logs-out
+    // on any 401, and a wrong PIN here must not log the user out.
+    const pinValid = sender.pin && (sender.pin.startsWith('$2') ? await bcrypt.compare(String(pin), sender.pin) : sender.pin === String(pin));
+    if (!pinValid) return res.status(422).json({ error: 'Incorrect PIN. Please try again.' });
+
+    // Find recipient
+    const recipient = await User.findOne({ schoolUId: digits });
+    if (!recipient) return res.status(404).json({ error: 'Recipient not found' });
+    if (String(recipient._id) === String(sender._id)) return res.status(400).json({ error: 'You cannot transfer to yourself' });
+    if (!recipient.isActive || recipient.isDeactivated) return res.status(409).json({ error: 'Recipient account is not active' });
+
+    // Atomic debit with balance guard (prevents overspend / double-spend)
+    const debited = await User.findOneAndUpdate(
+      { _id: sender._id, balance: { $gte: amt } },
+      { $inc: { balance: -amt } },
+      { new: true }
+    );
+    if (!debited) return res.status(409).json({ error: 'Insufficient balance' });
+
+    // Atomic credit; compensate the sender if the credit somehow fails
+    let credited;
+    try {
+      credited = await User.findByIdAndUpdate(recipient._id, { $inc: { balance: amt } }, { new: true });
+      if (!credited) throw new Error('Recipient update returned null');
+    } catch (creditErr) {
+      await User.findByIdAndUpdate(sender._id, { $inc: { balance: amt } }); // refund
+      console.error('Transfer credit failed, refunded sender:', creditErr.message);
+      return res.status(500).json({ error: 'Transfer failed. Your balance was not affected.' });
+    }
+
+    // Round stored balances to 2 decimals
+    const senderBal = Math.round(debited.balance * 100) / 100;
+    const recipientBal = Math.round(credited.balance * 100) / 100;
+
+    const recipientName = `${recipient.firstName || ''} ${recipient.lastName || ''}`.trim();
+    const senderName = `${sender.firstName || ''} ${sender.lastName || ''}`.trim();
+
+    // Transaction records for both parties
+    await Transaction.create([
+      {
+        transactionId: Transaction.generateTransactionId(),
+        transactionType: 'debit',
+        amount: amt,
+        balance: senderBal,
+        status: 'Completed',
+        userId: sender._id,
+        schoolUId: sender.schoolUId,
+        email: sender.email,
+        description: `Transfer to ${recipientName} (${recipient.schoolUId})`,
+        transferPeerSchoolId: recipient.schoolUId,
+        viewFor: 'user'
+      },
+      {
+        transactionId: Transaction.generateTransactionId(),
+        transactionType: 'credit',
+        amount: amt,
+        balance: recipientBal,
+        status: 'Completed',
+        userId: recipient._id,
+        schoolUId: recipient.schoolUId,
+        email: recipient.email,
+        description: `Transfer from ${senderName} (${sender.schoolUId})`,
+        transferPeerSchoolId: sender.schoolUId,
+        viewFor: 'user'
+      }
+    ]);
+
+    // Email both parties (fire-and-forget — never block or fail the transfer on email).
+    (async () => {
+      try {
+        const { sendEmail } = await import('../services/emailService.js');
+        const when = new Date().toLocaleString('en-PH', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' });
+        const money = (n) => `₱${Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
+        const shell = (heading, color, rows) => `
+          <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; border: 1px solid #eee; border-radius: 12px; overflow: hidden;">
+            <div style="background: #181D40; padding: 22px 28px;">
+              <div style="color: #FFD41C; font-size: 13px; font-weight: 700; letter-spacing: 1px;">NUCASH SYSTEM</div>
+              <div style="color: #FFFFFF; font-size: 20px; font-weight: 800; margin-top: 4px;">${heading}</div>
+            </div>
+            <div style="padding: 24px 28px;">
+              <table style="width: 100%; border-collapse: collapse; font-size: 14px; color: #333;">
+                ${rows.map(([k, v]) => `<tr><td style="padding: 8px 0; color: #777;">${k}</td><td style="padding: 8px 0; text-align: right; font-weight: 600; color: ${k === 'Amount' ? color : '#181D40'};">${v}</td></tr>`).join('')}
+              </table>
+              <p style="color: #999; font-size: 12px; margin-top: 20px; border-top: 1px solid #eee; padding-top: 16px;">This is an automated receipt. If you didn't make this transfer, please contact the Treasury Office / ITSO immediately.</p>
+            </div>
+          </div>`;
+
+        await Promise.all([
+          sendEmail({
+            to: sender.email,
+            subject: `You sent ${money(amt)} • NUCash`,
+            html: shell('Money Sent', '#EF4444', [
+              ['Amount', `- ${money(amt)}`],
+              ['To', `${recipientName} (${recipient.schoolUId})`],
+              ['New balance', money(senderBal)],
+              ['Date', when]
+            ])
+          }),
+          sendEmail({
+            to: recipient.email,
+            subject: `You received ${money(amt)} • NUCash`,
+            html: shell('Money Received', '#10B981', [
+              ['Amount', `+ ${money(amt)}`],
+              ['From', `${senderName} (${sender.schoolUId})`],
+              ['New balance', money(recipientBal)],
+              ['Date', when]
+            ])
+          })
+        ]);
+        console.log(`📧 Transfer receipts sent to ${sender.email} and ${recipient.email}`);
+      } catch (mailErr) {
+        console.error('Transfer email failed (transfer already completed):', mailErr.message);
+      }
+    })();
+
+    return res.json({
+      success: true,
+      message: `₱${amt.toFixed(2)} sent to ${recipientName}`,
+      newBalance: senderBal,
+      recipientName
+    });
+  } catch (error) {
+    console.error('Error processing transfer:', error);
+    res.status(500).json({ error: 'Server error during transfer' });
   }
 });
 

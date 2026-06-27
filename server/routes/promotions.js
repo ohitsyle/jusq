@@ -335,4 +335,45 @@ router.post('/send-reward', async (req, res) => {
   }
 });
 
+// ============================================================
+// END-USER PROMO TAB TOGGLE (controlled by Marketing admin)
+// Stored as a global tabVisibility config (promotions field).
+// ============================================================
+
+/**
+ * GET /admin/promotions/tab-setting
+ * Returns whether the end-user Promotions tab is enabled.
+ */
+router.get('/tab-setting', async (req, res) => {
+  try {
+    const Configuration = (await import('../models/Configuration.js')).default;
+    const cfg = await Configuration.findOne({ configType: 'tabVisibility', adminRole: 'global' });
+    const enabled = cfg?.tabVisibility?.promotions ?? true;
+    res.json({ enabled });
+  } catch (error) {
+    console.error('Error reading promo tab setting:', error);
+    res.status(500).json({ error: 'Failed to read promo tab setting' });
+  }
+});
+
+/**
+ * PUT /admin/promotions/tab-setting
+ * Enable/disable the end-user Promotions tab. Body: { enabled: boolean }
+ */
+router.put('/tab-setting', async (req, res) => {
+  try {
+    const { enabled } = req.body;
+    const Configuration = (await import('../models/Configuration.js')).default;
+    const cfg = await Configuration.findOneAndUpdate(
+      { configType: 'tabVisibility', adminRole: 'global' },
+      { $set: { 'tabVisibility.promotions': !!enabled, updatedAt: Date.now() } },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+    res.json({ enabled: cfg?.tabVisibility?.promotions ?? !!enabled });
+  } catch (error) {
+    console.error('Error updating promo tab setting:', error);
+    res.status(500).json({ error: 'Failed to update promo tab setting' });
+  }
+});
+
 export default router;

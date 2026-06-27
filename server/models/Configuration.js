@@ -14,7 +14,7 @@ const configurationSchema = new mongoose.Schema({
   // Combined with configType to create unique configurations per role
   adminRole: {
     type: String,
-    enum: ['motorpool', 'merchant', 'treasury', 'sysad', 'global'],
+    enum: ['motorpool', 'merchant', 'treasury', 'accounting', 'sysad', 'marketing', 'global'],
     default: 'global'
   },
 

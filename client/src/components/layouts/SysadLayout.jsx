@@ -4,7 +4,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
-import { Home, Users, CreditCard, ClipboardList, MessageSquare, Settings } from 'lucide-react';
+import { Home, Users, CreditCard, ClipboardList, MessageSquare, Settings, Bell } from 'lucide-react';
 import SysadHeader from './SysadHeader';
 import Footer from './Footer';
 import api from '../../utils/api';
@@ -45,6 +45,7 @@ export default function SysadLayout({ children }) {
 
   // System tabs
   const systemTabs = [
+    { path: '/admin/sysad/alerts', icon: Bell, label: 'Alerts' },
     { path: '/admin/sysad/logs', icon: ClipboardList, label: 'Logs' },
     { path: '/admin/sysad/concerns', icon: MessageSquare, label: 'Concerns' },
     { path: '/admin/sysad/config', icon: Settings, label: 'Settings' },

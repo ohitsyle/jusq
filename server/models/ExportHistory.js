@@ -37,7 +37,7 @@ const exportHistorySchema = new mongoose.Schema({
   },
   adminRole: {
     type: String,
-    enum: ['motorpool', 'merchant', 'treasury', 'accounting', 'sysad'],
+    enum: ['motorpool', 'merchant', 'treasury', 'accounting', 'sysad', 'marketing'],
     default: 'motorpool'
   },
   adminId: {

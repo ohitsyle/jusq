@@ -119,7 +119,7 @@ const EventLogSchema = new mongoose.Schema({
   // Department and entity classification
   department: {
     type: String,
-    enum: ['motorpool', 'merchant', 'treasury', 'accounting', 'system', 'sysad'],
+    enum: ['motorpool', 'merchant', 'treasury', 'accounting', 'system', 'sysad', 'marketing'],
     default: null,
     index: true
   },

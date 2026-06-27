@@ -923,7 +923,8 @@ function AddUserModal({ theme, isDarkMode, onClose, onSuccess, showNotification 
                   { value: 'treasury', label: 'Treasury', color: '#10B981' },
                   { value: 'accounting', label: 'Accounting', color: '#A855F7' },
                   { value: 'motorpool', label: 'Motorpool', color: '#F59E0B' },
-                  { value: 'merchant', label: 'Merchant', color: '#EC4899' }
+                  { value: 'merchant', label: 'Merchant', color: '#EC4899' },
+                  { value: 'marketing', label: 'Marketing', color: '#06B6D4' }
                 ].map((option) => (
                   <button
                     key={option.value}

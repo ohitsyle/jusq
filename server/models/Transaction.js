@@ -31,6 +31,18 @@ const TransactionSchema = new mongoose.Schema({
     enum: ["Completed", "Failed", "Pending", "Offline", "Refunded"],
     default: "Completed"
   },
+
+  // Human-readable label (used for student-to-student transfers, etc.)
+  description: {
+    type: String,
+    default: ''
+  },
+
+  // Counterparty for peer transfers (the other student's school ID)
+  transferPeerSchoolId: {
+    type: String,
+    default: null
+  },
   
   // Context Fields (nullable based on transaction type)
   shuttleId: {

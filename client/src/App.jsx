@@ -52,6 +52,13 @@ import AccountingMerchantsPage from './pages/admin/Accounting/MerchantsPage';
 // Reuse Treasury pages for read-only views
 import AccountingTransactionsPage from './pages/admin/Treasury/TransactionsPage';
 
+// Marketing Pages
+import MarketingLayout from './components/layouts/MarketingLayout';
+import MarketingHome from './pages/admin/Marketing/MarketingHome';
+import MarketingPromos from './pages/admin/Marketing/Promos';
+import MarketingLoyalty from './pages/admin/Marketing/Loyalty';
+import MarketingConfig from './pages/admin/Marketing/Config';
+
 // Shared Admin Pages
 import LogsPage from './pages/admin/Shared/Logs';
 import ProfilePage from './pages/admin/Shared/Profile';
@@ -65,6 +72,7 @@ import Config from './pages/admin/Shared/Config';
 import UserDashboard from './pages/user/UserDashboard';
 import TransactionHistory from './pages/user/TransactionHistory';
 import UserConcerns from './pages/user/UserConcerns';
+import UserPromotions from './pages/user/UserPromotions';
 import UserProfile from './pages/user/UserProfile';
 import FAQ from './pages/user/FAQ';
 
@@ -74,6 +82,7 @@ import ManageUsers from './pages/admin/Sysad/ManageUsers';
 import TransferCard from './pages/admin/Sysad/TransferCard';
 import SysadConcernsPage from './pages/admin/Sysad/ConcernsPage';
 import SysadConfigPage from './pages/admin/Sysad/ConfigPage';
+import SysadSystemAlerts from './pages/admin/Sysad/SystemAlerts';
 
 // Maintenance Mode Page
 import MaintenanceMode from './pages/MaintenanceMode';
@@ -142,6 +151,21 @@ const AccountingProtectedRoute = ({ children }) => {
   return <AccountingLayout>{children}</AccountingLayout>;
 };
 
+// Protected Route wrapper for Marketing Admin
+const MarketingProtectedRoute = ({ children }) => {
+  const token = localStorage.getItem('adminToken');
+  const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+  if (adminData.role && adminData.role !== 'marketing') {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <MarketingLayout>{children}</MarketingLayout>;
+};
+
 // Protected Route wrapper for User
 const UserProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('userToken');
@@ -202,6 +226,14 @@ function AppContent() {
         element={
           <UserProtectedRoute>
             <TransactionHistory />
+          </UserProtectedRoute>
+        }
+      />
+      <Route
+        path="/user/promotions"
+        element={
+          <UserProtectedRoute>
+            <UserPromotions />
           </UserProtectedRoute>
         }
       />
@@ -362,6 +394,15 @@ function AppContent() {
       {/* Accounting default redirect */}
       <Route path="/admin/accounting" element={<Navigate to="/admin/accounting/home" replace />} />
 
+      {/* ================= MARKETING ROUTES ================= */}
+      <Route path="/admin/marketing/home" element={<MarketingProtectedRoute><MarketingHome /></MarketingProtectedRoute>} />
+      <Route path="/admin/marketing/promos" element={<MarketingProtectedRoute><MarketingPromos /></MarketingProtectedRoute>} />
+      <Route path="/admin/marketing/loyalty" element={<MarketingProtectedRoute><MarketingLoyalty /></MarketingProtectedRoute>} />
+      <Route path="/admin/marketing/logs" element={<MarketingProtectedRoute><TreasuryLogs /></MarketingProtectedRoute>} />
+      <Route path="/admin/marketing/config" element={<MarketingProtectedRoute><MarketingConfig /></MarketingProtectedRoute>} />
+      <Route path="/admin/marketing/profile" element={<MarketingProtectedRoute><ProfilePage /></MarketingProtectedRoute>} />
+      <Route path="/admin/marketing" element={<Navigate to="/admin/marketing/home" replace />} />
+
       {/* ================= SYSTEM ADMIN ROUTES ================= */}
       <Route
         path="/admin/sysad/dashboard"
@@ -408,6 +449,14 @@ function AppContent() {
         element={
           <SysadProtectedRoute>
             <SysadConfigPage />
+          </SysadProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/sysad/alerts"
+        element={
+          <SysadProtectedRoute>
+            <SysadSystemAlerts />
           </SysadProtectedRoute>
         }
       />

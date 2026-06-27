@@ -58,6 +58,7 @@ import activationRoutes from './routes/activation.js';
 import treasuryRoutes from './routes/treasury.js';
 import accountingRoutes from './routes/accounting.js';
 import sysadRoutes, { getSystemConfig, setSchedulerExecuted } from './routes/sysad.js';
+import systemAlertsRoutes from './routes/systemAlerts.js';
 import websocketRoutes from './routes/websocket.js';
 import { initializeAutoExportCron } from './jobs/autoExportCron.js';
 import { initializeStudentDeactivationCron } from './jobs/studentDeactivationCron.js';
@@ -74,6 +75,7 @@ app.use('/api/admin/auth', adminAuthRoutes);
 app.use('/api/admin/treasury', treasuryRoutes);
 app.use('/api/admin/accounting', accountingRoutes);
 app.use('/api/admin/sysad', sysadRoutes);
+app.use('/api/system-alerts', systemAlertsRoutes);
 app.use('/api/admin/promotions', promotionsRoutes);
 app.use('/api/admin/configurations', configurationsRoutes);
 app.use('/api/admin', adminRoutes); // General admin routes AFTER specific admin/* routes

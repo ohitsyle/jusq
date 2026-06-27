@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../utils/api';
 import { toast } from 'react-toastify';
-import { Mail, Search, Filter, Calendar, X, CheckCircle, Eye, ScrollText, ClipboardList, Undo2, Banknote, Bus, ShoppingBag } from 'lucide-react';
+import { Mail, Search, Filter, Calendar, X, CheckCircle, Eye, ScrollText, ClipboardList, Undo2, Banknote, Bus, ShoppingBag, Send } from 'lucide-react';
 
 export default function TransactionHistory() {
   const { theme, isDarkMode } = useTheme();
@@ -25,6 +25,11 @@ export default function TransactionHistory() {
   const getTransactionDescription = (tx) => {
     const txType = tx.transactionType || tx.type;
     const txStatus = tx.status;
+
+    // Student-to-student transfers carry a ready-made description
+    if (tx.description && /^Transfer (to|from)/.test(tx.description)) {
+      return tx.description;
+    }
 
     // Handle REFUNDED transactions FIRST (before checking type)
     if (txStatus === 'Refunded') {
@@ -337,6 +342,8 @@ export default function TransactionHistory() {
                           }} className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm flex-shrink-0">
                             {isRefund
                               ? <Undo2 className="w-4 h-4" style={{ color: '#3B82F6' }} />
+                              : /^Transfer/.test(tx.description || '')
+                              ? <Send className="w-4 h-4" style={{ color: txType === 'credit' ? '#10B981' : '#EF4444' }} />
                               : txType === 'credit'
                               ? <Banknote className="w-4 h-4" style={{ color: '#10B981' }} />
                               : tx.shuttleId

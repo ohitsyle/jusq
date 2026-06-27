@@ -1,12 +1,13 @@
 // src/components/layouts/UserLayout.jsx
 // User layout matching Motorpool design patterns
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import UserHeader from './UserHeader';
 import Footer from './Footer';
-import { Home, ScrollText, ClipboardList } from 'lucide-react';
+import api from '../../utils/api';
+import { Home, ScrollText, ClipboardList, Gift } from 'lucide-react';
 
 export default function UserLayout({ children }) {
   const navigate = useNavigate();
@@ -34,10 +35,17 @@ export default function UserLayout({ children }) {
     navigate('/user/profile');
   };
 
+  // Promotions tab is shown only when Marketing has enabled it.
+  const [promoTabEnabled, setPromoTabEnabled] = useState(false);
+  useEffect(() => {
+    api.get('/user/promos').then((d) => setPromoTabEnabled(!!d?.tabEnabled)).catch(() => {});
+  }, []);
+
   // User dashboard tabs
   const userTabs = [
     { path: '/user/dashboard', Icon: Home, label: 'Home' },
     { path: '/user/history', Icon: ScrollText, label: 'History' },
+    ...(promoTabEnabled ? [{ path: '/user/promotions', Icon: Gift, label: 'Promos' }] : []),
     { path: '/user/concerns', Icon: ClipboardList, label: 'My Concerns' },
   ];
 

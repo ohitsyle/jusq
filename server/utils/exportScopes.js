@@ -10,6 +10,7 @@ export const ROLE_EXPORT_TYPES = {
   treasury: ['Transactions', 'Cash-Ins', 'Logs', 'Concerns'],
   accounting: ['Transactions', 'Cash-Ins', 'Balances', 'Logs'],
   sysad: ['Transactions', 'Users', 'Merchants', 'Admins', 'Logs', 'Concerns'],
+  marketing: ['Logs'],
 };
 
 // Keep only the export types a given role is actually allowed to export.
@@ -93,6 +94,20 @@ export function buildDepartmentLogQuery(role) {
         { eventType: { $in: ['crud_create', 'crud_update', 'crud_delete'] }, 'metadata.adminRole': 'accounting' },
         { eventType: { $in: ['auto_export_config_change', 'manual_export', 'export_manual', 'export_auto', 'config_updated'] }, 'metadata.adminRole': 'accounting' },
         { department: 'accounting' }
+      ],
+      ...excludeSysad
+    };
+  }
+
+  if (role === 'marketing') {
+    return {
+      $or: [
+        { eventType: { $in: ['login', 'logout'] }, 'metadata.adminRole': 'marketing' },
+        { eventType: { $in: ['login', 'logout'] }, department: 'marketing' },
+        { eventType: { $in: ['crud_create', 'crud_update', 'crud_delete'] }, 'metadata.adminRole': 'marketing' },
+        { eventType: { $in: ['note_added', 'note_updated', 'concern_resolved'] }, 'metadata.adminRole': 'marketing' },
+        { eventType: { $in: ['auto_export_config_change', 'manual_export', 'export_manual', 'export_auto', 'config_updated'] }, 'metadata.adminRole': 'marketing' },
+        { department: 'marketing' }
       ],
       ...excludeSysad
     };

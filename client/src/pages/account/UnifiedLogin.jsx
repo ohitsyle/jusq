@@ -55,6 +55,7 @@ export default function UnifiedLogin() {
         else if (role === 'merchant') navigate('/admin/merchant', { replace: true });
         else if (role === 'treasury') navigate('/admin/treasury/dashboard', { replace: true });
         else if (role === 'accounting') navigate('/admin/accounting/home', { replace: true });
+        else if (role === 'marketing') navigate('/admin/marketing/home', { replace: true });
         else if (role === 'sysad') navigate('/admin/sysad/dashboard', { replace: true });
         else navigate('/admin/motorpool', { replace: true });
       } catch (e) {
@@ -208,7 +209,7 @@ export default function UnifiedLogin() {
 
       // Check if the response contains an admin role (motorpool, merchant, treasury, accounting, sysad, etc.)
       // This overrides the email-based detection
-      const isAdminResponse = data.role && ['motorpool', 'merchant', 'treasury', 'accounting', 'sysad', 'cafeteria', 'bookstore', 'printshop'].includes(data.role);
+      const isAdminResponse = data.role && ['motorpool', 'merchant', 'treasury', 'accounting', 'marketing', 'sysad', 'cafeteria', 'bookstore', 'printshop'].includes(data.role);
       const actualRole = isAdminResponse ? 'admin' : detectedRole;
 
       // MAINTENANCE MODE CHECK: Only allow sysad to login during maintenance
@@ -262,6 +263,8 @@ export default function UnifiedLogin() {
           redirectUrl = '/admin/treasury/dashboard';
         } else if (data.role === 'accounting') {
           redirectUrl = '/admin/accounting/home';
+        } else if (data.role === 'marketing') {
+          redirectUrl = '/admin/marketing/home';
         } else if (data.role === 'sysad') {
           redirectUrl = '/admin/sysad/dashboard';
         } else {

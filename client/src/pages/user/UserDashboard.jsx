@@ -3,7 +3,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../utils/api';
-import { Eye, EyeOff, Calendar, FileText, ChevronRight, X, ChevronLeft, Check, MessageSquare, Monitor, Wallet, Store, Bus, Banknote, ShoppingBag, Undo2, LifeBuoy } from 'lucide-react';
+import TransferModal from '../../components/modals/TransferModal';
+import { Eye, EyeOff, Calendar, FileText, ChevronRight, X, ChevronLeft, Check, MessageSquare, Monitor, Wallet, Store, Bus, Banknote, ShoppingBag, Undo2, LifeBuoy, Info, AlertTriangle, AlertOctagon, CheckCircle2, Bell, Send } from 'lucide-react';
+
+const ALERT_SEVERITY = {
+  info: { color: '#3B82F6', Icon: Info },
+  success: { color: '#22C55E', Icon: CheckCircle2 },
+  warning: { color: '#F59E0B', Icon: AlertTriangle },
+  critical: { color: '#EF4444', Icon: AlertOctagon },
+};
 
 export default function UserDashboard() {
   const { theme, isDarkMode } = useTheme();
@@ -14,16 +22,35 @@ export default function UserDashboard() {
   const [allTransactions, setAllTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('today');
+  const [systemAlerts, setSystemAlerts] = useState([]);
+  const [dismissedAlerts, setDismissedAlerts] = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem('dismissedAlerts') || '[]'); } catch (e) { return []; }
+  });
+  const [recentTrips, setRecentTrips] = useState([]);
   const intervalRef = useRef(null);
+
+  const dismissAlert = (id) => {
+    setDismissedAlerts((prev) => {
+      const next = [...prev, id];
+      sessionStorage.setItem('dismissedAlerts', JSON.stringify(next));
+      return next;
+    });
+  };
 
   // Modal states
   const [showConcernModal, setShowConcernModal] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
 
   // Helper function to get transaction description
   const getTransactionDescription = (tx) => {
     const txType = tx.transactionType || tx.type;
     const txStatus = tx.status;
+
+    // Student-to-student transfers carry a ready-made description
+    if (tx.description && /^Transfer (to|from)/.test(tx.description)) {
+      return tx.description;
+    }
 
     // Handle REFUNDED transactions FIRST (before checking type)
     if (txStatus === 'Refunded') {
@@ -130,6 +157,8 @@ export default function UserDashboard() {
     }
 
     fetchData();
+    api.get('/system-alerts/active').then((d) => setSystemAlerts(Array.isArray(d) ? d : [])).catch(() => {});
+    api.get('/user/trips').then((d) => setRecentTrips((d?.trips || []).filter((t) => !t.isRefund).slice(0, 4))).catch(() => {});
     intervalRef.current = setInterval(() => fetchData(true), 10000);
 
     return () => {
@@ -243,8 +272,32 @@ export default function UserDashboard() {
     );
   }
 
+  const visibleAlerts = systemAlerts.filter((a) => !dismissedAlerts.includes(a._id));
+
   return (
-    <div className="min-h-[calc(100vh-220px)] flex flex-col lg:flex-row gap-5">
+    <>
+      {visibleAlerts.length > 0 && (
+        <div className="mb-5 flex flex-col gap-3">
+          {visibleAlerts.map((a) => {
+            const sev = ALERT_SEVERITY[a.severity] || ALERT_SEVERITY.info;
+            return (
+              <div key={a._id} style={{ background: `${sev.color}14`, borderColor: `${sev.color}55` }} className="rounded-2xl border-2 p-4 flex items-start gap-3">
+                <div style={{ background: `${sev.color}22` }} className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0">
+                  <sev.Icon className="w-5 h-5" style={{ color: sev.color }} />
+                </div>
+                <div className="flex-1">
+                  <div style={{ color: theme.text.primary }} className="font-bold text-sm">{a.title}</div>
+                  <div style={{ color: theme.text.secondary }} className="text-sm mt-0.5">{a.message}</div>
+                </div>
+                <button onClick={() => dismissAlert(a._id)} style={{ color: theme.text.tertiary }} className="p-1 hover:opacity-70 flex-shrink-0" aria-label="Dismiss">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <div className="max-w-[1400px] mx-auto w-full flex flex-col lg:flex-row gap-5 lg:h-[640px]">
       {/* Left Column - Balance + Actions */}
       <div className="w-full lg:w-[500px] flex flex-col gap-5 flex-shrink-0">
 
@@ -259,7 +312,7 @@ export default function UserDashboard() {
               ? '0 8px 32px rgba(255,212,28,0.15)'
               : '0 8px 32px rgba(59,130,246,0.15)'
           }}
-          className="p-6 rounded-2xl border-2 relative overflow-hidden"
+          className="p-6 rounded-2xl border-2 relative overflow-hidden flex-shrink-0"
         >
           {/* Decorative background pattern */}
           <div
@@ -318,8 +371,13 @@ export default function UserDashboard() {
               }
             </div>
 
-            <div className="flex items-center justify-between">
-            </div>
+            <button
+              onClick={() => setShowTransferModal(true)}
+              style={{ background: theme.accent.primary, color: isDarkMode ? '#181D40' : '#FFFFFF' }}
+              className="w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition-all duration-200 hover:opacity-90 hover:scale-[1.02] active:scale-95"
+            >
+              <Send className="w-4 h-4" /> Send
+            </button>
           </div>
         </div>
 
@@ -365,12 +423,38 @@ export default function UserDashboard() {
             <ChevronRight style={{ color: theme.text.tertiary }} className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Recent Trips Taken (NU Shuttle Service) — fixed-height card */}
+        <div style={{ background: theme.bg.card, borderColor: theme.border.primary }} className="rounded-2xl border p-4 h-[232px] flex flex-col flex-shrink-0">
+          <h3 style={{ color: theme.accent.primary }} className="text-base font-bold flex items-center gap-2 mb-3 flex-shrink-0">
+            <Bus className="w-4 h-4" /> Recent Trips Taken
+          </h3>
+          <div className="flex-1 overflow-y-auto">
+            {recentTrips.length === 0 ? (
+              <p style={{ color: theme.text.secondary }} className="text-xs">No shuttle trips yet — your NU Shuttle rides will show up here.</p>
+            ) : (
+              <div className="flex flex-col gap-2.5">
+                {recentTrips.map((t) => (
+                  <div key={t.id} className="flex items-center gap-3">
+                    <div style={{ background: `${theme.accent.primary}20` }} className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Bus className="w-4 h-4" style={{ color: theme.accent.primary }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p style={{ color: theme.text.primary }} className="text-sm font-semibold truncate">{t.routeName}</p>
+                      <p style={{ color: theme.text.tertiary }} className="text-xs">{new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Right Column - Transactions */}
       <div
         style={{ background: theme.bg.card, borderColor: theme.border.primary }}
-        className="w-full lg:flex-1 lg:max-w-[1000px] rounded-2xl border overflow-hidden flex flex-col max-h-[450px] lg:max-h-none"
+        className="w-full lg:flex-1 rounded-2xl border overflow-hidden flex flex-col max-h-[450px] lg:max-h-none lg:h-full"
       >
         {/* Header */}
         <div style={{ borderColor: theme.border.primary }} className="p-4 border-b flex-shrink-0">
@@ -431,6 +515,8 @@ export default function UserDashboard() {
                       }} className="w-10 h-10 rounded-full flex items-center justify-center text-lg">
                         {isRefund
                           ? <Undo2 className="w-5 h-5" style={{ color: '#3B82F6' }} />
+                          : /^Transfer/.test(tx.description || '')
+                          ? <Send className="w-5 h-5" style={{ color: txType === 'credit' ? '#10B981' : '#EF4444' }} />
                           : txType === 'credit'
                           ? <Banknote className="w-5 h-5" style={{ color: '#10B981' }} />
                           : tx.shuttleId
@@ -471,13 +557,24 @@ export default function UserDashboard() {
       )}
       
       {showFeedbackModal && (
-        <FeedbackModal 
-          onClose={() => setShowFeedbackModal(false)} 
-          theme={theme} 
-          isDarkMode={isDarkMode} 
+        <FeedbackModal
+          onClose={() => setShowFeedbackModal(false)}
+          theme={theme}
+          isDarkMode={isDarkMode}
         />
       )}
-    </div>
+
+      {showTransferModal && (
+        <TransferModal
+          onClose={() => setShowTransferModal(false)}
+          theme={theme}
+          isDarkMode={isDarkMode}
+          balance={balance}
+          onSuccess={(newBalance) => { if (typeof newBalance === 'number') setBalance(newBalance); fetchData(true); }}
+        />
+      )}
+      </div>
+    </>
   );
 }
 
