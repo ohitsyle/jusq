@@ -25,7 +25,15 @@ import {
   CheckCircle2, XCircle, MessageSquare, ArrowDownLeft, ArrowUpRight,
   Monitor, Wallet, Store, Bus, Star, KeyRound, AlertTriangle, LogOut,
   X, ChevronRight, Inbox, Receipt, Check,
+  Send, Gift, Bell, Info, AlertOctagon, Search, ArrowRight, Sparkles, TrendingUp, Ticket, Navigation, ShieldCheck,
 } from 'lucide-react-native';
+
+const ALERT_SEVERITY = {
+  info: { color: '#3B82F6', Icon: Info },
+  success: { color: '#22C55E', Icon: CheckCircle2 },
+  warning: { color: '#F59E0B', Icon: AlertTriangle },
+  critical: { color: '#EF4444', Icon: AlertOctagon },
+};
 import api from '../services/api';
 import ChangePinModal from './ChangePinModal';
 import DeactivateAccountModal from './DeactivateAccountModal';
@@ -134,6 +142,25 @@ export default function UserDashboardScreen({ navigation, route }) {
   const [showChangePinModal, setShowChangePinModal] = useState(false);
   const [showDeactivateModal, setShowDeactivateModal] = useState(false);
 
+  // Ported web features
+  const [systemAlerts, setSystemAlerts] = useState([]);
+  const [dismissedAlerts, setDismissedAlerts] = useState([]);
+  const [recentTrips, setRecentTrips] = useState([]);
+  const [tripCount, setTripCount] = useState(0);
+  const [promos, setPromos] = useState([]);
+  const [promoTabEnabled, setPromoTabEnabled] = useState(false);
+
+  // Transfer (student-to-student)
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [tStep, setTStep] = useState('search'); // search | amount | pin | success
+  const [tSchoolId, setTSchoolId] = useState('');
+  const [tRecipient, setTRecipient] = useState(null);
+  const [tAmount, setTAmount] = useState('');
+  const [tPin, setTPin] = useState('');
+  const [tLoading, setTLoading] = useState(false);
+  const [tError, setTError] = useState('');
+  const [tResult, setTResult] = useState(null);
+
   const userId = route.params?.userId;
   const userEmail = route.params?.userEmail;
   const initialLoadDone = useRef(false);
@@ -177,6 +204,11 @@ export default function UserDashboardScreen({ navigation, route }) {
 
       const concernsRes = await api.get(`/user/${userId}/concerns`);
       setConcerns(concernsRes.data || []);
+
+      // Ported extras (best-effort; token-authed via api interceptor)
+      api.get('/system-alerts/active').then((r) => setSystemAlerts(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+      api.get('/user/trips').then((r) => { setRecentTrips((r.data?.trips || []).filter((t) => !t.isRefund).slice(0, 4)); setTripCount(r.data?.totalTrips || 0); }).catch(() => {});
+      api.get('/user/promos').then((r) => { setPromos(r.data?.promos || []); setPromoTabEnabled(!!r.data?.tabEnabled); }).catch(() => {});
 
       initialLoadDone.current = true;
     } catch (error) {
@@ -267,6 +299,53 @@ export default function UserDashboardScreen({ navigation, route }) {
       setSubmitting(false);
     }
   };
+
+  // ---- Transfer (student-to-student) ----------------------------------------
+  const peso = (n) => `₱${Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
+  const resetTransfer = () => {
+    setTStep('search'); setTSchoolId(''); setTRecipient(null); setTAmount(''); setTPin(''); setTError(''); setTResult(null);
+  };
+  const openTransfer = () => { resetTransfer(); setShowTransferModal(true); };
+
+  const handleLookup = async () => {
+    setTError('');
+    const digits = tSchoolId.replace(/\D/g, '');
+    if (digits.length < 4) { setTError('Enter a valid school ID'); return; }
+    setTLoading(true);
+    try {
+      const res = await api.get(`/user/lookup/${digits}`);
+      const d = res.data;
+      if (d?.found) { setTRecipient(d); setTStep('amount'); }
+      else if (d?.self) setTError('You cannot send money to yourself.');
+      else if (d?.inactive) setTError('That account is not active.');
+      else setTError('No student found with that school ID.');
+    } catch (e) { setTError(e?.response?.data?.error || 'Lookup failed. Try again.'); }
+    finally { setTLoading(false); }
+  };
+
+  const proceedTAmount = () => {
+    setTError('');
+    const amt = Math.round((parseFloat(tAmount) || 0) * 100) / 100;
+    if (!amt || amt <= 0) { setTError('Enter an amount greater than 0.'); return; }
+    if (amt > balance) { setTError('Amount exceeds your available balance.'); return; }
+    setTStep('pin');
+  };
+
+  const handleTransferSend = async () => {
+    setTError('');
+    const amt = Math.round((parseFloat(tAmount) || 0) * 100) / 100;
+    if (tPin.replace(/\D/g, '').length < 4) { setTError('Enter your PIN.'); return; }
+    setTLoading(true);
+    try {
+      const res = await api.post('/user/transfer', { recipientSchoolId: tRecipient.schoolUId, amount: amt, pin: tPin });
+      if (res.data?.success) { setTResult(res.data); setTStep('success'); setBalance(res.data.newBalance); fetchDashboardData(true); }
+      else setTError(res.data?.error || 'Transfer failed.');
+    } catch (e) { setTError(e?.response?.data?.error || 'Transfer failed. Please try again.'); }
+    finally { setTLoading(false); }
+  };
+
+  const dismissAlert = (id) => setDismissedAlerts((prev) => [...prev, id]);
+  const visibleAlerts = systemAlerts.filter((a) => !dismissedAlerts.includes(a._id));
 
   const formatDate = (d) =>
     new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -381,6 +460,25 @@ export default function UserDashboardScreen({ navigation, route }) {
 
   const renderHome = () => (
     <>
+      {/* System alerts */}
+      {visibleAlerts.map((a) => {
+        const sev = ALERT_SEVERITY[a.severity] || ALERT_SEVERITY.info;
+        return (
+          <View key={a._id} style={[styles.alertCard, { backgroundColor: `${sev.color}14`, borderColor: `${sev.color}55` }]}>
+            <View style={[styles.alertIconWrap, { backgroundColor: `${sev.color}22` }]}>
+              <sev.Icon size={18} color={sev.color} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.alertTitle}>{a.title}</Text>
+              <Text style={styles.alertMsg}>{a.message}</Text>
+            </View>
+            <TouchableOpacity onPress={() => dismissAlert(a._id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <X size={16} color={theme.textMuted} />
+            </TouchableOpacity>
+          </View>
+        );
+      })}
+
       {/* Balance card */}
       <View style={styles.balanceCard}>
         <Text style={styles.balanceLabel}>Current Balance</Text>
@@ -404,7 +502,30 @@ export default function UserDashboardScreen({ navigation, route }) {
             </Text>
           </View>
         </View>
+        <TouchableOpacity style={styles.sendBtn} onPress={openTransfer} activeOpacity={0.85}>
+          <Send size={16} color={theme.onAccent} />
+          <Text style={styles.sendBtnText}>Send</Text>
+        </TouchableOpacity>
       </View>
+
+      {/* Recent trips (NU Shuttle Service) */}
+      <View style={styles.tripsHeaderRow}>
+        <Bus size={16} color={theme.accent} />
+        <Text style={styles.sectionTitle}>Recent Trips Taken</Text>
+      </View>
+      {recentTrips.length === 0 ? (
+        <EmptyState theme={theme} Icon={Navigation} text="No shuttle trips yet" />
+      ) : (
+        recentTrips.map((t, i) => (
+          <View key={t.id || i} style={styles.tripRow}>
+            <View style={styles.tripIcon}><Bus size={16} color={theme.accent} /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.tripName} numberOfLines={1}>{t.routeName}</Text>
+              <Text style={styles.tripDate}>{formatDate(t.date)}</Text>
+            </View>
+          </View>
+        ))
+      )}
 
       {/* Quick actions */}
       <View style={styles.actionRow}>
@@ -520,6 +641,44 @@ export default function UserDashboardScreen({ navigation, route }) {
     </>
   );
 
+  const renderPromos = () => (
+    <>
+      <Text style={styles.pageTitle}>Promotions</Text>
+      {promos.length === 0 ? (
+        <EmptyState theme={theme} Icon={Ticket} text="No active promotions right now" />
+      ) : (
+        promos.map((p, i) => {
+          const goal = p.minimumRides || 0;
+          const pct = goal ? Math.min(100, Math.round((tripCount / goal) * 100)) : 0;
+          return (
+            <View key={p._id || i} style={styles.promoCard}>
+              <View style={styles.promoTop}>
+                <View style={styles.promoIcon}><Sparkles size={20} color={theme.accent} /></View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.promoTitle}>{p.title}</Text>
+                  <Text style={styles.promoDesc}>{p.description}</Text>
+                </View>
+              </View>
+              {goal > 0 && (
+                <View style={{ marginTop: 12 }}>
+                  <View style={styles.progressLabelRow}>
+                    <Text style={styles.progressLabel}>Your progress</Text>
+                    <Text style={styles.progressValue}>{tripCount} / {goal} rides</Text>
+                  </View>
+                  <View style={styles.progressTrack}>
+                    <View style={[styles.progressFill, { width: `${pct}%` }]} />
+                  </View>
+                  {pct >= 100 && <Text style={styles.progressDone}>You qualify for this reward!</Text>}
+                </View>
+              )}
+            </View>
+          );
+        })
+      )}
+      <Text style={styles.promoNote}>Progress is based on your recorded shuttle trips. Detailed loyalty points are coming soon.</Text>
+    </>
+  );
+
   if (loading) {
     return (
       <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.bg }]}>
@@ -530,6 +689,13 @@ export default function UserDashboardScreen({ navigation, route }) {
       </SafeAreaView>
     );
   }
+
+  const visibleTabs = [
+    { key: 'home', Icon: Home, label: 'Home' },
+    { key: 'history', Icon: History, label: 'History' },
+    ...(promoTabEnabled ? [{ key: 'promos', Icon: Gift, label: 'Promos' }] : []),
+    { key: 'concerns', Icon: ClipboardList, label: 'Concerns' },
+  ];
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.bg }]} edges={['top']}>
@@ -558,7 +724,7 @@ export default function UserDashboardScreen({ navigation, route }) {
 
       {/* Tab nav */}
       <View style={styles.tabBar}>
-        {TABS.map((t) => {
+        {visibleTabs.map((t) => {
           const active = activeTab === t.key;
           return (
             <TouchableOpacity
@@ -581,6 +747,7 @@ export default function UserDashboardScreen({ navigation, route }) {
       >
         {activeTab === 'home' && renderHome()}
         {activeTab === 'history' && renderHistory()}
+        {activeTab === 'promos' && renderPromos()}
         {activeTab === 'concerns' && renderConcerns()}
         <View style={{ height: 30 }} />
       </ScrollView>
@@ -728,6 +895,100 @@ export default function UserDashboardScreen({ navigation, route }) {
         </TouchableOpacity>
       </Modal>
 
+      {/* Transfer Modal (student-to-student) */}
+      <Modal visible={showTransferModal} animationType="slide" transparent onRequestClose={() => setShowTransferModal(false)}>
+        <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => !tLoading && setShowTransferModal(false)}>
+          <View style={styles.sheet} onStartShouldSetResponder={() => true}>
+            <View style={styles.sheetHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <View style={styles.tSendIcon}><Send size={18} color={theme.accent} /></View>
+                <View>
+                  <Text style={styles.sheetTitle}>Send Money</Text>
+                  <Text style={styles.tStepText}>{tStep === 'success' ? 'Complete' : `Step ${{ search: 1, amount: 2, pin: 3 }[tStep]} of 3`}</Text>
+                </View>
+              </View>
+              <TouchableOpacity onPress={() => setShowTransferModal(false)}><X size={22} color={theme.textSecondary} /></TouchableOpacity>
+            </View>
+
+            {!!tError && (
+              <View style={styles.tErr}>
+                <AlertOctagon size={16} color={theme.danger} />
+                <Text style={styles.tErrText}>{tError}</Text>
+              </View>
+            )}
+
+            {tStep === 'search' && (
+              <View>
+                <Text style={styles.fieldLabel}>Recipient School ID</Text>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <TextInput style={[styles.inputSingle, { flex: 1, marginBottom: 0 }]} value={tSchoolId} onChangeText={setTSchoolId} placeholder="e.g. 2023-121235" placeholderTextColor={theme.textMuted} autoFocus />
+                  <TouchableOpacity style={styles.tSearchBtn} onPress={handleLookup} disabled={tLoading}>
+                    {tLoading ? <ActivityIndicator color={theme.onAccent} /> : <Search size={20} color={theme.onAccent} />}
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.tHint}>Enter your schoolmate's school ID to find them.</Text>
+              </View>
+            )}
+
+            {tStep === 'amount' && tRecipient && (
+              <View>
+                <View style={styles.tRecipRow}>
+                  <View style={styles.tRecipAvatar}><Text style={styles.tRecipInitials}>{(tRecipient.firstName?.[0] || '') + (tRecipient.lastName?.[0] || '')}</Text></View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.tRecipName}>{tRecipient.fullName}</Text>
+                    <Text style={styles.tRecipMeta}>{tRecipient.schoolUId} • {tRecipient.accountType === 'employee' ? 'Employee' : 'Student'}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => { setTStep('search'); setTRecipient(null); setTAmount(''); setTError(''); }}><Text style={styles.tChange}>Change</Text></TouchableOpacity>
+                </View>
+
+                <View style={styles.tBalRow}>
+                  <View style={styles.tBalBox}><Text style={styles.tBalLabel}>Available</Text><Text style={styles.tBalValue}>{peso(balance)}</Text></View>
+                  <View style={styles.tBalBox}><Text style={styles.tBalLabel}>Balance After</Text><Text style={[styles.tBalValue, { color: (balance - (parseFloat(tAmount) || 0)) < 0 ? theme.danger : theme.success }]}>{peso(balance - (parseFloat(tAmount) || 0))}</Text></View>
+                </View>
+
+                <Text style={styles.fieldLabel}>Amount to Send</Text>
+                <View style={styles.tAmtRow}>
+                  <Text style={styles.tPeso}>₱</Text>
+                  <TextInput style={styles.tAmtInput} value={tAmount} onChangeText={setTAmount} placeholder="0.00" placeholderTextColor={theme.textMuted} keyboardType="numeric" autoFocus />
+                </View>
+
+                <TouchableOpacity style={styles.tBtn} onPress={proceedTAmount}>
+                  <Text style={styles.tBtnText}>Continue</Text><ArrowRight size={18} color={theme.onAccent} />
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {tStep === 'pin' && tRecipient && (
+              <View>
+                <View style={{ alignItems: 'center', marginBottom: 16 }}>
+                  <View style={styles.tShield}><ShieldCheck size={26} color={theme.accent} /></View>
+                  <Text style={styles.tPinPrompt}>Sending <Text style={{ color: theme.text, fontWeight: '800' }}>{peso(parseFloat(tAmount) || 0)}</Text> to <Text style={{ color: theme.text, fontWeight: '800' }}>{tRecipient.fullName}</Text></Text>
+                </View>
+                <Text style={[styles.fieldLabel, { textAlign: 'center' }]}>Enter your PIN to confirm</Text>
+                <TextInput style={styles.tPinInput} value={tPin} onChangeText={(v) => setTPin(v.replace(/\D/g, ''))} placeholder="••••••" placeholderTextColor={theme.textMuted} keyboardType="numeric" secureTextEntry maxLength={6} autoFocus />
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <TouchableOpacity style={styles.tGhost} onPress={() => { setTStep('amount'); setTPin(''); setTError(''); }} disabled={tLoading}><Text style={styles.tGhostText}>Back</Text></TouchableOpacity>
+                  <TouchableOpacity style={[styles.tBtn, { flex: 1, marginTop: 0 }]} onPress={handleTransferSend} disabled={tLoading}>
+                    {tLoading ? <ActivityIndicator color={theme.onAccent} /> : <Send size={18} color={theme.onAccent} />}
+                    <Text style={styles.tBtnText}>Send</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {tStep === 'success' && tResult && (
+              <View style={{ alignItems: 'center', paddingVertical: 8 }}>
+                <View style={styles.tSuccessIcon}><CheckCircle2 size={34} color={theme.success} /></View>
+                <Text style={styles.tSuccessTitle}>Money Sent!</Text>
+                <Text style={styles.tSuccessMsg}>{peso(parseFloat(tAmount) || 0)} sent to {tResult.recipientName}.</Text>
+                <View style={styles.tNewBal}><Wallet size={16} color={theme.textSecondary} /><Text style={styles.tNewBalText}>New balance: <Text style={{ color: theme.text, fontWeight: '800' }}>{peso(tResult.newBalance)}</Text></Text></View>
+                <TouchableOpacity style={[styles.tBtn, { width: '100%' }]} onPress={() => setShowTransferModal(false)}><Text style={styles.tBtnText}>Done</Text></TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       <ChangePinModal visible={showChangePinModal} onClose={() => setShowChangePinModal(false)} userEmail={userEmail} userId={userId} />
       <DeactivateAccountModal visible={showDeactivateModal} onClose={() => setShowDeactivateModal(false)} userEmail={userEmail} userId={userId} />
     </SafeAreaView>
@@ -853,4 +1114,68 @@ const makeStyles = (t) =>
     profileChips: { flexDirection: 'row', gap: 8, marginTop: 12 },
     profileAction: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: t.card, borderRadius: 14, padding: 16, marginBottom: 10, borderWidth: 1, borderColor: t.border },
     profileActionText: { color: t.text, fontSize: 15, fontWeight: '700', flex: 1 },
+
+    // System alerts
+    alertCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderRadius: 16, borderWidth: 1.5, padding: 12, marginBottom: 12 },
+    alertIconWrap: { width: 34, height: 34, borderRadius: 17, justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
+    alertTitle: { color: t.text, fontSize: 13, fontWeight: '800' },
+    alertMsg: { color: t.textSecondary, fontSize: 13, marginTop: 1 },
+
+    // Send button (balance card)
+    sendBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: t.accent, borderRadius: 12, paddingVertical: 12, marginTop: 16 },
+    sendBtnText: { color: t.onAccent, fontSize: 14, fontWeight: '800' },
+
+    // Recent trips
+    tripsHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 18, marginBottom: 10 },
+    tripRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: t.card, borderRadius: 14, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: t.border },
+    tripIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: t.accentSoft, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+    tripName: { color: t.text, fontSize: 14, fontWeight: '700' },
+    tripDate: { color: t.textMuted, fontSize: 12, marginTop: 2 },
+
+    // Promotions
+    promoCard: { backgroundColor: t.card, borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1.5, borderColor: `${t.accent}55` },
+    promoTop: { flexDirection: 'row', gap: 12 },
+    promoIcon: { width: 42, height: 42, borderRadius: 12, backgroundColor: t.accentSoft, justifyContent: 'center', alignItems: 'center' },
+    promoTitle: { color: t.text, fontSize: 15, fontWeight: '800' },
+    promoDesc: { color: t.textSecondary, fontSize: 13, marginTop: 2 },
+    progressLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+    progressLabel: { color: t.textSecondary, fontSize: 12 },
+    progressValue: { color: t.text, fontSize: 12, fontWeight: '800' },
+    progressTrack: { height: 10, borderRadius: 5, backgroundColor: t.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', overflow: 'hidden' },
+    progressFill: { height: '100%', borderRadius: 5, backgroundColor: t.accent },
+    progressDone: { color: t.success, fontSize: 12, fontWeight: '700', marginTop: 6 },
+    promoNote: { color: t.textMuted, fontSize: 11, textAlign: 'center', marginTop: 8, lineHeight: 16 },
+
+    // Transfer modal
+    tSendIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: t.accentSoft, justifyContent: 'center', alignItems: 'center' },
+    tStepText: { color: t.textSecondary, fontSize: 12 },
+    tErr: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(239,68,68,0.12)', borderColor: 'rgba(239,68,68,0.3)', borderWidth: 1, borderRadius: 12, padding: 10, marginBottom: 14 },
+    tErrText: { color: t.danger, fontSize: 13, flex: 1 },
+    tHint: { color: t.textMuted, fontSize: 12, marginTop: 10 },
+    tSearchBtn: { width: 52, borderRadius: 12, backgroundColor: t.accent, justifyContent: 'center', alignItems: 'center' },
+    tRecipRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: t.card, borderRadius: 14, padding: 12, marginBottom: 16, borderWidth: 1, borderColor: t.border },
+    tRecipAvatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: t.accent, justifyContent: 'center', alignItems: 'center' },
+    tRecipInitials: { color: t.onAccent, fontWeight: '800', fontSize: 15 },
+    tRecipName: { color: t.text, fontSize: 15, fontWeight: '800' },
+    tRecipMeta: { color: t.textSecondary, fontSize: 12, marginTop: 1 },
+    tChange: { color: t.accent, fontSize: 12, fontWeight: '800' },
+    tBalRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+    tBalBox: { flex: 1, backgroundColor: t.card, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: t.border },
+    tBalLabel: { color: t.textSecondary, fontSize: 11, fontWeight: '700', textTransform: 'uppercase' },
+    tBalValue: { color: t.text, fontSize: 17, fontWeight: '800', marginTop: 2 },
+    tAmtRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: t.isDark ? 'rgba(255,255,255,0.06)' : '#F4F7FB', borderRadius: 12, borderWidth: 1, borderColor: t.border, paddingHorizontal: 14, marginBottom: 20 },
+    tPeso: { color: t.textSecondary, fontSize: 20, fontWeight: '800', marginRight: 4 },
+    tAmtInput: { flex: 1, color: t.text, fontSize: 20, fontWeight: '800', paddingVertical: 12 },
+    tBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: t.accent, borderRadius: 12, paddingVertical: 15, marginTop: 4 },
+    tBtnText: { color: t.onAccent, fontSize: 15, fontWeight: '800' },
+    tGhost: { flex: 1, backgroundColor: t.isDark ? 'rgba(71,85,105,0.5)' : '#E5E7EB', borderRadius: 12, paddingVertical: 15, alignItems: 'center' },
+    tGhostText: { color: t.text, fontSize: 15, fontWeight: '700' },
+    tShield: { width: 56, height: 56, borderRadius: 16, backgroundColor: t.accentSoft, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
+    tPinPrompt: { color: t.textSecondary, fontSize: 13, textAlign: 'center', lineHeight: 19 },
+    tPinInput: { backgroundColor: t.isDark ? 'rgba(255,255,255,0.06)' : '#F4F7FB', borderRadius: 12, borderWidth: 1, borderColor: t.border, color: t.text, textAlign: 'center', fontSize: 24, fontWeight: '800', letterSpacing: 10, paddingVertical: 12, marginBottom: 20 },
+    tSuccessIcon: { width: 64, height: 64, borderRadius: 18, backgroundColor: 'rgba(34,197,94,0.15)', justifyContent: 'center', alignItems: 'center', marginBottom: 14 },
+    tSuccessTitle: { color: t.text, fontSize: 20, fontWeight: '800', marginBottom: 4 },
+    tSuccessMsg: { color: t.textSecondary, fontSize: 14, marginBottom: 16, textAlign: 'center' },
+    tNewBal: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: t.card, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 18 },
+    tNewBalText: { color: t.textSecondary, fontSize: 13 },
   });

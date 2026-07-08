@@ -30,11 +30,13 @@ router.get('/analytics', async (req, res) => {
       startDate.setDate(1);
     }
 
-    // Get cash-in (credits)
+    // Get cash-in (credits) — transferPeerSchoolId null excludes
+    // student-to-student transfers (peer movements, not cash operations)
     const cashInResult = await Transaction.aggregate([
       {
         $match: {
           transactionType: 'credit',
+          transferPeerSchoolId: null,
           createdAt: { $gte: startDate },
           status: { $nin: ['Failed', 'Refunded'] }
         }
@@ -48,11 +50,12 @@ router.get('/analytics', async (req, res) => {
       }
     ]);
 
-    // Get cash-out (debits)
+    // Get cash-out (debits) — excludes transfers
     const cashOutResult = await Transaction.aggregate([
       {
         $match: {
           transactionType: 'debit',
+          transferPeerSchoolId: null,
           createdAt: { $gte: startDate },
           status: { $nin: ['Failed', 'Refunded'] }
         }
@@ -66,10 +69,11 @@ router.get('/analytics', async (req, res) => {
       }
     ]);
 
-    // Total transactions count
+    // Total transactions count (excluding peer transfers)
     const totalTransactions = await Transaction.countDocuments({
       createdAt: { $gte: startDate },
-      status: { $nin: ['Failed', 'Refunded'] }
+      status: { $nin: ['Failed', 'Refunded'] },
+      transferPeerSchoolId: null
     });
 
     // Total users

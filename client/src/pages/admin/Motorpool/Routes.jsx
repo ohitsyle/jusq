@@ -322,7 +322,7 @@ export default function RoutesList() {
   const [active, setActive] = useState(true);
   const [createReverse, setCreateReverse] = useState(true);
 
-  const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyBOFPwkdS8TKEe3I2QUDBFWq_q3On5kDBI';
+  const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyDlvps1vfBo9dVASg0bO7gVnaEOS1QOtGM';
   const [googleMapsReady, setGoogleMapsReady] = useState(false);
 
   // Load Google Maps script

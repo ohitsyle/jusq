@@ -40,7 +40,7 @@
       <!-- Add Google Maps API Key -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyBOFPwkdS8TKEe3I2QUDBFWq_q3On5kDBI"/>
+            android:value="AIzaSyDlvps1vfBo9dVASg0bO7gVnaEOS1QOtGM"/>
       <activity
         android:name=".MainActivity"
         android:label="@string/app_name"

@@ -1,11 +1,11 @@
 // src/pages/admin/Marketing/Promos.jsx
 // Marketing: manage promotion/loyalty campaigns + toggle the end-user promo tab.
-// Styled to match the other admin dashboards.
+// Mirrors the system admin design language (Merchants-style cards, Sysad-style toggle).
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { toast } from 'react-toastify';
-import { Plus, Trash2, Eye, EyeOff, Megaphone } from 'lucide-react';
+import { Plus, Megaphone, Power, Loader2, Gift, Repeat, Send, Bus } from 'lucide-react';
 
 const REWARD_TYPES = [
   { value: 'free_ride', label: 'Free Ride' },
@@ -23,7 +23,9 @@ export default function Promos() {
   const accent = theme.accent.primary;
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   const [promoTabEnabled, setPromoTabEnabled] = useState(true);
+  const [togglingTab, setTogglingTab] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ title: '', description: '', rewardType: 'free_ride', minimumRides: 10, frequency: 'monthly' });
@@ -42,14 +44,14 @@ export default function Promos() {
 
   const toggleTab = async () => {
     const next = !promoTabEnabled;
-    setPromoTabEnabled(next);
+    setTogglingTab(true);
     try {
       await api.put('/admin/promotions/tab-setting', { enabled: next });
+      setPromoTabEnabled(next);
       toast.success(`End-user promotions tab ${next ? 'enabled' : 'disabled'}`);
     } catch (e) {
-      setPromoTabEnabled(!next);
       toast.error('Failed to update tab setting');
-    }
+    } finally { setTogglingTab(false); }
   };
 
   const createCampaign = async () => {
@@ -72,14 +74,20 @@ export default function Promos() {
   };
 
   const removeCampaign = async (c) => {
-    if (!window.confirm(`Delete campaign "${c.title}"?`)) return;
+    if (!window.confirm(`Delete campaign "${c.title}"? This cannot be undone.`)) return;
     try { await api.delete(`/admin/promotions/campaigns/${c._id}`); toast.success('Campaign deleted'); load(); }
     catch (e) { toast.error('Failed to delete campaign'); }
   };
 
+  const filtered = campaigns.filter((c) =>
+    !searchQuery ||
+    c.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.description?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   if (loading) {
     return (
-      <div style={{ color: accent }} className="text-center py-20">
+      <div style={{ color: accent }} className="text-center py-[60px]">
         <div className="animate-spin w-8 h-8 border-4 border-t-transparent rounded-full mx-auto mb-4" style={{ borderColor: `${accent} transparent transparent transparent` }} />
         Loading campaigns...
       </div>
@@ -91,9 +99,11 @@ export default function Promos() {
       {/* Header */}
       <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
         <div>
-          <h2 style={{ color: theme.text.primary }} className="text-2xl font-bold m-0 mb-2">Promotions</h2>
+          <h2 style={{ color: theme.text.primary }} className="text-2xl font-bold m-0 mb-2">
+            Promotional Campaigns
+          </h2>
           <p style={{ color: theme.text.secondary }} className="text-sm m-0">
-            {campaigns.length} campaign{campaigns.length !== 1 ? 's' : ''} • {campaigns.filter((c) => c.active).length} active
+            {filtered.length} campaign{filtered.length !== 1 ? 's' : ''} • {campaigns.filter((c) => c.active).length} active
           </p>
         </div>
         <button
@@ -106,102 +116,201 @@ export default function Promos() {
         </button>
       </div>
 
-      {/* End-user promo tab toggle */}
-      <div style={{ background: theme.bg.card, borderColor: theme.border.primary }} className="rounded-2xl border p-5 mb-5 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div style={{ background: `${accent}20` }} className="w-11 h-11 rounded-full flex items-center justify-center">
-            <Megaphone className="w-6 h-6" style={{ color: accent }} />
+      {/* End-user promo tab toggle (Sysad maintenance-card pattern) */}
+      <div
+        style={{ background: theme.bg.card, borderColor: promoTabEnabled ? 'rgba(16,185,129,0.5)' : theme.border.primary }}
+        className="p-6 rounded-2xl border-2 mb-5"
+      >
+        <div className="flex items-start justify-between">
+          <div className="flex items-start gap-4 flex-1">
+            <div
+              style={{ background: promoTabEnabled ? 'rgba(16,185,129,0.2)' : `${accent}20` }}
+              className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0"
+            >
+              <Megaphone className="w-6 h-6" style={{ color: promoTabEnabled ? '#10B981' : accent }} />
+            </div>
+            <div className="flex-1">
+              <h3 style={{ color: theme.text.primary }} className="font-bold text-lg mb-1">End-User Promotions Tab</h3>
+              <p style={{ color: theme.text.secondary }} className="text-sm mb-0">
+                When enabled, students see a Promotions tab on their portal with active promos and their ride progress.
+              </p>
+            </div>
           </div>
-          <div>
-            <div style={{ color: theme.text.primary }} className="font-bold text-sm">End-User Promotions Tab</div>
-            <div style={{ color: theme.text.secondary }} className="text-xs mt-0.5">When on, students see a Promotions tab with active promos and their progress.</div>
-          </div>
+          <button
+            onClick={toggleTab}
+            disabled={togglingTab}
+            style={{ background: promoTabEnabled ? '#EF4444' : '#10B981', color: '#FFFFFF' }}
+            className="px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:opacity-90 transition disabled:opacity-50 flex-shrink-0 ml-4"
+          >
+            {togglingTab ? <Loader2 className="w-5 h-5 animate-spin" /> : <Power className="w-5 h-5" />}
+            {promoTabEnabled ? 'Disable' : 'Enable'}
+          </button>
         </div>
-        <button onClick={toggleTab} style={{ background: promoTabEnabled ? '#10B981' : '#6B7280', width: '52px', height: '28px', borderRadius: '14px', position: 'relative', transition: 'all 0.2s ease', flexShrink: 0 }}>
-          <div style={{ position: 'absolute', top: '2px', left: promoTabEnabled ? '26px' : '2px', width: '24px', height: '24px', borderRadius: '12px', background: '#FFFFFF', transition: 'all 0.2s ease', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }} />
-        </button>
       </div>
 
-      {/* Campaign list */}
-      {campaigns.length === 0 ? (
-        <div style={{ background: theme.bg.card, borderColor: theme.border.primary }} className="rounded-2xl border p-12 text-center">
-          <div className="text-[40px] opacity-30 mb-2">🎁</div>
-          <p style={{ color: theme.text.secondary }} className="text-sm">No campaigns yet. Create your first promo.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          {campaigns.map((c) => (
-            <div key={c._id} style={{ background: theme.bg.card, borderColor: theme.border.primary }} className="p-6 rounded-2xl border relative overflow-hidden">
-              <div className="absolute right-4 top-4 text-[40px] opacity-15">🎁</div>
-              <div className="flex items-center gap-2 mb-2">
-                <h3 style={{ color: theme.text.primary }} className="font-bold text-lg m-0">{c.title}</h3>
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-xl" style={{ color: c.active ? '#10B981' : '#9CA3AF', background: c.active ? 'rgba(16,185,129,0.2)' : 'rgba(107,114,128,0.2)' }}>
-                  {c.active ? 'ACTIVE' : 'INACTIVE'}
-                </span>
-              </div>
-              <p style={{ color: theme.text.secondary }} className="text-sm mb-4 pr-10">{c.description}</p>
-              <div className="flex flex-wrap gap-2 mb-4">
-                {[
-                  REWARD_TYPES.find((r) => r.value === c.rewardType)?.label || c.rewardType,
-                  `Min ${c.minimumRides} rides`,
-                  c.frequency,
-                  `${c.rewardsSent || 0} sent`
-                ].map((chip, i) => (
-                  <span key={i} className="text-xs font-semibold py-[3px] px-[10px] rounded-xl" style={{ color: accent, background: `${accent}20` }}>{chip}</span>
-                ))}
-              </div>
-              <div className="flex gap-3">
-                <button onClick={() => toggleActive(c)} style={{ background: `${accent}15`, borderColor: theme.border.primary, color: accent }} className="py-2.5 px-4 border-2 rounded-lg text-sm font-semibold cursor-pointer flex items-center gap-2 hover:opacity-80">
-                  {c.active ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />} {c.active ? 'Deactivate' : 'Activate'}
-                </button>
-                <button onClick={() => removeCampaign(c)} style={{ background: 'rgba(239,68,68,0.15)', borderColor: 'rgba(239,68,68,0.4)', color: '#EF4444' }} className="py-2.5 px-4 border-2 rounded-lg text-sm font-semibold cursor-pointer flex items-center gap-2 hover:opacity-80">
-                  <Trash2 className="w-4 h-4" /> Delete
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Search */}
+      <div className="rounded-xl border-2 p-4 mb-5" style={{ background: isDarkMode ? 'rgba(15,18,39,0.8)' : theme.bg.card, borderColor: accent }}>
+        <input
+          type="text"
+          placeholder="🔍 Search campaigns by title or description..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={{
+            background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F9FAFB',
+            borderColor: theme.border.primary,
+            color: theme.text.primary
+          }}
+          className="w-full max-w-[320px] py-2.5 px-4 border rounded-xl text-sm outline-none"
+        />
+      </div>
 
-      {/* Create modal (admin style) */}
+      {/* Campaign Cards Grid */}
+      <div className="flex-1 overflow-y-auto pr-2">
+        {filtered.length > 0 ? (
+          <div className="grid gap-5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))' }}>
+            {filtered.map((c) => (
+              <CampaignCard key={c._id} campaign={c} onToggle={toggleActive} onDelete={removeCampaign} theme={theme} />
+            ))}
+          </div>
+        ) : (
+          <div style={{ background: theme.bg.card, borderColor: theme.border.primary, color: theme.text.tertiary }}
+            className="rounded-2xl border-2 p-16 text-center">
+            <div className="text-6xl mb-4">🎁</div>
+            <p className="m-0 text-base">
+              {searchQuery ? 'No campaigns found matching your search' : 'No campaigns yet. Create your first promo!'}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Create Modal (system admin modal pattern) */}
       {isModalOpen && (
-        <div onClick={() => !saving && setIsModalOpen(false)} className="fixed inset-0 flex items-center justify-center z-[9999]" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: isDarkMode ? 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)' : theme.bg.card, borderColor: theme.border.primary }} className="rounded-2xl border p-8 w-[90%] max-w-[600px] max-h-[90vh] overflow-auto shadow-2xl">
+        <div
+          onClick={() => !saving && setIsModalOpen(false)}
+          className="fixed inset-0 flex items-center justify-center z-[9999]"
+          style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: isDarkMode ? 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)' : theme.bg.card,
+              borderColor: theme.border.primary
+            }}
+            className="rounded-2xl border p-8 w-[90%] max-w-[600px] max-h-[90vh] overflow-auto shadow-2xl"
+          >
             <h3 style={{ color: theme.text.primary }} className="text-xl font-bold m-0 mb-6">New Campaign</h3>
 
             <div className="grid gap-4">
-              <Field label="Title" required theme={theme} isDarkMode={isDarkMode}>
-                <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g., Frequent Rider Reward" style={inputStyle(theme, isDarkMode)} className="w-full py-3 px-4 border-2 rounded-lg text-sm outline-none box-border" />
+              <Field label="Title" required theme={theme}>
+                <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g., Frequent Rider Reward"
+                  style={inputStyle(theme, isDarkMode)} className="w-full py-3 px-4 border-2 rounded-lg text-sm outline-none box-border" />
               </Field>
-              <Field label="Description" required theme={theme} isDarkMode={isDarkMode}>
-                <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} placeholder="Describe the promo for students" style={inputStyle(theme, isDarkMode)} className="w-full py-3 px-4 border-2 rounded-lg text-sm outline-none box-border resize-none" />
+              <Field label="Description" required theme={theme}>
+                <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} placeholder="Describe the promo for students"
+                  style={inputStyle(theme, isDarkMode)} className="w-full py-3 px-4 border-2 rounded-lg text-sm outline-none box-border resize-none" />
               </Field>
               <div className="grid grid-cols-2 gap-4">
-                <Field label="Reward Type" theme={theme} isDarkMode={isDarkMode}>
-                  <select value={form.rewardType} onChange={(e) => setForm({ ...form, rewardType: e.target.value })} style={inputStyle(theme, isDarkMode)} className="w-full py-3 px-4 border-2 rounded-lg text-sm outline-none box-border">
+                <Field label="Reward Type" theme={theme}>
+                  <select value={form.rewardType} onChange={(e) => setForm({ ...form, rewardType: e.target.value })}
+                    style={inputStyle(theme, isDarkMode)} className="w-full py-3 px-4 border-2 rounded-lg text-sm outline-none box-border">
                     {REWARD_TYPES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
                   </select>
                 </Field>
-                <Field label="Frequency" theme={theme} isDarkMode={isDarkMode}>
-                  <select value={form.frequency} onChange={(e) => setForm({ ...form, frequency: e.target.value })} style={inputStyle(theme, isDarkMode)} className="w-full py-3 px-4 border-2 rounded-lg text-sm outline-none box-border">
+                <Field label="Frequency" theme={theme}>
+                  <select value={form.frequency} onChange={(e) => setForm({ ...form, frequency: e.target.value })}
+                    style={inputStyle(theme, isDarkMode)} className="w-full py-3 px-4 border-2 rounded-lg text-sm outline-none box-border">
                     {FREQUENCIES.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
                   </select>
                 </Field>
               </div>
-              <Field label="Minimum Rides" theme={theme} isDarkMode={isDarkMode}>
-                <input type="number" min={1} value={form.minimumRides} onChange={(e) => setForm({ ...form, minimumRides: parseInt(e.target.value, 10) || 1 })} style={inputStyle(theme, isDarkMode)} className="w-full py-3 px-4 border-2 rounded-lg text-sm outline-none box-border" />
+              <Field label="Minimum Rides" theme={theme}>
+                <input type="number" min={1} value={form.minimumRides} onChange={(e) => setForm({ ...form, minimumRides: parseInt(e.target.value, 10) || 1 })}
+                  style={inputStyle(theme, isDarkMode)} className="w-full py-3 px-4 border-2 rounded-lg text-sm outline-none box-border" />
               </Field>
             </div>
 
             <div className="flex gap-3 mt-6 justify-end">
-              <button onClick={() => setIsModalOpen(false)} disabled={saving} style={{ background: `${accent}15`, borderColor: theme.border.primary, color: accent }} className="py-3 px-6 border-2 rounded-lg text-sm font-semibold cursor-pointer">Cancel</button>
-              <button onClick={createCampaign} disabled={saving} style={{ background: saving ? '#999' : accent, color: isDarkMode ? '#181D40' : '#FFF', opacity: saving ? 0.6 : 1 }} className="py-3 px-6 border-none rounded-lg text-sm font-bold cursor-pointer shadow-lg">
+              <button onClick={() => setIsModalOpen(false)} disabled={saving}
+                style={{ background: `${accent}15`, borderColor: theme.border.primary, color: accent }}
+                className="py-3 px-6 border-2 rounded-lg text-sm font-semibold cursor-pointer">
+                Cancel
+              </button>
+              <button onClick={createCampaign} disabled={saving}
+                style={{ background: saving ? '#999' : accent, color: isDarkMode ? '#181D40' : '#FFF', opacity: saving ? 0.6 : 1 }}
+                className="py-3 px-6 border-none rounded-lg text-sm font-bold cursor-pointer shadow-lg">
                 {saving ? 'Saving...' : 'Create Campaign'}
               </button>
             </div>
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Campaign card — mirrors MerchantCard structure (badge chip, status dot, info rows, bordered actions)
+function CampaignCard({ campaign: c, onToggle, onDelete, theme }) {
+  const isActive = c.active !== false;
+  const rewardLabel = REWARD_TYPES.find((r) => r.value === c.rewardType)?.label || c.rewardType;
+
+  return (
+    <div
+      style={{ background: theme.bg.card, borderColor: theme.border.primary, opacity: isActive ? 1 : 0.7 }}
+      className="rounded-2xl border-2 p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-xl"
+    >
+      {/* Header with reward badge + status dot */}
+      <div className="flex justify-between items-start mb-4">
+        <div style={{ background: `${theme.accent.primary}20`, borderColor: theme.border.primary, color: theme.accent.primary }}
+          className="py-1.5 px-3.5 border rounded-lg text-xs font-bold">
+          {rewardLabel}
+        </div>
+        <div className="w-3 h-3 rounded-full" style={{
+          background: isActive ? '#10B981' : '#EF4444',
+          boxShadow: `0 0 0 3px ${isActive ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}`
+        }} />
+      </div>
+
+      {/* Title + description */}
+      <h3 style={{ color: theme.text.primary }} className="text-xl font-bold m-0 mb-2">{c.title}</h3>
+      <p style={{ color: theme.text.secondary }} className="text-[13px] m-0 mb-4 line-clamp-2">{c.description}</p>
+
+      {/* Info rows */}
+      <div className="flex flex-col gap-2 mb-4">
+        <div style={{ color: theme.text.secondary }} className="text-[13px] flex items-center gap-2">
+          <Bus className="w-5 h-5" />
+          <span>Minimum {c.minimumRides} ride{c.minimumRides !== 1 ? 's' : ''}</span>
+        </div>
+        <div style={{ color: theme.text.secondary }} className="text-[13px] flex items-center gap-2">
+          <Repeat className="w-5 h-5" />
+          <span className="capitalize">{c.frequency}</span>
+        </div>
+        <div style={{ color: theme.text.secondary }} className="text-[13px] flex items-center gap-2">
+          <Send className="w-5 h-5" />
+          <span>{c.rewardsSent || 0} reward{(c.rewardsSent || 0) !== 1 ? 's' : ''} sent</span>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div style={{ borderColor: theme.border.primary }} className="flex gap-2 pt-4 border-t">
+        <button
+          onClick={() => onToggle(c)}
+          className="flex-1 py-2.5 px-4 rounded-lg text-[13px] font-semibold cursor-pointer transition-all border hover:opacity-80"
+          style={{
+            background: isActive ? 'rgba(239,68,68,0.2)' : 'rgba(16,185,129,0.2)',
+            borderColor: isActive ? 'rgba(239,68,68,0.4)' : 'rgba(16,185,129,0.4)',
+            color: isActive ? '#EF4444' : '#10B981'
+          }}
+        >
+          {isActive ? '🔴 Deactivate' : '✅ Activate'}
+        </button>
+        <button
+          onClick={() => onDelete(c)}
+          className="flex-1 py-2.5 px-4 rounded-lg text-[13px] font-semibold cursor-pointer transition-all border hover:opacity-80"
+          style={{ background: 'rgba(239,68,68,0.2)', borderColor: 'rgba(239,68,68,0.4)', color: '#EF4444' }}
+        >
+          🗑️ Delete
+        </button>
+      </div>
     </div>
   );
 }

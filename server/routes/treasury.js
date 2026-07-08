@@ -33,10 +33,13 @@ router.get('/dashboard', async (req, res) => {
     today.setHours(0, 0, 0, 0);
 
     // Today's cash-in transactions (credits)
+    // NOTE: transferPeerSchoolId null excludes student-to-student transfers —
+    // those are peer money movements, not treasury cash-ins/outs.
     const todayCashIns = await Transaction.aggregate([
       {
         $match: {
           transactionType: 'credit',
+          transferPeerSchoolId: null,
           createdAt: { $gte: today },
           status: { $nin: ['Failed', 'Refunded'] }
         }
@@ -55,6 +58,7 @@ router.get('/dashboard', async (req, res) => {
       {
         $match: {
           transactionType: 'debit',
+          transferPeerSchoolId: null,
           createdAt: { $gte: today },
           status: { $nin: ['Failed', 'Refunded'] }
         }
@@ -68,9 +72,10 @@ router.get('/dashboard', async (req, res) => {
       }
     ]);
 
-    // Today's total transactions
+    // Today's total transactions (excluding peer transfers)
     const todayTransactions = await Transaction.countDocuments({
-      createdAt: { $gte: today }
+      createdAt: { $gte: today },
+      transferPeerSchoolId: null
     });
 
     // Total users
@@ -140,11 +145,12 @@ router.get('/analytics/today', async (req, res) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Today's cash-in transactions (credits)
+    // Today's cash-in transactions (credits) — excludes student-to-student transfers
     const todayCashIns = await Transaction.aggregate([
       {
         $match: {
           transactionType: 'credit',
+          transferPeerSchoolId: null,
           createdAt: { $gte: today },
           status: { $nin: ['Failed', 'Refunded'] }
         }
@@ -158,11 +164,12 @@ router.get('/analytics/today', async (req, res) => {
       }
     ]);
 
-    // Today's user payments (debits - shuttle and merchant)
+    // Today's user payments (debits - shuttle and merchant) — excludes transfers
     const todayPayments = await Transaction.aggregate([
       {
         $match: {
           transactionType: 'debit',
+          transferPeerSchoolId: null,
           createdAt: { $gte: today },
           status: { $nin: ['Failed', 'Refunded'] }
         }
@@ -241,8 +248,9 @@ router.get('/transactions', async (req, res) => {
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    // Build filter
-    const filter = {};
+    // Build filter — peer transfers are student-to-student money movements,
+    // not treasury operations, so they're excluded from the treasury ledger.
+    const filter = { transferPeerSchoolId: null };
 
     // Date range filter
     if (startDate || endDate) {

@@ -604,6 +604,7 @@ function RoleBadge({ role, isDarkMode }) {
     accounting: { bg: 'rgba(168,85,247,0.15)', color: '#A855F7', label: 'Accounting' },
     motorpool: { bg: 'rgba(245,158,11,0.15)', color: '#F59E0B', label: 'Motorpool' },
     merchant: { bg: 'rgba(236,72,153,0.15)', color: '#EC4899', label: 'Merchant' },
+    marketing: { bg: 'rgba(6,182,212,0.15)', color: '#06B6D4', label: 'Marketing' },
     student: { bg: 'rgba(6,182,212,0.15)', color: '#06B6D4', label: 'Student' },
     employee: { bg: 'rgba(245,158,11,0.15)', color: '#F59E0B', label: 'Employee' },
     user: { bg: 'rgba(107,114,128,0.15)', color: '#6B7280', label: 'User' }

@@ -353,7 +353,8 @@ export async function exportMerchants(dateFilter = {}) {
  * Export cash-ins (credit transactions) data to CSV
  */
 export async function exportCashIns(dateFilter = {}) {
-  const query = { transactionType: 'credit' };
+  // Peer transfers are credits but not cash-ins — exclude them.
+  const query = { transactionType: 'credit', transferPeerSchoolId: null };
   if (dateFilter.startDate && dateFilter.endDate) {
     query.createdAt = { $gte: new Date(dateFilter.startDate), $lte: new Date(dateFilter.endDate) };
   }

@@ -27,8 +27,8 @@ export default function Loyalty() {
       </div>
 
       {/* Coming soon */}
-      <div style={{ background: theme.bg.card, borderColor: theme.border.primary }} className="rounded-2xl border p-10 text-center">
-        <div className="text-[40px] opacity-40 mb-3">🚧</div>
+      <div style={{ background: theme.bg.card, borderColor: theme.border.primary, color: theme.text.tertiary }} className="rounded-2xl border-2 p-16 text-center">
+        <div className="text-6xl mb-4">🚧</div>
         <h3 style={{ color: theme.text.primary }} className="text-lg font-bold m-0 mb-2">Loyalty program — coming soon</h3>
         <p style={{ color: theme.text.secondary }} className="text-sm max-w-md mx-auto m-0">
           Points accrual, member tiers, and reward redemption tracking will live here. For now, ride-based reward campaigns are managed under the Promos tab.

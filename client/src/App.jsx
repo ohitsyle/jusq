@@ -16,6 +16,8 @@ import TreasuryLayout from './components/layouts/TreasuryLayout';
 import AccountingLayout from './components/layouts/AccountingLayout';
 import SysadLayout from './components/layouts/SysadLayout';
 import UserLayout from './components/layouts/UserLayout';
+import { isMobileDevice } from './utils/isMobile';
+import DesktopOnlyGuard from './components/DesktopOnlyGuard';
 
 // Route Guards
 import ProtectedRoute from './components/routes/ProtectedRoute';
@@ -93,6 +95,7 @@ import PrivacyPolicy from './pages/legal/PrivacyPolicy';
 
 // Protected Route wrapper for Motorpool Admin
 const MotorpoolProtectedRoute = ({ children }) => {
+  if (isMobileDevice()) return <DesktopOnlyGuard />;
   const token = localStorage.getItem('adminToken');
   const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
 
@@ -108,6 +111,7 @@ const MotorpoolProtectedRoute = ({ children }) => {
 
 // Protected Route wrapper for Merchant Admin
 const MerchantProtectedRoute = ({ children }) => {
+  if (isMobileDevice()) return <DesktopOnlyGuard />;
   const token = localStorage.getItem('adminToken');
   const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
 
@@ -123,6 +127,7 @@ const MerchantProtectedRoute = ({ children }) => {
 
 // Protected Route wrapper for Treasury Admin
 const TreasuryProtectedRoute = ({ children }) => {
+  if (isMobileDevice()) return <DesktopOnlyGuard />;
   const token = localStorage.getItem('adminToken');
   const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
 
@@ -138,6 +143,7 @@ const TreasuryProtectedRoute = ({ children }) => {
 
 // Protected Route wrapper for Accounting Admin
 const AccountingProtectedRoute = ({ children }) => {
+  if (isMobileDevice()) return <DesktopOnlyGuard />;
   const token = localStorage.getItem('adminToken');
   const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
 
@@ -153,6 +159,7 @@ const AccountingProtectedRoute = ({ children }) => {
 
 // Protected Route wrapper for Marketing Admin
 const MarketingProtectedRoute = ({ children }) => {
+  if (isMobileDevice()) return <DesktopOnlyGuard />;
   const token = localStorage.getItem('adminToken');
   const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
 
@@ -179,6 +186,7 @@ const UserProtectedRoute = ({ children }) => {
 
 // Protected Route wrapper for System Admin
 const SysadProtectedRoute = ({ children }) => {
+  if (isMobileDevice()) return <DesktopOnlyGuard />;
   const token = localStorage.getItem('adminToken');
   const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
 

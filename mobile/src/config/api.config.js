@@ -304,7 +304,7 @@ export const API_CONFIG = {
 
 // Google Maps API Key
 export const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY ||
-  'AIzaSyBOFPwkdS8TKEe3I2QUDBFWq_q3On5kDBI'; // Fallback for dev
+  'AIzaSyDlvps1vfBo9dVASg0bO7gVnaEOS1QOtGM'; // Fallback for dev
 
 // App Configuration
 export const APP_CONFIG = {
