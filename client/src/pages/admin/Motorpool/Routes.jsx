@@ -479,7 +479,14 @@ export default function RoutesList() {
   };
 
   const resetForm = () => {
-    setFromLocation({ name: '', displayName: '', latitude: null, longitude: null });
+    // Point A defaults to the NU Laguna campus (matches existing routes' coords)
+    // but stays fully editable — search or drag the pin to change it.
+    setFromLocation({
+      name: 'National University Laguna',
+      displayName: 'National University Laguna',
+      latitude: 14.1782167,
+      longitude: 121.1362266
+    });
     setToLocation({ name: '', displayName: '', latitude: null, longitude: null });
     setFare(15);
     setActive(true);
