@@ -25,9 +25,12 @@ async function checkAndProcessDeactivation() {
     if (!scheduler?.enabled || !scheduler?.date || !scheduler?.time) return;
     if (scheduler.executed) return;
 
-    // Parse the scheduled date/time
+    // Parse the scheduled date/time. Admins enter the schedule in Philippine
+    // time (Asia/Manila) but the server runs in UTC — evaluate "now" as a
+    // Manila wall-clock value so the schedule fires when the admin expects
+    // (otherwise it would fire 8 hours late).
     const scheduledDateTime = new Date(`${scheduler.date}T${scheduler.time}:00`);
-    const now = new Date();
+    const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
 
     // Check if the scheduled time has been reached
     if (now < scheduledDateTime) return;

@@ -617,7 +617,7 @@ export default function SysadConfigPage() {
           >
             <p style={{ color: theme.text.secondary }} className="text-sm leading-relaxed">
               <span style={{ color: '#EF4444' }} className="font-bold">⚠️ What this does: </span>
-              At the scheduled date and time, all user accounts with role <span style={{ color: theme.text.primary }} className="font-mono font-bold">student</span> will have <span style={{ color: theme.text.primary }} className="font-mono font-bold">isDeactivated</span> set to <span style={{ color: '#EF4444' }} className="font-mono font-bold">true</span> and <span style={{ color: theme.text.primary }} className="font-mono font-bold">isActive</span> set to <span style={{ color: '#EF4444' }} className="font-mono font-bold">false</span>. This action cannot be undone automatically.
+              At the scheduled date and time, <span style={{ color: theme.text.primary }} className="font-bold">all student accounts will be deactivated</span>. Students will no longer be able to log in, pay, or use their NUCash balance until an administrator reactivates them. Useful at the end of a semester or school year. <span style={{ color: '#EF4444' }} className="font-semibold">Accounts must be reactivated one by one — this cannot be undone in bulk.</span>
             </p>
           </div>
 
