@@ -5,6 +5,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Home, Smartphone, Store } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
+import { ThemedSelect } from '../../../components/shared/ThemedControls';
 
 export default function Dashboard() {
   const { theme, isDarkMode } = useTheme();
@@ -602,7 +603,7 @@ function DashboardAddPhoneModal({ theme, isDarkMode, onClose, onSuccess }) {
             <label style={{ color: theme.accent.primary }} className="block mb-2 text-xs font-bold uppercase">
               Phone Type <span className="text-red-500">*</span>
             </label>
-            <select
+            <ThemedSelect
               value={formData.phoneType}
               onChange={(e) => setFormData({ ...formData, phoneType: e.target.value })}
               required
@@ -616,14 +617,14 @@ function DashboardAddPhoneModal({ theme, isDarkMode, onClose, onSuccess }) {
               <option value="Android">Android</option>
               <option value="iOS">iOS</option>
               <option value="Other">Other</option>
-            </select>
+            </ThemedSelect>
           </div>
 
           <div className="mb-5">
             <label style={{ color: theme.accent.primary }} className="block mb-2 text-xs font-bold uppercase">
               Assign to Merchant
             </label>
-            <select
+            <ThemedSelect
               value={formData.assignedMerchantId}
               onChange={(e) => handleMerchantChange(e.target.value)}
               style={{
@@ -639,7 +640,7 @@ function DashboardAddPhoneModal({ theme, isDarkMode, onClose, onSuccess }) {
                   {merchant.businessName} ({merchant.merchantId})
                 </option>
               ))}
-            </select>
+            </ThemedSelect>
           </div>
 
           <div className="mb-6">

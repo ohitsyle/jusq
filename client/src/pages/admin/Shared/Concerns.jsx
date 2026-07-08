@@ -10,6 +10,7 @@ import StatusFilter from '../../../components/shared/StatusFilter';
 import DateRangeFilter from '../../../components/shared/DateRangeFilter';
 import ConcernDetailModal from '../../../components/modals/ConcernDetailModal';
 import { exportToCSV, prepareDataForExport } from '../../../utils/csvExport';
+import { ThemedSelect } from '../../../components/shared/ThemedControls';
 
 export default function ConcernsList() {
     const { theme, isDarkMode } = useTheme();
@@ -448,7 +449,7 @@ export default function ConcernsList() {
                       </td>
                       <td style={{ padding: '16px' }}>
                         {concern.submissionType === 'assistance' ? (
-                          <select
+                          <ThemedSelect
                             value={concern.status || 'pending'}
                             onChange={(e) => handleStatusChange(concern, e.target.value)}
                             style={{
@@ -468,7 +469,7 @@ export default function ConcernsList() {
                             <option value="in_progress">In Progress</option>
                             <option value="resolved">Resolved</option>
                             <option value="closed">Closed</option>
-                          </select>
+                          </ThemedSelect>
                         ) : (
                           <span style={{ color: theme.text.muted, fontSize: '11px' }}>—</span>
                         )}

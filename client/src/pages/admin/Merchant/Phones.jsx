@@ -8,6 +8,7 @@ import api from '../../../utils/api';
 import SearchBar from '../../../components/shared/SearchBar';
 import ExportButton from '../../../components/shared/ExportButton';
 import { exportToCSV, prepareDataForExport } from '../../../utils/csvExport';
+import { ThemedSelect } from '../../../components/shared/ThemedControls';
 
 export default function MerchantPhonesList() {
   const { theme, isDarkMode } = useTheme();
@@ -315,7 +316,7 @@ export default function MerchantPhonesList() {
                       <td style={{ color: theme.text.primary }} className="p-4">{phone.phoneModel}</td>
                       <td style={{ color: theme.text.primary }} className="p-4">{phone.phoneType}</td>
                       <td className="p-4">
-                        <select
+                        <ThemedSelect
                           value={phone.assignedMerchantId || ''}
                           onChange={(e) => handleMerchantAssignment(phone, e.target.value)}
                           style={{
@@ -331,7 +332,7 @@ export default function MerchantPhonesList() {
                               {merchant.businessName} ({merchant.merchantId})
                             </option>
                           ))}
-                        </select>
+                        </ThemedSelect>
                       </td>
                       <td className="p-4">
                         <span className="py-1.5 px-3 rounded-md text-[11px] font-bold uppercase inline-block" style={{
@@ -437,7 +438,7 @@ export default function MerchantPhonesList() {
 
               <div className="mb-5">
                 <label style={{ color: theme.accent.primary }} className="block mb-2 text-xs font-bold uppercase">Phone Type *</label>
-                <select
+                <ThemedSelect
                   value={formData.phoneType}
                   onChange={(e) => setFormData({...formData, phoneType: e.target.value})}
                   required
@@ -451,12 +452,12 @@ export default function MerchantPhonesList() {
                   <option value="Android">Android</option>
                   <option value="iOS">iOS</option>
                   <option value="Other">Other</option>
-                </select>
+                </ThemedSelect>
               </div>
 
               <div className="mb-5">
                 <label style={{ color: theme.accent.primary }} className="block mb-2 text-xs font-bold uppercase">Assign to Merchant</label>
-                <select
+                <ThemedSelect
                   value={formData.assignedMerchantId}
                   onChange={(e) => handleMerchantChange(e.target.value)}
                   style={{
@@ -472,7 +473,7 @@ export default function MerchantPhonesList() {
                       {merchant.businessName} ({merchant.merchantId})
                     </option>
                   ))}
-                </select>
+                </ThemedSelect>
               </div>
 
               <div className="mb-6">

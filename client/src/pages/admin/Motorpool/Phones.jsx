@@ -6,6 +6,7 @@ import SearchBar from '../../../components/shared/SearchBar';
 import ExportButton from '../../../components/shared/ExportButton';
 import { exportToCSV, prepareDataForExport } from '../../../utils/csvExport';
 import { useTheme } from '../../../context/ThemeContext';
+import { ThemedSelect } from '../../../components/shared/ThemedControls';
 
 export default function PhonesList() {
   const { theme, isDarkMode } = useTheme();
@@ -326,7 +327,7 @@ export default function PhonesList() {
                       {phone.phoneType}
                     </td>
                     <td style={{ padding: '16px' }}>
-                      <select value={phone.assignedDriverId || ''} onChange={(e) => handleDriverAssignment(phone, e.target.value)} style={{
+                      <ThemedSelect value={phone.assignedDriverId || ''} onChange={(e) => handleDriverAssignment(phone, e.target.value)} style={{
                         padding: '8px 12px',
                         background: isDarkMode ? 'rgba(255,212,28,0.1)' : 'rgba(59,130,246,0.1)',
                         color: theme.accent.primary,
@@ -343,7 +344,7 @@ export default function PhonesList() {
                             {driver.name} ({driver.driverId})
                           </option>
                         ))}
-                      </select>
+                      </ThemedSelect>
                     </td>
                     <td style={{ padding: '16px' }}>
                       <span style={{
@@ -545,7 +546,7 @@ export default function PhonesList() {
 
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', fontWeight: 700, color: theme.accent.primary, textTransform: 'uppercase' }}>Phone Type *</label>
-                <select value={formData.phoneType} onChange={(e) => setFormData({...formData, phoneType: e.target.value})} required style={{
+                <ThemedSelect value={formData.phoneType} onChange={(e) => setFormData({...formData, phoneType: e.target.value})} required style={{
                   width: '100%',
                   padding: '12px',
                   border: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}`,
@@ -559,12 +560,12 @@ export default function PhonesList() {
                   <option value="Android">Android</option>
                   <option value="iOS">iOS</option>
                   <option value="Other">Other</option>
-                </select>
+                </ThemedSelect>
               </div>
 
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', fontWeight: 700, color: theme.accent.primary, textTransform: 'uppercase' }}>Assign to Driver</label>
-                <select value={formData.assignedDriverId} onChange={(e) => handleDriverChange(e.target.value)} style={{
+                <ThemedSelect value={formData.assignedDriverId} onChange={(e) => handleDriverChange(e.target.value)} style={{
                   width: '100%',
                   padding: '12px',
                   border: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}`,
@@ -581,7 +582,7 @@ export default function PhonesList() {
                       {driver.name} ({driver.driverId})
                     </option>
                   ))}
-                </select>
+                </ThemedSelect>
               </div>
 
               <div style={{ marginBottom: '24px' }}>

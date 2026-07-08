@@ -2,6 +2,7 @@
 // Inline date-range filter — matches the sysad filter-bar style (theme-aware).
 import React from 'react';
 import { useTheme } from '../../context/ThemeContext';
+import { ThemedDateInput } from './ThemedControls';
 
 export default function DateRangeFilter({ startDate, endDate, onStartChange, onEndChange }) {
   const { theme, isDarkMode } = useTheme();
@@ -19,16 +20,14 @@ export default function DateRangeFilter({ startDate, endDate, onStartChange, onE
 
   return (
     <div className="flex gap-2 items-center">
-      <input
-        type="date"
+      <ThemedDateInput
         value={startDate}
         onChange={(e) => onStartChange(e.target.value)}
         style={inputStyle}
                   max={endDate || new Date().toLocaleDateString('en-CA')}
                 />
       <span style={{ color: theme.text.tertiary, fontSize: '12px' }}>to</span>
-      <input
-        type="date"
+      <ThemedDateInput
         value={endDate}
         onChange={(e) => onEndChange(e.target.value)}
         style={inputStyle}

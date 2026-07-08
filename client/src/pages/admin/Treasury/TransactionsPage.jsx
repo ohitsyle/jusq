@@ -6,6 +6,7 @@ import { toast } from 'react-toastify';
 import { Search, Download, ClipboardList } from 'lucide-react';
 import TransactionTable from '../../../components/TreasuryDashboard/TransactionTable';
 import { exportToCSV } from '../../../utils/csvExport';
+import { ThemedDateInput } from '../../../components/shared/ThemedControls';
 
 export default function TransactionsPage() {
   const { theme, isDarkMode } = useTheme();
@@ -175,8 +176,7 @@ export default function TransactionsPage() {
 
               {/* Date Range Filters */}
               <div className="flex gap-2 items-center">
-                <input
-                  type="date"
+                <ThemedDateInput
                   value={startDate}
                   onChange={(e) => { setStartDate(e.target.value); setCurrentPage(1); }}
                   style={{ 
@@ -188,8 +188,7 @@ export default function TransactionsPage() {
                   max={endDate || new Date().toLocaleDateString('en-CA')}
                 />
                 <span style={{ color: theme.text.tertiary }} className="text-xs">to</span>
-                <input
-                  type="date"
+                <ThemedDateInput
                   value={endDate}
                   onChange={(e) => { setEndDate(e.target.value); setCurrentPage(1); }}
                   style={{ 

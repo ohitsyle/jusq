@@ -5,6 +5,7 @@ import {
   CreditCard, Banknote, Users, Store, UserCog, ClipboardList,
   MessageSquare, Coins, User, Route, MapPin, Bus, Smartphone, Database
 } from 'lucide-react';
+import { ThemedSelect } from '../shared/ThemedControls';
 
 // Maps an export-type value to a lucide icon so every admin's schedule modal
 // uses consistent iconography (no emojis).
@@ -236,7 +237,7 @@ export default function ScheduleExportModal({
             >
               <Clock className="w-5 h-5 ml-1 flex-shrink-0" style={{ color: accentColor }} />
 
-              <select
+              <ThemedSelect
                 value={hour12}
                 onChange={(e) => setAuto({ time: build24(parseInt(e.target.value, 10), minute, period) })}
                 style={{ background: 'transparent', color: theme.text.primary }}
@@ -247,11 +248,11 @@ export default function ScheduleExportModal({
                     {String(h).padStart(2, '0')}
                   </option>
                 ))}
-              </select>
+              </ThemedSelect>
 
               <span style={{ color: theme.text.secondary }} className="text-xl font-bold">:</span>
 
-              <select
+              <ThemedSelect
                 value={minute}
                 onChange={(e) => setAuto({ time: build24(hour12, parseInt(e.target.value, 10), period) })}
                 style={{ background: 'transparent', color: theme.text.primary }}
@@ -262,7 +263,7 @@ export default function ScheduleExportModal({
                     {String(m).padStart(2, '0')}
                   </option>
                 ))}
-              </select>
+              </ThemedSelect>
 
               <div className="flex gap-1 pr-1">
                 {['AM', 'PM'].map((p) => {

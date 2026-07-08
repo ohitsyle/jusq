@@ -6,6 +6,7 @@ import SearchBar from '../../../components/shared/SearchBar';
 import ExportButton from '../../../components/shared/ExportButton';
 import { exportToCSV, prepareDataForExport } from '../../../utils/csvExport';
 import { useTheme } from '../../../context/ThemeContext';
+import { ThemedDateInput, ThemedSelect } from '../../../components/shared/ThemedControls';
 
 export default function DriversList() {
   const { theme, isDarkMode } = useTheme();
@@ -386,7 +387,7 @@ export default function DriversList() {
                     {driver.shuttleId || 'None'}
                   </td>
                   <td style={{ padding: '16px' }}>
-                    <select 
+                    <ThemedSelect 
                       value={driver.isActive ? 'active' : 'inactive'}
                       onChange={(e) => handleStatusChange(driver, e.target.value)}
                       style={{
@@ -403,7 +404,7 @@ export default function DriversList() {
                     >
                       <option value="active">Active</option>
                       <option value="inactive">Inactive</option>
-                    </select>
+                    </ThemedSelect>
                   </td>
                   <td style={{ padding: '16px' }}>
                     <button onClick={() => openEditModal(driver)} style={{
@@ -672,8 +673,7 @@ export default function DriversList() {
                 <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', fontWeight: 700, color: theme.accent.primary, textTransform: 'uppercase' }}>
                   License Expiry Date <span style={{ color: '#EF4444' }}>*</span>
                 </label>
-                <input
-                  type="date"
+                <ThemedDateInput
                   name="licenseExpiry"
                   value={formData.licenseExpiry}
                   onChange={handleInputChange}

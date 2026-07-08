@@ -8,6 +8,7 @@ import api from '../../../utils/api';
 import { toast } from 'react-toastify';
 import { exportToCSV } from '../../../utils/csvExport';
 import { X, Loader2, Send, CheckCircle, MessageCircle, FileText, Clock, AlertCircle, Search, Download, MessageSquare } from 'lucide-react';
+import { ThemedDateInput } from '../../../components/shared/ThemedControls';
 
 export default function SysadConcernsPage() {
   const { theme, isDarkMode } = useTheme();
@@ -444,8 +445,7 @@ export default function SysadConcernsPage() {
           {/* Date Range */}
           <div className="flex items-center gap-2">
             <span style={{ color: theme.text.secondary }} className="text-xs font-semibold whitespace-nowrap">From</span>
-            <input
-              type="date"
+            <ThemedDateInput
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
               style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }}
@@ -453,8 +453,7 @@ export default function SysadConcernsPage() {
                   max={endDate || new Date().toLocaleDateString('en-CA')}
                 />
             <span style={{ color: theme.text.secondary }} className="text-xs font-semibold">To</span>
-            <input
-              type="date"
+            <ThemedDateInput
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
               style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }}

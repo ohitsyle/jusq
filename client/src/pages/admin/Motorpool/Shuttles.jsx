@@ -7,6 +7,7 @@ import ExportButton from '../../../components/shared/ExportButton';
 import StatusFilter from '../../../components/shared/StatusFilter';
 import { exportToCSV, prepareDataForExport } from '../../../utils/csvExport';
 import { useTheme } from '../../../context/ThemeContext';
+import { ThemedSelect } from '../../../components/shared/ThemedControls';
 
 export default function ShuttlesList() {
   const { theme, isDarkMode } = useTheme();
@@ -289,7 +290,7 @@ export default function ShuttlesList() {
                     {shuttle.capacity} pax
                   </td>
                   <td style={{ padding: '16px' }}>
-                    <select value={shuttle.status} onChange={(e) => handleStatusChange(shuttle, e.target.value)} style={{
+                    <ThemedSelect value={shuttle.status} onChange={(e) => handleStatusChange(shuttle, e.target.value)} style={{
                       padding: '6px 12px',
                       borderRadius: '6px',
                       fontSize: '11px',
@@ -304,7 +305,7 @@ export default function ShuttlesList() {
                       <option value="reserved">Reserved</option>
                       <option value="taken">Taken</option>
                       <option value="unavailable">Unavailable</option>
-                    </select>
+                    </ThemedSelect>
                   </td>
                   <td style={{ padding: '16px', color: theme.text.secondary, fontSize: '12px' }}>
                     {shuttle.currentDriver || '—'}

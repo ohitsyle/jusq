@@ -5,6 +5,7 @@ import { useTheme } from '../../context/ThemeContext';
 import api from '../../utils/api';
 import { toast } from 'react-toastify';
 import { Mail, Search, Filter, Calendar, X, CheckCircle, Eye, ScrollText, ClipboardList, Undo2, Banknote, Bus, ShoppingBag, Send } from 'lucide-react';
+import { ThemedDateInput, ThemedSelect } from '../../components/shared/ThemedControls';
 
 export default function TransactionHistory() {
   const { theme, isDarkMode } = useTheme();
@@ -230,7 +231,7 @@ export default function TransactionHistory() {
             <label style={{ color: theme.text.secondary }} className="block text-[11px] font-bold uppercase tracking-wide mb-2">
               Type
             </label>
-            <select
+            <ThemedSelect
               value={typeFilter}
               onChange={(e) => {
                 setTypeFilter(e.target.value);
@@ -242,7 +243,7 @@ export default function TransactionHistory() {
               <option value="all">All Types</option>
               <option value="credit">Credit</option>
               <option value="debit">Debit</option>
-            </select>
+            </ThemedSelect>
           </div>
 
           {/* Date Range */}
@@ -251,8 +252,7 @@ export default function TransactionHistory() {
               <label style={{ color: theme.text.secondary }} className="hidden sm:block text-[11px] font-bold uppercase tracking-wide mb-2">
                 From
               </label>
-              <input
-                type="date"
+              <ThemedDateInput
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
                 style={{ background: theme.bg.tertiary, color: theme.text.primary, borderColor: theme.border.primary }}
@@ -264,8 +264,7 @@ export default function TransactionHistory() {
               <label style={{ color: theme.text.secondary }} className="hidden sm:block text-[11px] font-bold uppercase tracking-wide mb-2">
                 To
               </label>
-              <input
-                type="date"
+              <ThemedDateInput
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 style={{ background: theme.bg.tertiary, color: theme.text.primary, borderColor: theme.border.primary }}
@@ -495,8 +494,7 @@ export default function TransactionHistory() {
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label style={{ color: theme.text.secondary }} className="block text-xs font-bold uppercase mb-1">From</label>
-                        <input
-                          type="date"
+                        <ThemedDateInput
                           value={startDate}
                           onChange={(e) => setStartDate(e.target.value)}
                           style={{ background: theme.bg.secondary, color: theme.text.primary, borderColor: theme.border.primary }}
@@ -506,8 +504,7 @@ export default function TransactionHistory() {
                       </div>
                       <div>
                         <label style={{ color: theme.text.secondary }} className="block text-xs font-bold uppercase mb-1">To</label>
-                        <input
-                          type="date"
+                        <ThemedDateInput
                           value={endDate}
                           onChange={(e) => setEndDate(e.target.value)}
                           style={{ background: theme.bg.secondary, color: theme.text.primary, borderColor: theme.border.primary }}

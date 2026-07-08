@@ -8,6 +8,7 @@ import SearchBar from '../../../components/shared/SearchBar';
 import ExportButton from '../../../components/shared/ExportButton';
 import Alert from '../../../components/shared/Alert';
 import { exportToCSV, prepareDataForExport } from '../../../utils/csvExport';
+import { ThemedSelect } from '../../../components/shared/ThemedControls';
 
 // Single Location Map Picker Component
 function LocationMapPicker({ location, onLocationChange, onConfirm, pointLabel, pointColor, apiKey }) {
@@ -937,7 +938,7 @@ export default function RoutesList() {
                     <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', fontWeight: 700, color: theme.accent.primary, textTransform: 'uppercase' }}>
                       Status
                     </label>
-                    <select
+                    <ThemedSelect
                       value={active ? 'true' : 'false'}
                       onChange={(e) => setActive(e.target.value === 'true')}
                       style={{
@@ -953,7 +954,7 @@ export default function RoutesList() {
                     >
                       <option value="true">Active</option>
                       <option value="false">Inactive</option>
-                    </select>
+                    </ThemedSelect>
                   </div>
                 </div>
 

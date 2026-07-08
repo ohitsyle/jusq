@@ -6,6 +6,7 @@ import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { toast } from 'react-toastify';
 import ScheduleExportModal from '../../../components/modals/ScheduleExportModal';
+import { ThemedDateInput } from '../../../components/shared/ThemedControls';
 
 export default function ConfigPage() {
   const { theme, isDarkMode } = useTheme();
@@ -368,8 +369,7 @@ export default function ConfigPage() {
 
               {/* Date Filter */}
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <input
-                  type="date"
+                <ThemedDateInput
                   value={filterDateRange.start}
                   onChange={(e) => setFilterDateRange({ ...filterDateRange, start: e.target.value })}
                   style={{
@@ -384,8 +384,7 @@ export default function ConfigPage() {
                   max={filterDateRange.end || new Date().toLocaleDateString('en-CA')}
                 />
                 <span style={{ color: theme.text.tertiary }}>→</span>
-                <input
-                  type="date"
+                <ThemedDateInput
                   value={filterDateRange.end}
                   onChange={(e) => setFilterDateRange({ ...filterDateRange, end: e.target.value })}
                   style={{
@@ -667,8 +666,7 @@ function DateRangeModal({ dateRange, setDateRange, customStartDate, setCustomSta
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: 700, color: theme.accent.primary }}>
                   Start Date
                 </label>
-                <input
-                  type="date"
+                <ThemedDateInput
                   value={customStartDate}
                   onChange={(e) => setCustomStartDate(e.target.value)}
                   style={{
@@ -689,8 +687,7 @@ function DateRangeModal({ dateRange, setDateRange, customStartDate, setCustomSta
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: 700, color: theme.accent.primary }}>
                   End Date
                 </label>
-                <input
-                  type="date"
+                <ThemedDateInput
                   value={customEndDate}
                   onChange={(e) => setCustomEndDate(e.target.value)}
                   style={{

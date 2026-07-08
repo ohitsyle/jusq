@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { CreditCard, Download } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
+import { ThemedSelect } from '../../../components/shared/ThemedControls';
 
 export default function TransactionsList() {
   const { theme, isDarkMode } = useTheme();
@@ -152,7 +153,7 @@ export default function TransactionsList() {
           <label style={{ color: theme.accent.primary }} className="text-sm font-semibold">
             Filter by Merchant:
           </label>
-          <select
+          <ThemedSelect
             value={merchantFilter}
             onChange={(e) => setMerchantFilter(e.target.value)}
             style={{
@@ -168,7 +169,7 @@ export default function TransactionsList() {
                 {merchant.businessName}
               </option>
             ))}
-          </select>
+          </ThemedSelect>
         </div>
       </div>
 

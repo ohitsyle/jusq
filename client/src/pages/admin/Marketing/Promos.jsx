@@ -6,6 +6,7 @@ import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { toast } from 'react-toastify';
 import { Plus, Megaphone, Power, Loader2, Gift, Repeat, Send, Bus } from 'lucide-react';
+import { ThemedSelect } from '../../../components/shared/ThemedControls';
 
 const REWARD_TYPES = [
   { value: 'free_ride', label: 'Free Ride' },
@@ -211,16 +212,16 @@ export default function Promos() {
               </Field>
               <div className="grid grid-cols-2 gap-4">
                 <Field label="Reward Type" theme={theme}>
-                  <select value={form.rewardType} onChange={(e) => setForm({ ...form, rewardType: e.target.value })}
+                  <ThemedSelect value={form.rewardType} onChange={(e) => setForm({ ...form, rewardType: e.target.value })}
                     style={inputStyle(theme, isDarkMode)} className="w-full py-3 px-4 border-2 rounded-lg text-sm outline-none box-border">
                     {REWARD_TYPES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-                  </select>
+                  </ThemedSelect>
                 </Field>
                 <Field label="Frequency" theme={theme}>
-                  <select value={form.frequency} onChange={(e) => setForm({ ...form, frequency: e.target.value })}
+                  <ThemedSelect value={form.frequency} onChange={(e) => setForm({ ...form, frequency: e.target.value })}
                     style={inputStyle(theme, isDarkMode)} className="w-full py-3 px-4 border-2 rounded-lg text-sm outline-none box-border">
                     {FREQUENCIES.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
-                  </select>
+                  </ThemedSelect>
                 </Field>
               </div>
               <Field label="Minimum Rides" theme={theme}>

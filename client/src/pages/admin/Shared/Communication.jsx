@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
+import { ThemedSelect } from '../../../components/shared/ThemedControls';
 
 export default function DriverNotifications() {
     const { theme, isDarkMode } = useTheme();
@@ -132,7 +133,7 @@ export default function DriverNotifications() {
             <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: theme.text.secondary, marginBottom: '8px' }}>
               Recipient
             </label>
-            <select
+            <ThemedSelect
               value={selectedDriver}
               onChange={(e) => setSelectedDriver(e.target.value)}
               style={{
@@ -151,7 +152,7 @@ export default function DriverNotifications() {
                   {driver.name} ({driver.driverId})
                 </option>
               ))}
-            </select>
+            </ThemedSelect>
           </div>
 
           {/* Message Type */}

@@ -6,6 +6,7 @@ import api from '../../../utils/api';
 import { Search, Download, ClipboardList } from 'lucide-react';
 import { exportToCSV, prepareDataForExport } from '../../../utils/csvExport';
 import LogDetailModal from '../../../components/modals/LogDetailModal';
+import { ThemedDateInput } from '../../../components/shared/ThemedControls';
 
 export default function LogsList() {
   const { theme, isDarkMode } = useTheme();
@@ -420,8 +421,7 @@ export default function LogsList() {
 
           {/* Date Range Filters */}
           <div className="flex gap-2 items-center">
-            <input
-              type="date"
+            <ThemedDateInput
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
               style={{ 
@@ -433,8 +433,7 @@ export default function LogsList() {
                   max={endDate || new Date().toLocaleDateString('en-CA')}
                 />
             <span style={{ color: theme.text.tertiary }} className="text-xs">to</span>
-            <input
-              type="date"
+            <ThemedDateInput
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
               style={{ 

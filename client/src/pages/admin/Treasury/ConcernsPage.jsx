@@ -6,6 +6,7 @@ import api from '../../../utils/api';
 import { toast } from 'react-toastify';
 import { Search, Download, MessageSquare } from 'lucide-react';
 import { exportToCSV } from '../../../utils/csvExport';
+import { ThemedDateInput } from '../../../components/shared/ThemedControls';
 
 export default function ConcernsPage() {
   const { theme, isDarkMode } = useTheme();
@@ -291,11 +292,11 @@ export default function ConcernsPage() {
 
               {/* Date Range */}
               <div className="flex gap-2 items-center">
-                <input type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setCurrentPage(1); }} style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }} className="px-3 py-1.5 rounded-xl border text-xs focus:outline-none"
+                <ThemedDateInput value={startDate} onChange={(e) => { setStartDate(e.target.value); setCurrentPage(1); }} style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }} className="px-3 py-1.5 rounded-xl border text-xs focus:outline-none"
                   max={endDate || new Date().toLocaleDateString('en-CA')}
                 />
                 <span style={{ color: theme.text.tertiary }} className="text-xs">to</span>
-                <input type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setCurrentPage(1); }} style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }} className="px-3 py-1.5 rounded-xl border text-xs focus:outline-none"
+                <ThemedDateInput value={endDate} onChange={(e) => { setEndDate(e.target.value); setCurrentPage(1); }} style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }} className="px-3 py-1.5 rounded-xl border text-xs focus:outline-none"
                   min={startDate || undefined} max={new Date().toLocaleDateString('en-CA')}
                 />
               </div>

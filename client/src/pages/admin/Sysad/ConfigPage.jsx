@@ -7,6 +7,7 @@ import api from '../../../utils/api';
 import { toast } from 'react-toastify';
 import { Settings, Shield, Download, Calendar, Clock, Power, AlertTriangle, CheckCircle, X, Loader2, Archive, FileText, RefreshCw, Users } from 'lucide-react';
 import ScheduleExportModal from '../../../components/modals/ScheduleExportModal';
+import { ThemedDateInput, ThemedTimeInput } from '../../../components/shared/ThemedControls';
 
 // Sysad-specific export types
 const SYSAD_EXPORT_TYPES = [
@@ -487,8 +488,7 @@ export default function SysadConfigPage() {
               style={{ background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }}
               className="px-4 py-2 rounded-lg border text-sm flex-1 min-w-[200px] focus:outline-none"
             />
-            <input
-              type="date"
+            <ThemedDateInput
               value={filterDateRange.start}
               onChange={(e) => setFilterDateRange({ ...filterDateRange, start: e.target.value })}
               style={{ background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }}
@@ -496,8 +496,7 @@ export default function SysadConfigPage() {
                   max={filterDateRange.end || new Date().toLocaleDateString('en-CA')}
                 />
             <span style={{ color: theme.text.secondary }} className="self-center">→</span>
-            <input
-              type="date"
+            <ThemedDateInput
               value={filterDateRange.end}
               onChange={(e) => setFilterDateRange({ ...filterDateRange, end: e.target.value })}
               style={{ background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }}
@@ -627,8 +626,7 @@ export default function SysadConfigPage() {
               <label style={{ color: accentColor }} className="block text-xs font-bold uppercase mb-2">
                 Deactivation Date
               </label>
-              <input
-                type="date"
+              <ThemedDateInput
                 value={sysadConfig.deactivationScheduler?.date || ''}
                 min={new Date().toISOString().split('T')[0]}
                 onChange={(e) => setSysadConfig(prev => ({
@@ -652,8 +650,7 @@ export default function SysadConfigPage() {
               <label style={{ color: accentColor }} className="block text-xs font-bold uppercase mb-2">
                 Deactivation Time (24-hour)
               </label>
-              <input
-                type="time"
+              <ThemedTimeInput
                 value={sysadConfig.deactivationScheduler?.time || ''}
                 onChange={(e) => setSysadConfig(prev => ({
                   ...prev,
@@ -992,8 +989,7 @@ function DateRangeModal({ theme, isDarkMode, dateRange, setDateRange, customStar
             <div style={{ background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB' }} className="p-4 rounded-xl grid grid-cols-2 gap-3">
               <div>
                 <label style={{ color: accentColor }} className="block text-xs font-semibold mb-2">Start Date</label>
-                <input
-                  type="date"
+                <ThemedDateInput
                   value={customStartDate}
                   onChange={(e) => setCustomStartDate(e.target.value)}
                   style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#FFFFFF', color: theme.text.primary, borderColor: theme.border.primary }}
@@ -1003,8 +999,7 @@ function DateRangeModal({ theme, isDarkMode, dateRange, setDateRange, customStar
               </div>
               <div>
                 <label style={{ color: accentColor }} className="block text-xs font-semibold mb-2">End Date</label>
-                <input
-                  type="date"
+                <ThemedDateInput
                   value={customEndDate}
                   onChange={(e) => setCustomEndDate(e.target.value)}
                   style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#FFFFFF', color: theme.text.primary, borderColor: theme.border.primary }}

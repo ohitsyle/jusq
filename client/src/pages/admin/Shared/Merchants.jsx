@@ -9,6 +9,7 @@ import { toast } from "react-toastify";
 import Header from "../../../components/layouts/Header";
 import Footer from "../../../components/layouts/Footer";
 import Navbar from "../../../components/layouts/Navbar";
+import { ThemedSelect } from '../../../components/shared/ThemedControls';
 
 export default function Merchants() {
   const { theme, isDarkMode } = useTheme();
@@ -113,7 +114,7 @@ export default function Merchants() {
               className="flex-1 px-3 py-2 rounded-md outline-none"
             />
 
-            <select
+            <ThemedSelect
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
               style={{
@@ -126,7 +127,7 @@ export default function Merchants() {
               <option value="">All Status</option>
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
-            </select>
+            </ThemedSelect>
 
             <button
               onClick={handleSearch}
