@@ -16,6 +16,7 @@ import ShuttleTransaction from '../models/ShuttleTransaction.js';
 import { logAdminAction, logError, logDriverLogin, logDriverLogout, logDriverShuttleSelection, logDriverRouteChange, logMerchantLogin, logMerchantLogout, logCashIn, logAutoExportConfigChange, logManualExport, logMaintenanceMode, logStudentDeactivation } from '../utils/logger.js';
 import { extractAdminInfo } from '../middlewares/extractAdminInfo.js';
 import { broadcastChanges, forceMobileRefresh } from '../middlewares/realtimeMiddleware.js';
+import { buildDepartmentLogQuery } from '../utils/exportScopes.js';
 
 // Apply admin info extraction middleware to all admin routes
 router.use(extractAdminInfo);
@@ -725,132 +726,9 @@ router.get('/event-logs', async (req, res) => {
   try {
     const { department } = req.query;
 
-    // Build query based on department/role
-    // Each department ONLY sees their own logs - no cross-department visibility
-    let query = {};
-
-    // Helper to exclude sysad logs from non-sysad departments
-    const excludeSysad = {
-      $and: [
-        { $or: [{ 'metadata.adminRole': { $ne: 'sysad' } }, { 'metadata.adminRole': { $exists: false } }] },
-        { $or: [{ department: { $ne: 'sysad' } }, { department: { $exists: false } }] }
-      ]
-    };
-
-    if (!department || department === 'sysad') {
-      // System admin sees EVERYTHING - all logs across all departments
-      query = {};
-    } else if (department === 'motorpool') {
-      // Motorpool admin sees:
-      // - login/logout of every motorpool admin
-      // - crud of every tab by motorpool admins
-      // - notes/concerns by motorpool admins
-      // - driver mobile app login/logout
-      // - driver shuttle/route selection
-      // - driver trip start/end, route changes, refunds
-      // - auto export config changes by motorpool admins
-      // - manual exports by motorpool admins
-      query = {
-        $or: [
-          // Motorpool admin authentication
-          { eventType: { $in: ['login', 'logout'] }, 'metadata.adminRole': 'motorpool' },
-          { eventType: { $in: ['login', 'logout'] }, department: 'motorpool' },
-          // CRUD operations by motorpool admins
-          { eventType: { $in: ['crud_create', 'crud_update', 'crud_delete'] }, 'metadata.adminRole': 'motorpool' },
-          // Notes and concerns by motorpool admins
-          { eventType: { $in: ['note_added', 'note_updated', 'concern_resolved'] }, 'metadata.adminRole': 'motorpool' },
-          // Driver mobile app activities
-          { eventType: { $in: ['driver_login', 'driver_logout'] } },
-          // Driver shuttle and route selection
-          { eventType: 'shuttle_selection' },
-          { eventType: 'driver_assignment' },
-          // Trip operations
-          { eventType: { $in: ['trip_start', 'trip_end', 'route_start', 'route_end', 'route_change', 'refund'] } },
-          // Phone assignments
-          { eventType: { $in: ['phone_assigned', 'phone_unassigned'] }, 'metadata.adminRole': 'motorpool' },
-          // Export operations by motorpool admins
-          { eventType: { $in: ['auto_export_config_change', 'manual_export', 'export_manual', 'export_auto', 'config_updated'] }, 'metadata.adminRole': 'motorpool' },
-          // Department-tagged motorpool logs
-          { department: 'motorpool' }
-        ],
-        ...excludeSysad
-      };
-    } else if (department === 'merchant') {
-      // Merchant admin sees:
-      // - login/logout of every merchant admin
-      // - crud of every tab by merchant admins
-      // - notes/concerns by merchant admins
-      // - merchant mobile app login/logout
-      // - auto export config changes by merchant admins
-      // - manual exports by merchant admins
-      query = {
-        $or: [
-          // Merchant admin authentication
-          { eventType: { $in: ['login', 'logout'] }, 'metadata.adminRole': 'merchant' },
-          { eventType: { $in: ['login', 'logout'] }, department: 'merchant' },
-          // CRUD operations by merchant admins
-          { eventType: { $in: ['crud_create', 'crud_update', 'crud_delete'] }, 'metadata.adminRole': 'merchant' },
-          // Notes and concerns by merchant admins
-          { eventType: { $in: ['note_added', 'note_updated', 'concern_resolved'] }, 'metadata.adminRole': 'merchant' },
-          // Merchant mobile app activities
-          { eventType: { $in: ['merchant_login', 'merchant_logout'] } },
-          // Export operations by merchant admins
-          { eventType: { $in: ['auto_export_config_change', 'manual_export', 'export_manual', 'export_auto', 'config_updated'] }, 'metadata.adminRole': 'merchant' },
-          // Department-tagged merchant logs
-          { department: 'merchant' }
-        ],
-        ...excludeSysad
-      };
-    } else if (department === 'treasury') {
-      // Treasury admin sees:
-      // - login/logout of every treasury admin
-      // - crud of every tab by treasury admins
-      // - notes/concerns by treasury admins
-      // - cash-in by treasury admins
-      // - auto export config changes by treasury admins
-      // - manual exports by treasury admins
-      query = {
-        $or: [
-          // Treasury admin authentication
-          { eventType: { $in: ['login', 'logout'] }, 'metadata.adminRole': 'treasury' },
-          { eventType: { $in: ['login', 'logout'] }, department: 'treasury' },
-          // CRUD operations by treasury admins
-          { eventType: { $in: ['crud_create', 'crud_update', 'crud_delete'] }, 'metadata.adminRole': 'treasury' },
-          // Notes and concerns by treasury admins
-          { eventType: { $in: ['note_added', 'note_updated', 'concern_resolved'] }, 'metadata.adminRole': 'treasury' },
-          // Cash-in by treasury admins
-          { eventType: 'cash_in', 'metadata.adminRole': 'treasury' },
-          // Registration events by treasury
-          { eventType: 'registration', 'metadata.adminRole': 'treasury' },
-          // Export operations by treasury admins
-          { eventType: { $in: ['auto_export_config_change', 'manual_export', 'export_manual', 'export_auto', 'config_updated'] }, 'metadata.adminRole': 'treasury' },
-          // Department-tagged treasury logs
-          { department: 'treasury' }
-        ],
-        ...excludeSysad
-      };
-    } else if (department === 'accounting') {
-      // Accounting admin sees:
-      // - login/logout of every accounting admin
-      // - crud of every tab by accounting admins
-      // - auto export config changes by accounting admins
-      // - manual exports by accounting admins
-      // NOTE: Accounting does NOT see notes/concerns or cash-in
-      query = {
-        $or: [
-          // Accounting admin authentication
-          { eventType: { $in: ['login', 'logout'] }, 'metadata.adminRole': 'accounting' },
-          { eventType: { $in: ['login', 'logout'] }, department: 'accounting' },
-          // CRUD operations by accounting admins
-          { eventType: { $in: ['crud_create', 'crud_update', 'crud_delete'] }, 'metadata.adminRole': 'accounting' },
-          // Export operations by accounting admins
-          { eventType: { $in: ['auto_export_config_change', 'manual_export', 'export_manual', 'export_auto', 'config_updated'] }, 'metadata.adminRole': 'accounting' },
-          // Department-tagged accounting logs
-          { department: 'accounting' }
-        ],
-        ...excludeSysad
-      };
-    }
+    // Department scoping is shared with the export system (single source of
+    // truth) — handles all roles incl. marketing. sysad/empty sees everything.
+    const query = buildDepartmentLogQuery(department);
 
     const logs = await EventLog.find(query)
       .sort({ timestamp: -1 })

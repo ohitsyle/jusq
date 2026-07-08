@@ -44,7 +44,7 @@ export default function ConfigPage() {
 
   const loadConfigurations = async () => {
     try {
-      const data = await api.get('/admin/configurations');
+      const data = await api.get('/admin/configurations?adminRole=accounting');
       if (data) {
         setConfigurations(data);
       }
