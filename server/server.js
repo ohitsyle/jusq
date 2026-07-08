@@ -64,24 +64,33 @@ import { initializeAutoExportCron } from './jobs/autoExportCron.js';
 import { initializeStudentDeactivationCron } from './jobs/studentDeactivationCron.js';
 import { initializeDeactivationCron } from './jobs/deactivationCron.js';
 import { checkMaintenanceMode } from './middlewares/maintenanceMode.js';
+import { requireAdminAuth, requireAdminAuthExcept } from './middlewares/requireAdminAuth.js';
+import { loginRateLimit } from './middlewares/loginRateLimit.js';
 import websocketService from './services/websocketService.js';
 
 // Apply maintenance mode middleware to all routes (but we'll handle auth checking inside)
 app.use(checkMaintenanceMode);
 
+// Brute-force protection on login endpoints
+app.use('/api/login', loginRateLimit);
+app.use('/api/admin/auth/login', loginRateLimit);
+
 // Mount all API routes at /api
 // NOTE: More specific routes MUST come before more general routes
+// SECURITY: every /api/admin/* surface requires a verified admin JWT.
+// Exceptions: /api/admin/auth (login itself) and sysad /maintenance-status
+// (read by the login page pre-auth).
 app.use('/api/admin/auth', adminAuthRoutes);
-app.use('/api/admin/treasury', treasuryRoutes);
-app.use('/api/admin/accounting', accountingRoutes);
-app.use('/api/admin/sysad', sysadRoutes);
-app.use('/api/system-alerts', systemAlertsRoutes);
-app.use('/api/admin/promotions', promotionsRoutes);
-app.use('/api/admin/configurations', configurationsRoutes);
-app.use('/api/admin', adminRoutes); // General admin routes AFTER specific admin/* routes
+app.use('/api/admin/treasury', requireAdminAuth, treasuryRoutes);
+app.use('/api/admin/accounting', requireAdminAuth, accountingRoutes);
+app.use('/api/admin/sysad', requireAdminAuthExcept(['/maintenance-status']), sysadRoutes);
+app.use('/api/system-alerts', requireAdminAuthExcept(['/active']), systemAlertsRoutes);
+app.use('/api/admin/promotions', requireAdminAuth, promotionsRoutes);
+app.use('/api/admin/configurations', requireAdminAuth, configurationsRoutes);
+app.use('/api/admin', requireAdminAuth, adminRoutes); // General admin routes AFTER specific admin/* routes
 app.use('/api/merchant/auth', merchantAuthRoutes);
 app.use('/api/merchant', merchantAdminRoutes);
-app.use('/api/treasury', treasuryRoutes); // Also mount at /api/treasury for client compatibility
+app.use('/api/treasury', requireAdminAuth, treasuryRoutes); // Also mount at /api/treasury for client compatibility
 app.use('/api/user', userDashboardRoutes);
 app.use('/api/activation', activationRoutes);
 app.use('/api/websocket', websocketRoutes);
