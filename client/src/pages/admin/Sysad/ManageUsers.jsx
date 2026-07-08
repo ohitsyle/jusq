@@ -463,11 +463,11 @@ export default function ManageUsers() {
                           </button>
                           {user.email?.toLowerCase() === 'sysad@nu.edu.ph' ? (
                             <span
-                              title="Root system administrator — cannot be deactivated or deleted"
+                              title="This is the root user — it cannot be deactivated or deleted"
                               style={{ background: 'rgba(139,92,246,0.15)', color: '#8B5CF6', borderColor: 'rgba(139,92,246,0.3)' }}
                               className="px-3 py-1.5 rounded-lg text-xs font-semibold border inline-flex items-center gap-1.5"
                             >
-                              <Shield className="w-3.5 h-3.5" /> Protected
+                              <Shield className="w-3.5 h-3.5" /> Root — Protected
                             </span>
                           ) : (
                             <>
