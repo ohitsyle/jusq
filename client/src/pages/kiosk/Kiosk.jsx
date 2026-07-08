@@ -122,6 +122,20 @@ export default function Kiosk() {
     return () => window.removeEventListener('keydown', onKey);
   }, [handleScan]);
 
+  // Phone-as-scanner relay: while idle, poll the server for a scan pushed from
+  // a phone in scanner mode (fallback for testing without a USB reader).
+  useEffect(() => {
+    if (stage !== 'idle') return;
+    const t = setInterval(async () => {
+      if (stageRef.current !== 'idle') return;
+      try {
+        const res = await api.get('/kiosk/relay/latest');
+        if (res?.uid) handleScan(res.uid);
+      } catch (e) { /* ignore */ }
+    }, 1200);
+    return () => clearInterval(t);
+  }, [stage, handleScan]);
+
   // ---- form validation --------------------------------------------------
   const validate = () => {
     const errs = {};

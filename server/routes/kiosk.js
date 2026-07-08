@@ -48,6 +48,34 @@ setInterval(() => {
   for (const [k, e] of hits) if (now - e.windowStart > 60 * 60 * 1000) hits.delete(k);
 }, 10 * 60 * 1000).unref();
 
+// ---- phone-as-scanner relay (for testing without a USB RFID reader) --------
+// A phone in "scanner mode" reads a card via NFC and POSTs the UID here; the
+// kiosk page polls /relay/latest and consumes the scan as if it were tapped.
+// Single-slot, short-lived, in-memory — testing aid only.
+let lastScan = null; // { uid, at }
+const RELAY_TTL = 15000;
+
+/** POST /api/kiosk/relay  { uid } — phone pushes a scanned card UID */
+router.post('/relay', (req, res) => {
+  const uid = String(req.body?.uid || '').trim();
+  if (!uid || !validateRfidFormat(uid)) {
+    return res.status(400).json({ error: 'Invalid card UID' });
+  }
+  lastScan = { uid, at: Date.now() };
+  console.log('[Kiosk relay] received scan:', uid);
+  res.json({ success: true });
+});
+
+/** GET /api/kiosk/relay/latest — kiosk polls; returns a fresh scan once, then clears it */
+router.get('/relay/latest', (req, res) => {
+  if (lastScan && Date.now() - lastScan.at <= RELAY_TTL) {
+    const uid = lastScan.uid;
+    lastScan = null; // consume so it only fires once
+    return res.json({ uid });
+  }
+  res.json({ uid: null });
+});
+
 /**
  * POST /api/kiosk/check-card  { rfid }
  * Is this card already registered?

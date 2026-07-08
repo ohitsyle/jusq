@@ -39,6 +39,7 @@ export default function LoginScreen({ navigation }) {
   const shakeAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
+  const secretTapRef = useRef({ count: 0, last: 0 }); // 7 taps on logo -> Scanner Mode
   const pinInputRef = useRef(null);
   const emailInputRef = useRef(null);
 
@@ -331,10 +332,25 @@ export default function LoginScreen({ navigation }) {
           >
             <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
               {/* Logo Section - FIXED: Better positioning */}
+              {/* Secret: tapping the logo 7x opens Scanner Mode (RFID relay for kiosk testing) */}
               <View style={styles.logoSection}>
-                <View style={styles.logoCircle}>
-                  <Text style={styles.logoIcon}>🚐</Text>
-                </View>
+                <TouchableOpacity
+                  activeOpacity={1}
+                  onPress={() => {
+                    const now = Date.now();
+                    if (now - (secretTapRef.current.last || 0) > 1500) secretTapRef.current.count = 0;
+                    secretTapRef.current.last = now;
+                    secretTapRef.current.count += 1;
+                    if (secretTapRef.current.count >= 7) {
+                      secretTapRef.current.count = 0;
+                      navigation.navigate('ScannerMode');
+                    }
+                  }}
+                >
+                  <View style={styles.logoCircle}>
+                    <Text style={styles.logoIcon}>🚐</Text>
+                  </View>
+                </TouchableOpacity>
                 <Text style={styles.appName}>NUCash</Text>
                 <Text style={styles.tagline}>Shuttle & Payment System</Text>
               </View>
