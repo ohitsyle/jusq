@@ -637,6 +637,31 @@ router.delete('/users/:userId', async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
+    // ROOT PROTECTION: the primary sysad can never be deleted, and the last
+    // remaining sysad can't be deleted either — so admin access can never be
+    // fully locked out. (Also enforced by Admin model pre-delete hooks.)
+    if (isAdmin && user.role === 'sysad') {
+      const Admin = (await import('../models/Admin.js')).default;
+      const { PROTECTED_SYSAD_EMAIL } = await import('../models/Admin.js');
+      if (user.email?.toLowerCase() === PROTECTED_SYSAD_EMAIL) {
+        return res.status(403).json({
+          success: false,
+          message: 'This is the protected root system administrator account. It cannot be deleted.'
+        });
+      }
+      const otherSysads = await Admin.countDocuments({
+        role: 'sysad',
+        _id: { $ne: user._id },
+        isDeactivated: { $ne: true }
+      });
+      if (otherSysads === 0) {
+        return res.status(403).json({
+          success: false,
+          message: 'Cannot delete the last active system administrator.'
+        });
+      }
+    }
+
     // Store user info for logging before deletion
     const userInfo = {
       id: user._id,

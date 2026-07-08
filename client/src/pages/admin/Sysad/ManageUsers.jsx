@@ -228,7 +228,7 @@ export default function ManageUsers() {
           showNotification('success', 'User Deleted', 'The user has been deleted successfully.');
           fetchUsers(true);
         } catch (error) {
-          showNotification('error', 'Delete Failed', 'Failed to delete user. Please try again.');
+          showNotification('error', 'Delete Failed', error?.message || 'Failed to delete user. Please try again.');
         }
       },
       'danger'
@@ -461,24 +461,36 @@ export default function ManageUsers() {
                           >
                             Edit
                           </button>
-                          <button
-                            onClick={() => handleToggleStatus(user._id, user.isDeactivated)}
-                            style={{
-                              background: user.isDeactivated ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
-                              color: user.isDeactivated ? '#10B981' : '#EF4444',
-                              borderColor: user.isDeactivated ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'
-                            }}
-                            className="px-3 py-1.5 rounded-lg hover:opacity-80 transition-all text-xs font-semibold border"
-                          >
-                            {user.isDeactivated ? 'Undeactivate' : 'Deactivate'}
-                          </button>
-                          <button
-                            onClick={() => handleDeleteUser(user._id)}
-                            style={{ background: 'rgba(239,68,68,0.15)', color: '#EF4444', borderColor: 'rgba(239,68,68,0.3)' }}
-                            className="px-3 py-1.5 rounded-lg hover:opacity-80 transition-all text-xs font-semibold border"
-                          >
-                            Delete
-                          </button>
+                          {user.email?.toLowerCase() === 'sysad@nu.edu.ph' ? (
+                            <span
+                              title="Root system administrator — cannot be deactivated or deleted"
+                              style={{ background: 'rgba(139,92,246,0.15)', color: '#8B5CF6', borderColor: 'rgba(139,92,246,0.3)' }}
+                              className="px-3 py-1.5 rounded-lg text-xs font-semibold border inline-flex items-center gap-1.5"
+                            >
+                              <Shield className="w-3.5 h-3.5" /> Protected
+                            </span>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => handleToggleStatus(user._id, user.isDeactivated)}
+                                style={{
+                                  background: user.isDeactivated ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
+                                  color: user.isDeactivated ? '#10B981' : '#EF4444',
+                                  borderColor: user.isDeactivated ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'
+                                }}
+                                className="px-3 py-1.5 rounded-lg hover:opacity-80 transition-all text-xs font-semibold border"
+                              >
+                                {user.isDeactivated ? 'Undeactivate' : 'Deactivate'}
+                              </button>
+                              <button
+                                onClick={() => handleDeleteUser(user._id)}
+                                style={{ background: 'rgba(239,68,68,0.15)', color: '#EF4444', borderColor: 'rgba(239,68,68,0.3)' }}
+                                className="px-3 py-1.5 rounded-lg hover:opacity-80 transition-all text-xs font-semibold border"
+                              >
+                                Delete
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>

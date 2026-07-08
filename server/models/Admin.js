@@ -108,4 +108,61 @@ AdminSchema.set('toObject', { virtuals: true });
 AdminSchema.index({ role: 1 });
 AdminSchema.index({ isActive: 1 });
 
+// ============================================================
+// ROOT ACCOUNT PROTECTION
+// The primary sysad can never be deleted (or deactivated), so the
+// system can never be locked out of administration. Enforced at the
+// model level so EVERY code path is covered, not just the routes.
+// ============================================================
+export const PROTECTED_SYSAD_EMAIL = 'sysad@nu.edu.ph';
+
+const PROTECTED_ERROR = 'This system administrator account is protected and cannot be deleted or deactivated.';
+
+// NOTE: async query middleware must THROW (not call next(err)) in mongoose 8 —
+// the resolved promise otherwise wins and the operation proceeds.
+async function blockIfProtected() {
+  const doc = await this.model.findOne(this.getFilter()).select('email role').lean();
+  if (doc && doc.email?.toLowerCase() === PROTECTED_SYSAD_EMAIL) {
+    throw new Error(PROTECTED_ERROR);
+  }
+}
+
+AdminSchema.pre('findOneAndDelete', blockIfProtected);
+AdminSchema.pre('deleteOne', { document: false, query: true }, blockIfProtected);
+
+AdminSchema.pre('deleteMany', async function () {
+  const wouldHit = await this.model.findOne({
+    ...this.getFilter(),
+    email: PROTECTED_SYSAD_EMAIL
+  }).select('_id').lean();
+  if (wouldHit) throw new Error(PROTECTED_ERROR);
+});
+
+// Block deactivation/role-change of the protected account on save/update paths.
+AdminSchema.pre('save', function (next) {
+  if (!this.isNew && this.email?.toLowerCase() === PROTECTED_SYSAD_EMAIL) {
+    if (this.isModified('isDeactivated') && this.isDeactivated) return next(new Error(PROTECTED_ERROR));
+    if (this.isModified('role') && this.role !== 'sysad') return next(new Error(PROTECTED_ERROR));
+  }
+  next();
+});
+
+async function blockProtectedUpdate() {
+  const update = this.getUpdate() || {};
+  // Changed fields can live at the top level AND in $set (timestamps plugin
+  // always adds $set.updatedAt) — merge both before inspecting.
+  const set = { ...update, ...(update.$set || {}) };
+  const deactivating = set.isDeactivated === true;
+  const demoting = set.role && set.role !== 'sysad';
+  if (!deactivating && !demoting) return;
+  const doc = await this.model.findOne(this.getFilter()).select('email').lean();
+  if (doc && doc.email?.toLowerCase() === PROTECTED_SYSAD_EMAIL) {
+    throw new Error(PROTECTED_ERROR);
+  }
+}
+
+AdminSchema.pre('findOneAndUpdate', blockProtectedUpdate);
+AdminSchema.pre('updateOne', { document: false, query: true }, blockProtectedUpdate);
+AdminSchema.pre('updateMany', blockProtectedUpdate);
+
 export default mongoose.model('Admin', AdminSchema);
