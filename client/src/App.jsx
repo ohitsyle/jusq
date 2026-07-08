@@ -7,6 +7,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { useMaintenanceMode } from './hooks/useMaintenanceMode.js';
 
 import UnifiedLogin from './pages/account/UnifiedLogin';
+import Kiosk from './pages/kiosk/Kiosk';
 import AccountActivation from './pages/account/AccountActivation';
 
 // Layout Components
@@ -213,6 +214,8 @@ function AppContent() {
     <Routes>
       {/* Login Routes */}
       <Route path="/login" element={<UnifiedLogin />} />
+      {/* Public self-service registration kiosk */}
+      <Route path="/kiosk" element={<Kiosk />} />
       <Route path="/activate" element={<AccountActivation />} />
       <Route path="/maintenance" element={<MaintenanceMode />} />
       

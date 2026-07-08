@@ -59,6 +59,7 @@ import treasuryRoutes from './routes/treasury.js';
 import accountingRoutes from './routes/accounting.js';
 import sysadRoutes, { getSystemConfig, setSchedulerExecuted } from './routes/sysad.js';
 import systemAlertsRoutes from './routes/systemAlerts.js';
+import kioskRoutes from './routes/kiosk.js';
 import websocketRoutes from './routes/websocket.js';
 import { initializeAutoExportCron } from './jobs/autoExportCron.js';
 import { initializeStudentDeactivationCron } from './jobs/studentDeactivationCron.js';
@@ -85,6 +86,7 @@ app.use('/api/admin/treasury', requireAdminAuth, treasuryRoutes);
 app.use('/api/admin/accounting', requireAdminAuth, accountingRoutes);
 app.use('/api/admin/sysad', requireAdminAuthExcept(['/maintenance-status']), sysadRoutes);
 app.use('/api/system-alerts', requireAdminAuthExcept(['/active']), systemAlertsRoutes);
+app.use('/api/kiosk', kioskRoutes); // public: self-service registration kiosk (rate-limited inside)
 app.use('/api/admin/promotions', requireAdminAuth, promotionsRoutes);
 app.use('/api/admin/configurations', requireAdminAuth, configurationsRoutes);
 app.use('/api/admin', requireAdminAuth, adminRoutes); // General admin routes AFTER specific admin/* routes
