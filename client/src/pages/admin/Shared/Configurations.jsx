@@ -497,7 +497,8 @@ export default function ConfigurationsPage() {
                         outline: 'none',
                         boxSizing: 'border-box'
                       }}
-                    />
+                  max={customEndDate || new Date().toLocaleDateString('en-CA')}
+                />
                   </div>
                   <div>
                     <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: 700, color: theme.accent.primary }}>
@@ -518,7 +519,8 @@ export default function ConfigurationsPage() {
                         outline: 'none',
                         boxSizing: 'border-box'
                       }}
-                    />
+                  min={customStartDate || undefined} max={new Date().toLocaleDateString('en-CA')}
+                />
                   </div>
                 </div>
               </div>

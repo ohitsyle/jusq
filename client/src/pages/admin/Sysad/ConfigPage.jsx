@@ -493,7 +493,8 @@ export default function SysadConfigPage() {
               onChange={(e) => setFilterDateRange({ ...filterDateRange, start: e.target.value })}
               style={{ background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }}
               className="px-3 py-2 rounded-lg border text-sm focus:outline-none"
-            />
+                  max={filterDateRange.end || new Date().toLocaleDateString('en-CA')}
+                />
             <span style={{ color: theme.text.secondary }} className="self-center">→</span>
             <input
               type="date"
@@ -501,7 +502,8 @@ export default function SysadConfigPage() {
               onChange={(e) => setFilterDateRange({ ...filterDateRange, end: e.target.value })}
               style={{ background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }}
               className="px-3 py-2 rounded-lg border text-sm focus:outline-none"
-            />
+                  min={filterDateRange.start || undefined} max={new Date().toLocaleDateString('en-CA')}
+                />
             {(filterDateRange.start || filterDateRange.end || searchQuery) && (
               <button
                 onClick={() => {
@@ -996,6 +998,7 @@ function DateRangeModal({ theme, isDarkMode, dateRange, setDateRange, customStar
                   onChange={(e) => setCustomStartDate(e.target.value)}
                   style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#FFFFFF', color: theme.text.primary, borderColor: theme.border.primary }}
                   className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none"
+                  max={customEndDate || new Date().toLocaleDateString('en-CA')}
                 />
               </div>
               <div>
@@ -1006,6 +1009,7 @@ function DateRangeModal({ theme, isDarkMode, dateRange, setDateRange, customStar
                   onChange={(e) => setCustomEndDate(e.target.value)}
                   style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#FFFFFF', color: theme.text.primary, borderColor: theme.border.primary }}
                   className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none"
+                  min={customStartDate || undefined} max={new Date().toLocaleDateString('en-CA')}
                 />
               </div>
             </div>

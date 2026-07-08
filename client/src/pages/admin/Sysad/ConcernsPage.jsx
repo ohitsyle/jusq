@@ -450,7 +450,8 @@ export default function SysadConcernsPage() {
               onChange={(e) => setStartDate(e.target.value)}
               style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }}
               className="px-3 py-2 rounded-xl border text-sm focus:outline-none"
-            />
+                  max={endDate || new Date().toLocaleDateString('en-CA')}
+                />
             <span style={{ color: theme.text.secondary }} className="text-xs font-semibold">To</span>
             <input
               type="date"
@@ -458,7 +459,8 @@ export default function SysadConcernsPage() {
               onChange={(e) => setEndDate(e.target.value)}
               style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }}
               className="px-3 py-2 rounded-xl border text-sm focus:outline-none"
-            />
+                  min={startDate || undefined} max={new Date().toLocaleDateString('en-CA')}
+                />
           </div>
 
           {/* Export CSV */}

@@ -430,7 +430,8 @@ export default function LogsList() {
                 borderColor: theme.border.primary 
               }}
               className="px-3 py-1.5 rounded-xl border text-xs focus:outline-none"
-            />
+                  max={endDate || new Date().toLocaleDateString('en-CA')}
+                />
             <span style={{ color: theme.text.tertiary }} className="text-xs">to</span>
             <input
               type="date"
@@ -442,7 +443,8 @@ export default function LogsList() {
                 borderColor: theme.border.primary 
               }}
               className="px-3 py-1.5 rounded-xl border text-xs focus:outline-none"
-            />
+                  min={startDate || undefined} max={new Date().toLocaleDateString('en-CA')}
+                />
           </div>
 
           {/* Export CSV Button */}

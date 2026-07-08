@@ -627,11 +627,21 @@ router.post('/transfer', verifyUserToken, async (req, res) => {
   }
 });
 
+// A token may only read its own records via the param routes below. Combined
+// with verifyUserToken (which rejects deleted/deactivated accounts), this means
+// a removed user's app loses access on its next request.
+const requireSelf = (req, res, next) => {
+  if (String(req.user._id) !== String(req.params.userId)) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  next();
+};
+
 /**
  * GET /api/user/:userId
- * Get user info and balance (by userId param - for admin use)
+ * Get user info and balance (token holder may only read their own record)
  */
-router.get('/:userId', async (req, res) => {
+router.get('/:userId', verifyUserToken, requireSelf, async (req, res) => {
   try {
     const { userId } = req.params;
 
@@ -664,7 +674,7 @@ router.get('/:userId', async (req, res) => {
  * GET /api/user/:userId/transactions?limit=10
  * Get user's recent transactions (by userId param - for admin use)
  */
-router.get('/:userId/transactions', async (req, res) => {
+router.get('/:userId/transactions', verifyUserToken, requireSelf, async (req, res) => {
   try {
     const { userId } = req.params;
     const limit = parseInt(req.query.limit) || 10;
@@ -685,7 +695,7 @@ router.get('/:userId/transactions', async (req, res) => {
  * GET /api/user/:userId/concerns
  * Get user's submitted concerns (by userId param - for admin use)
  */
-router.get('/:userId/concerns', async (req, res) => {
+router.get('/:userId/concerns', verifyUserToken, requireSelf, async (req, res) => {
   try {
     const { userId } = req.params;
 

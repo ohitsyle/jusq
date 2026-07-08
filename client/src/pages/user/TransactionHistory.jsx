@@ -257,7 +257,8 @@ export default function TransactionHistory() {
                 onChange={(e) => setStartDate(e.target.value)}
                 style={{ background: theme.bg.tertiary, color: theme.text.primary, borderColor: theme.border.primary }}
                 className="px-3 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/30"
-              />
+                  max={endDate || new Date().toLocaleDateString('en-CA')}
+                />
             </div>
             <div>
               <label style={{ color: theme.text.secondary }} className="hidden sm:block text-[11px] font-bold uppercase tracking-wide mb-2">
@@ -269,7 +270,8 @@ export default function TransactionHistory() {
                 onChange={(e) => setEndDate(e.target.value)}
                 style={{ background: theme.bg.tertiary, color: theme.text.primary, borderColor: theme.border.primary }}
                 className="px-3 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/30"
-              />
+                  min={startDate || undefined} max={new Date().toLocaleDateString('en-CA')}
+                />
             </div>
           </div>
 
@@ -499,7 +501,8 @@ export default function TransactionHistory() {
                           onChange={(e) => setStartDate(e.target.value)}
                           style={{ background: theme.bg.secondary, color: theme.text.primary, borderColor: theme.border.primary }}
                           className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none"
-                        />
+                  max={endDate || new Date().toLocaleDateString('en-CA')}
+                />
                       </div>
                       <div>
                         <label style={{ color: theme.text.secondary }} className="block text-xs font-bold uppercase mb-1">To</label>
@@ -509,7 +512,8 @@ export default function TransactionHistory() {
                           onChange={(e) => setEndDate(e.target.value)}
                           style={{ background: theme.bg.secondary, color: theme.text.primary, borderColor: theme.border.primary }}
                           className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none"
-                        />
+                  min={startDate || undefined} max={new Date().toLocaleDateString('en-CA')}
+                />
                       </div>
                     </div>
                     <p style={{ color: theme.text.muted }} className="text-xs mt-2">

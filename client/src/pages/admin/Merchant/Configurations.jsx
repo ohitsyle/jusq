@@ -351,6 +351,7 @@ export default function MerchantConfigurationsPage() {
                     fontSize: '12px',
                     outline: 'none'
                   }}
+                  max={filterDateRange.end || new Date().toLocaleDateString('en-CA')}
                 />
                 <span style={{ color: theme.text.tertiary }}>→</span>
                 <input
@@ -366,6 +367,7 @@ export default function MerchantConfigurationsPage() {
                     fontSize: '12px',
                     outline: 'none'
                   }}
+                  min={filterDateRange.start || undefined} max={new Date().toLocaleDateString('en-CA')}
                 />
                 {(filterDateRange.start || filterDateRange.end || searchQuery) && (
                   <button
@@ -650,6 +652,7 @@ function DateRangeModal({ dateRange, setDateRange, customStartDate, setCustomSta
                     outline: 'none',
                     boxSizing: 'border-box'
                   }}
+                  max={customEndDate || new Date().toLocaleDateString('en-CA')}
                 />
               </div>
               <div>
@@ -671,6 +674,7 @@ function DateRangeModal({ dateRange, setDateRange, customStartDate, setCustomSta
                     outline: 'none',
                     boxSizing: 'border-box'
                   }}
+                  min={customStartDate || undefined} max={new Date().toLocaleDateString('en-CA')}
                 />
               </div>
             </div>

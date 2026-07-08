@@ -23,6 +23,12 @@ export const ThemeProvider = ({ children }) => {
   useEffect(() => {
     // Save theme preference to localStorage
     localStorage.setItem('nucash-theme', isDarkMode ? 'dark' : 'light');
+
+    // Tell the browser which scheme native widgets should render in —
+    // fixes white-on-white <select> dropdown lists and invisible calendar
+    // icons/popovers on date inputs in dark mode.
+    document.documentElement.style.colorScheme = isDarkMode ? 'dark' : 'light';
+    document.documentElement.dataset.theme = isDarkMode ? 'dark' : 'light';
   }, [isDarkMode]);
 
   const toggleTheme = () => {

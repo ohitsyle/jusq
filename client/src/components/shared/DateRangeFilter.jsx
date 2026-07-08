@@ -24,14 +24,16 @@ export default function DateRangeFilter({ startDate, endDate, onStartChange, onE
         value={startDate}
         onChange={(e) => onStartChange(e.target.value)}
         style={inputStyle}
-      />
+                  max={endDate || new Date().toLocaleDateString('en-CA')}
+                />
       <span style={{ color: theme.text.tertiary, fontSize: '12px' }}>to</span>
       <input
         type="date"
         value={endDate}
         onChange={(e) => onEndChange(e.target.value)}
         style={inputStyle}
-      />
+                  min={startDate || undefined} max={new Date().toLocaleDateString('en-CA')}
+                />
       {(startDate || endDate) && (
         <button
           onClick={() => { onStartChange(''); onEndChange(''); }}
