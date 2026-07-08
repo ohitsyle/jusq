@@ -823,13 +823,18 @@ const deactivationOtpStore = new Map();
 router.put('/profile', verifyUserToken, async (req, res) => {
   try {
     const user = req.user;
-    const { firstName, lastName, phone } = req.body;
+    const { phone } = req.body;
 
-    // Update allowed fields
-    if (firstName) user.firstName = firstName;
-    if (lastName) user.lastName = lastName;
+    // IDENTITY LOCK: names are set at registration and tied to the school
+    // email for shuttle-safety/audit traceability. Users cannot self-edit
+    // their name — corrections go through Treasury/ITSO (sysad Manage Users).
+    if (req.body.firstName || req.body.lastName || req.body.middleName) {
+      return res.status(403).json({
+        error: 'Name changes must be requested at the Treasury Office or ITSO.'
+      });
+    }
+
     if (phone !== undefined) user.phone = phone;
-
     await user.save();
 
     return res.json({

@@ -217,9 +217,12 @@ export default function TransactionTable({
                       {getIdentifier(tx)}
                     </td>
 
-                    {/* Details */}
+                    {/* Details (+ verified school email — the audit identifier) */}
                     <td style={{ padding: '12px 16px', textAlign: 'center', color: theme.text.secondary }}>
-                      {getDetails(tx)}
+                      <div>{getDetails(tx)}</div>
+                      {tx.email && (
+                        <div style={{ fontSize: '11px', color: theme.text.tertiary, marginTop: '2px' }}>{tx.email}</div>
+                      )}
                     </td>
 
                     {/* Amount without color */}

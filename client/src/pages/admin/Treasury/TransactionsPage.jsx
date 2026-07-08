@@ -73,6 +73,7 @@ export default function TransactionsPage() {
       Time: tx.createdAt ? new Date(tx.createdAt).toLocaleTimeString() : tx.time || '',
       'ID Number': tx.idNumber || tx.schoolUId || '',
       Name: tx.userName || '',
+      Email: tx.email || '',
       Type: tx.transactionType === 'credit' ? 'Cash-In' : 'Payment',
       Status: tx.status || 'Completed',  
       Amount: tx.amount,
@@ -93,6 +94,7 @@ export default function TransactionsPage() {
       tx.idNumber?.toLowerCase().includes(query) ||
       tx.schoolUId?.toLowerCase().includes(query) ||
       tx.userName?.toLowerCase().includes(query) ||
+      tx.email?.toLowerCase().includes(query) ||
       tx.businessName?.toLowerCase().includes(query) ||
       tx.adminName?.toLowerCase().includes(query) ||
       tx.processedBy?.toLowerCase().includes(query)
