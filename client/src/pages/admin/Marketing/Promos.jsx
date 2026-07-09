@@ -43,7 +43,9 @@ export default function Promos() {
   const [togglingTab, setTogglingTab] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ title: '', description: '', rewardType: 'free_ride', rewardValue: 1, minimumRides: 10, frequency: 'monthly' });
+  const [editTarget, setEditTarget] = useState(null); // campaign being edited, null = creating
+  const EMPTY_FORM = { title: '', description: '', rewardType: 'free_ride', rewardValue: 1, minimumRides: 10, frequency: 'monthly' };
+  const [form, setForm] = useState(EMPTY_FORM);
 
   // Send-rewards flow
   const [rewardTarget, setRewardTarget] = useState(null); // campaign being sent
@@ -77,17 +79,38 @@ export default function Promos() {
     } finally { setTogglingTab(false); }
   };
 
-  const createCampaign = async () => {
+  const closeModal = () => { setIsModalOpen(false); setEditTarget(null); setForm(EMPTY_FORM); };
+
+  const openEdit = (c) => {
+    setEditTarget(c);
+    setForm({
+      title: c.title || '',
+      description: c.description || '',
+      rewardType: c.rewardType || 'free_ride',
+      rewardValue: c.rewardValue ?? (REWARD_VALUE_META[c.rewardType]?.default ?? 1),
+      minimumRides: c.minimumRides || 1,
+      frequency: c.frequency || 'monthly',
+    });
+    setIsModalOpen(true);
+  };
+
+  const saveCampaign = async () => {
     if (!form.title.trim() || !form.description.trim()) { toast.error('Title and description are required'); return; }
     setSaving(true);
     try {
-      await api.post('/admin/promotions/campaigns', form);
-      toast.success('Campaign created');
-      setIsModalOpen(false);
-      setForm({ title: '', description: '', rewardType: 'free_ride', rewardValue: 1, minimumRides: 10, frequency: 'monthly' });
+      if (editTarget) {
+        // rewardType is locked after creation; the server ignores it anyway
+        const { rewardType, ...updates } = form;
+        await api.put(`/admin/promotions/campaigns/${editTarget._id}`, updates);
+        toast.success('Campaign updated');
+      } else {
+        await api.post('/admin/promotions/campaigns', form);
+        toast.success('Campaign created');
+      }
+      closeModal();
       load();
     } catch (e) {
-      toast.error('Failed to create campaign');
+      toast.error(editTarget ? 'Failed to update campaign' : 'Failed to create campaign');
     } finally { setSaving(false); }
   };
 
@@ -156,7 +179,7 @@ export default function Promos() {
           </p>
         </div>
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => { setEditTarget(null); setForm(EMPTY_FORM); setIsModalOpen(true); }}
           style={{ background: accent, color: isDarkMode ? '#181D40' : '#FFF' }}
           className="py-3 px-6 rounded-xl text-sm font-bold cursor-pointer flex items-center gap-2 shadow-lg border-none"
         >
@@ -218,7 +241,7 @@ export default function Promos() {
         {filtered.length > 0 ? (
           <div className="grid gap-5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))' }}>
             {filtered.map((c) => (
-              <CampaignCard key={c._id} campaign={c} onToggle={toggleActive} onDelete={removeCampaign} onSendRewards={openRewards} theme={theme} isDarkMode={isDarkMode} />
+              <CampaignCard key={c._id} campaign={c} onToggle={toggleActive} onDelete={removeCampaign} onSendRewards={openRewards} onEdit={openEdit} theme={theme} isDarkMode={isDarkMode} />
             ))}
           </div>
         ) : (
@@ -235,7 +258,7 @@ export default function Promos() {
       {/* Create Modal (system admin modal pattern) */}
       {isModalOpen && (
         <div
-          onClick={() => !saving && setIsModalOpen(false)}
+          onClick={() => !saving && closeModal()}
           className="fixed inset-0 flex items-center justify-center z-[9999]"
           style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
         >
@@ -247,7 +270,7 @@ export default function Promos() {
             }}
             className="rounded-2xl border p-8 w-[90%] max-w-[600px] max-h-[90vh] overflow-auto shadow-2xl"
           >
-            <h3 style={{ color: theme.text.primary }} className="text-xl font-bold m-0 mb-6">New Campaign</h3>
+            <h3 style={{ color: theme.text.primary }} className="text-xl font-bold m-0 mb-6">{editTarget ? 'Edit Campaign' : 'New Campaign'}</h3>
 
             <div className="grid gap-4">
               <Field label="Title" required theme={theme}>
@@ -260,10 +283,16 @@ export default function Promos() {
               </Field>
               <div className="grid grid-cols-2 gap-4">
                 <Field label="Reward Type" theme={theme}>
-                  <ThemedSelect value={form.rewardType} onChange={(e) => setForm({ ...form, rewardType: e.target.value, rewardValue: REWARD_VALUE_META[e.target.value]?.default ?? 1 })}
-                    style={inputStyle(theme, isDarkMode)} className="w-full py-3 px-4 border-2 rounded-lg text-sm outline-none box-border">
+                  <ThemedSelect value={form.rewardType} disabled={!!editTarget}
+                    onChange={(e) => setForm({ ...form, rewardType: e.target.value, rewardValue: REWARD_VALUE_META[e.target.value]?.default ?? 1 })}
+                    style={{ ...inputStyle(theme, isDarkMode), opacity: editTarget ? 0.6 : 1 }} className="w-full py-3 px-4 border-2 rounded-lg text-sm outline-none box-border">
                     {REWARD_TYPES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
                   </ThemedSelect>
+                  {editTarget && (
+                    <p style={{ color: theme.text.tertiary }} className="text-[11px] m-0 mt-1.5">
+                      Reward type can't be changed after creation
+                    </p>
+                  )}
                 </Field>
                 <Field label="Frequency" theme={theme}>
                   <ThemedSelect value={form.frequency} onChange={(e) => setForm({ ...form, frequency: e.target.value })}
@@ -312,15 +341,15 @@ export default function Promos() {
             </div>
 
             <div className="flex gap-3 mt-6 justify-end">
-              <button onClick={() => setIsModalOpen(false)} disabled={saving}
+              <button onClick={closeModal} disabled={saving}
                 style={{ background: `${accent}15`, borderColor: theme.border.primary, color: accent }}
                 className="py-3 px-6 border-2 rounded-lg text-sm font-semibold cursor-pointer">
                 Cancel
               </button>
-              <button onClick={createCampaign} disabled={saving}
+              <button onClick={saveCampaign} disabled={saving}
                 style={{ background: saving ? '#999' : accent, color: isDarkMode ? '#181D40' : '#FFF', opacity: saving ? 0.6 : 1 }}
                 className="py-3 px-6 border-none rounded-lg text-sm font-bold cursor-pointer shadow-lg">
-                {saving ? 'Saving...' : 'Create Campaign'}
+                {saving ? 'Saving...' : editTarget ? 'Save Changes' : 'Create Campaign'}
               </button>
             </div>
           </div>
@@ -390,7 +419,7 @@ export default function Promos() {
 }
 
 // Campaign card — mirrors MerchantCard structure (badge chip, status dot, info rows, bordered actions)
-function CampaignCard({ campaign: c, onToggle, onDelete, onSendRewards, theme, isDarkMode }) {
+function CampaignCard({ campaign: c, onToggle, onDelete, onSendRewards, onEdit, theme, isDarkMode }) {
   const isActive = c.active !== false;
   const rewardLabel = rewardChip(c);
 
@@ -445,8 +474,15 @@ function CampaignCard({ campaign: c, onToggle, onDelete, onSendRewards, theme, i
       )}
       <div style={{ borderColor: theme.border.primary }} className="flex gap-2 pt-4 border-t">
         <button
+          onClick={() => onEdit(c)}
+          className="flex-1 py-2.5 px-2 rounded-lg text-[13px] font-semibold cursor-pointer transition-all border hover:opacity-80 whitespace-nowrap"
+          style={{ background: `${theme.accent.primary}18`, borderColor: `${theme.accent.primary}50`, color: theme.accent.primary }}
+        >
+          ✏️ Edit
+        </button>
+        <button
           onClick={() => onToggle(c)}
-          className="flex-1 py-2.5 px-4 rounded-lg text-[13px] font-semibold cursor-pointer transition-all border hover:opacity-80"
+          className="flex-1 py-2.5 px-2 rounded-lg text-[13px] font-semibold cursor-pointer transition-all border hover:opacity-80 whitespace-nowrap"
           style={{
             background: isActive ? 'rgba(239,68,68,0.2)' : 'rgba(16,185,129,0.2)',
             borderColor: isActive ? 'rgba(239,68,68,0.4)' : 'rgba(16,185,129,0.4)',
@@ -457,7 +493,7 @@ function CampaignCard({ campaign: c, onToggle, onDelete, onSendRewards, theme, i
         </button>
         <button
           onClick={() => onDelete(c)}
-          className="flex-1 py-2.5 px-4 rounded-lg text-[13px] font-semibold cursor-pointer transition-all border hover:opacity-80"
+          className="flex-1 py-2.5 px-2 rounded-lg text-[13px] font-semibold cursor-pointer transition-all border hover:opacity-80 whitespace-nowrap"
           style={{ background: 'rgba(239,68,68,0.2)', borderColor: 'rgba(239,68,68,0.4)', color: '#EF4444' }}
         >
           🗑️ Delete

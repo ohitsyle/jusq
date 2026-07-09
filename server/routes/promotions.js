@@ -82,7 +82,14 @@ router.post('/campaigns', async (req, res) => {
 router.put('/campaigns/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const updates = req.body;
+    // Whitelist editable fields — rewardType is fixed once a campaign exists
+    // (progress/eligibility semantics would silently change under students).
+    const updates = {};
+    for (const k of ['title', 'description', 'rewardValue', 'minimumRides', 'frequency', 'active']) {
+      if (req.body[k] !== undefined) updates[k] = req.body[k];
+    }
+    if (updates.rewardValue !== undefined) updates.rewardValue = Math.max(0, Number(updates.rewardValue) || 0);
+    if (updates.minimumRides !== undefined) updates.minimumRides = Math.max(1, parseInt(updates.minimumRides, 10) || 1);
 
     const campaign = await PromotionCampaign.findByIdAndUpdate(
       id,
