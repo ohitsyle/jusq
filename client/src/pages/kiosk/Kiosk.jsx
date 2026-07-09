@@ -31,6 +31,53 @@ const TAGLINES = [
 const maskCard = (raw) => (raw && raw.length > 4 ? '•••• •••• ' + raw.slice(-4) : '••••••••');
 const fmtSchoolId = (digits) => (digits.length > 4 ? `${digits.slice(0, 4)}-${digits.slice(4, 10)}` : digits);
 
+// ---- shared UI bits (module scope!) -----------------------------------------
+// Defined OUTSIDE the Kiosk component so their identity is stable across
+// renders — defining them inside made React remount the whole card on every
+// keystroke (entrance animation replayed + inputs lost focus).
+const Screen = ({ children, width = 560 }) => (
+  <div style={{ position: 'relative', zIndex: 2, width: '100%', maxWidth: width, animation: 'kioskUp 0.45s cubic-bezier(0.16,1,0.3,1)' }}>
+    <div style={{
+      background: 'linear-gradient(160deg, rgba(30,35,71,0.95) 0%, rgba(24,29,64,0.95) 100%)',
+      border: `2px solid rgba(255,212,28,0.35)`, borderRadius: 28, padding: '40px 44px',
+      boxShadow: '0 30px 80px rgba(0,0,0,0.55)'
+    }}>
+      {children}
+    </div>
+  </div>
+);
+
+const Btn = ({ onClick, children, ghost, danger, disabled }) => (
+  <button onClick={onClick} disabled={disabled} style={{
+    flex: 1, padding: '18px 24px', borderRadius: 16, fontSize: 18, fontWeight: 800, cursor: 'pointer',
+    border: ghost ? '2px solid rgba(251,251,251,0.25)' : 'none',
+    background: danger ? 'rgba(239,68,68,0.9)' : ghost ? 'transparent' : YELLOW,
+    color: ghost ? MUTED : danger ? '#fff' : NAVY2,
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+    transition: 'transform 0.15s, opacity 0.15s', opacity: disabled ? 0.5 : 1
+  }}
+    onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.97)'}
+    onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+  >{children}</button>
+);
+
+const Field = ({ label, icon: Icon, err, children }) => (
+  <div style={{ marginBottom: 18 }}>
+    <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: YELLOW, fontSize: 12, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>
+      {Icon && <Icon style={{ width: 14, height: 14 }} />} {label}
+    </label>
+    {children}
+    {err && <div style={{ color: '#F87171', fontSize: 13, marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}><AlertCircle style={{ width: 14, height: 14 }} />{err}</div>}
+  </div>
+);
+
+const inputStyle = (hasErr) => ({
+  width: '100%', boxSizing: 'border-box', padding: '15px 16px', borderRadius: 14, fontSize: 17,
+  background: 'rgba(15,18,39,0.7)', color: TEXT, outline: 'none',
+  border: `2px solid ${hasErr ? 'rgba(239,68,68,0.6)' : 'rgba(255,212,28,0.25)'}`,
+  transition: 'border-color 0.2s'
+});
+
 export default function Kiosk() {
   const [stage, setStage] = useState('idle'); // idle|checking|registered|prompt|form|review|submitting|success|error
   const [card, setCard] = useState('');
@@ -169,50 +216,6 @@ export default function Kiosk() {
       setStage('form');
     }
   };
-
-  // ---- shared UI bits -----------------------------------------------------
-  const Screen = ({ children, width = 560 }) => (
-    <div style={{ position: 'relative', zIndex: 2, width: '100%', maxWidth: width, animation: 'kioskUp 0.45s cubic-bezier(0.16,1,0.3,1)' }}>
-      <div style={{
-        background: 'linear-gradient(160deg, rgba(30,35,71,0.95) 0%, rgba(24,29,64,0.95) 100%)',
-        border: `2px solid rgba(255,212,28,0.35)`, borderRadius: 28, padding: '40px 44px',
-        boxShadow: '0 30px 80px rgba(0,0,0,0.55)'
-      }}>
-        {children}
-      </div>
-    </div>
-  );
-
-  const Btn = ({ onClick, children, ghost, danger, disabled }) => (
-    <button onClick={onClick} disabled={disabled} style={{
-      flex: 1, padding: '18px 24px', borderRadius: 16, fontSize: 18, fontWeight: 800, cursor: 'pointer',
-      border: ghost ? '2px solid rgba(251,251,251,0.25)' : 'none',
-      background: danger ? 'rgba(239,68,68,0.9)' : ghost ? 'transparent' : YELLOW,
-      color: ghost ? MUTED : danger ? '#fff' : NAVY2,
-      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-      transition: 'transform 0.15s, opacity 0.15s', opacity: disabled ? 0.5 : 1
-    }}
-      onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.97)'}
-      onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
-    >{children}</button>
-  );
-
-  const Field = ({ label, icon: Icon, err, children }) => (
-    <div style={{ marginBottom: 18 }}>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: YELLOW, fontSize: 12, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>
-        {Icon && <Icon style={{ width: 14, height: 14 }} />} {label}
-      </label>
-      {children}
-      {err && <div style={{ color: '#F87171', fontSize: 13, marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}><AlertCircle style={{ width: 14, height: 14 }} />{err}</div>}
-    </div>
-  );
-
-  const inputStyle = (hasErr) => ({
-    width: '100%', boxSizing: 'border-box', padding: '15px 16px', borderRadius: 14, fontSize: 17,
-    background: 'rgba(15,18,39,0.7)', color: TEXT, outline: 'none',
-    border: `2px solid ${hasErr ? 'rgba(239,68,68,0.6)' : 'rgba(255,212,28,0.25)'}`,
-    transition: 'border-color 0.2s'
-  });
 
   // ---- stages ---------------------------------------------------------------
   return (
