@@ -18,7 +18,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         // Add hash to filenames for cache busting
-        entryFileNames: 'app-[name].js',
+        entryFileNames: 'app-[name]-[hash].js',
         chunkFileNames: 'chunk-[name]-[hash].js',
         assetFileNames: 'asset-[name]-[hash].[ext]'
       }

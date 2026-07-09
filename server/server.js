@@ -30,7 +30,19 @@ const corsOptions = {
 // Middleware
 app.use(cors(corsOptions));
 app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, 'public', 'dist')));
+// Cache policy: hashed JS/CSS bundles are immutable; everything else (html,
+// images copied from public/) must revalidate so deploys reach browsers
+// immediately. Without this, browsers heuristically cache the app bundle and
+// keep rendering pre-deploy pages.
+app.use(express.static(path.join(__dirname, 'public', 'dist'), {
+  setHeaders: (res, filePath) => {
+    if (/-[A-Za-z0-9_]{8,}\.(js|css)$/.test(filePath)) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    } else {
+      res.setHeader('Cache-Control', 'no-cache');
+    }
+  }
+}));
 
 // MongoDB Connection
 const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/nucash';
@@ -98,25 +110,24 @@ app.use('/api/activation', activationRoutes);
 app.use('/api/websocket', websocketRoutes);
 app.use('/api', apiRoutes); // General API routes last
 
+// index.html is served with no-cache so every load picks up the latest
+// hashed bundle references.
+const sendIndex = (res) => res.sendFile(
+  path.join(__dirname, 'public', 'dist', 'index.html'),
+  { headers: { 'Cache-Control': 'no-cache' } }
+);
+
 // Serve admin dashboard (production build)
-app.get('/admin', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'dist', 'index.html'));
-});
+app.get('/admin', (req, res) => sendIndex(res));
 
 // Serve motorpool admin dashboard
-app.get('/motorpool', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'dist', 'index.html'));
-});
+app.get('/motorpool', (req, res) => sendIndex(res));
 
 // Serve merchant admin dashboard (production build)
-app.get('/merchant', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'dist', 'index.html'));
-});
+app.get('/merchant', (req, res) => sendIndex(res));
 
 // Serve main page
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'dist', 'index.html'));
-});
+app.get('/', (req, res) => sendIndex(res));
 
 // Serve activation page
 app.get('/activate', (req, res) => {
@@ -134,7 +145,7 @@ app.get('*', (req, res) => {
   if (req.path.startsWith('/api') || req.path.startsWith('/assets')) {
     return res.status(404).json({ error: 'API endpoint not found' });
   }
-  res.sendFile(path.join(__dirname, 'public', 'dist', 'index.html'));
+  sendIndex(res);
 });
 
 // DEBUG: Check all users in database
