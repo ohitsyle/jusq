@@ -234,7 +234,7 @@ export default function Kiosk() {
 
         /* ---- buttons: real hover/active/focus states ---- */
         .kBtn {
-          flex: 1; display: flex; align-items: center; justify-content: center; gap: 10px;
+          flex: 1; width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;
           padding: 15px 22px; border-radius: 14px; font-size: 16px; font-weight: 800;
           cursor: pointer; transition: transform 0.12s ease, box-shadow 0.15s ease, background 0.15s ease, border-color 0.15s ease;
           font-family: inherit;
