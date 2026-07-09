@@ -397,7 +397,7 @@ function CampaignCard({ campaign: c, onToggle, onDelete, onSendRewards, theme, i
   return (
     <div
       style={{ background: theme.bg.card, borderColor: theme.border.primary, opacity: isActive ? 1 : 0.7 }}
-      className="rounded-2xl border-2 p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-xl"
+      className="rounded-2xl border-2 p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-xl flex flex-col"
     >
       {/* Header with reward badge + status dot */}
       <div className="flex justify-between items-start mb-4">
@@ -431,7 +431,9 @@ function CampaignCard({ campaign: c, onToggle, onDelete, onSendRewards, theme, i
         </div>
       </div>
 
-      {/* Actions */}
+      {/* Actions — mt-auto pins them to the card bottom so cards in the same
+          grid row align even when descriptions differ in length */}
+      <div className="mt-auto">
       {isActive && (
         <button
           onClick={() => onSendRewards(c)}
@@ -460,6 +462,7 @@ function CampaignCard({ campaign: c, onToggle, onDelete, onSendRewards, theme, i
         >
           🗑️ Delete
         </button>
+      </div>
       </div>
     </div>
   );
