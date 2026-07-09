@@ -35,48 +35,32 @@ const fmtSchoolId = (digits) => (digits.length > 4 ? `${digits.slice(0, 4)}-${di
 // Defined OUTSIDE the Kiosk component so their identity is stable across
 // renders — defining them inside made React remount the whole card on every
 // keystroke (entrance animation replayed + inputs lost focus).
+// Class-based styling (see <style> in Kiosk) gives real :hover/:focus/:active.
 const Screen = ({ children, width = 560 }) => (
-  <div style={{ position: 'relative', zIndex: 2, width: '100%', maxWidth: width, animation: 'kioskUp 0.45s cubic-bezier(0.16,1,0.3,1)' }}>
-    <div style={{
-      background: 'linear-gradient(160deg, rgba(30,35,71,0.95) 0%, rgba(24,29,64,0.95) 100%)',
-      border: `2px solid rgba(255,212,28,0.35)`, borderRadius: 28, padding: '40px 44px',
-      boxShadow: '0 30px 80px rgba(0,0,0,0.55)'
-    }}>
-      {children}
+  <div className="kWrap" style={{ maxWidth: width }}>
+    <div className="kCard">{children}</div>
+  </div>
+);
+
+const Btn = ({ onClick, children, ghost, disabled }) => (
+  <button onClick={onClick} disabled={disabled} className={`kBtn ${ghost ? 'kBtn--ghost' : 'kBtn--primary'}`}>
+    {children}
+  </button>
+);
+
+const Field = ({ label, icon: Icon, err, children }) => (
+  <div className="kField">
+    <label className="kLabel">
+      {Icon && <Icon style={{ width: 13, height: 13 }} />} {label}
+    </label>
+    {children}
+    <div className={`kErr ${err ? 'kErr--show' : ''}`}>
+      {err && <><AlertCircle style={{ width: 13, height: 13, flexShrink: 0 }} />{err}</>}
     </div>
   </div>
 );
 
-const Btn = ({ onClick, children, ghost, danger, disabled }) => (
-  <button onClick={onClick} disabled={disabled} style={{
-    flex: 1, padding: '18px 24px', borderRadius: 16, fontSize: 18, fontWeight: 800, cursor: 'pointer',
-    border: ghost ? '2px solid rgba(251,251,251,0.25)' : 'none',
-    background: danger ? 'rgba(239,68,68,0.9)' : ghost ? 'transparent' : YELLOW,
-    color: ghost ? MUTED : danger ? '#fff' : NAVY2,
-    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-    transition: 'transform 0.15s, opacity 0.15s', opacity: disabled ? 0.5 : 1
-  }}
-    onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.97)'}
-    onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
-  >{children}</button>
-);
-
-const Field = ({ label, icon: Icon, err, children }) => (
-  <div style={{ marginBottom: 18 }}>
-    <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: YELLOW, fontSize: 12, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>
-      {Icon && <Icon style={{ width: 14, height: 14 }} />} {label}
-    </label>
-    {children}
-    {err && <div style={{ color: '#F87171', fontSize: 13, marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}><AlertCircle style={{ width: 14, height: 14 }} />{err}</div>}
-  </div>
-);
-
-const inputStyle = (hasErr) => ({
-  width: '100%', boxSizing: 'border-box', padding: '15px 16px', borderRadius: 14, fontSize: 17,
-  background: 'rgba(15,18,39,0.7)', color: TEXT, outline: 'none',
-  border: `2px solid ${hasErr ? 'rgba(239,68,68,0.6)' : 'rgba(255,212,28,0.25)'}`,
-  transition: 'border-color 0.2s'
-});
+const inputStyle = (hasErr) => ({}); // retained for compatibility; styling lives in .kInput
 
 export default function Kiosk() {
   const [stage, setStage] = useState('idle'); // idle|checking|registered|prompt|form|review|submitting|success|error
@@ -221,8 +205,9 @@ export default function Kiosk() {
   return (
     <div style={{
       minHeight: '100vh', background: `linear-gradient(135deg, ${NAVY} 0%, ${NAVY2} 100%)`,
-      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
-      fontFamily: 'system-ui, -apple-system, sans-serif', overflow: 'hidden', position: 'relative', cursor: 'default'
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '28px 24px 52px',
+      fontFamily: 'system-ui, -apple-system, sans-serif', overflowY: 'auto', overflowX: 'hidden',
+      position: 'relative', cursor: 'default'
     }}>
       <style>{`
         @keyframes kioskUp { from { opacity: 0; transform: translateY(26px) scale(0.97); } to { opacity: 1; transform: none; } }
@@ -233,11 +218,65 @@ export default function Kiosk() {
         @keyframes kioskFade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
         @keyframes kioskSpin { to { transform: rotate(360deg); } }
         @keyframes kioskPop { 0% { transform: scale(0); } 70% { transform: scale(1.15); } 100% { transform: scale(1); } }
+
+        /* ---- card: never taller than the viewport; scrolls inside instead ---- */
+        .kWrap { position: relative; z-index: 2; width: 100%; animation: kioskUp 0.45s cubic-bezier(0.16,1,0.3,1); }
+        .kCard {
+          background: linear-gradient(160deg, rgba(30,35,71,0.97) 0%, rgba(24,29,64,0.97) 100%);
+          border: 2px solid rgba(255,212,28,0.35); border-radius: 24; border-radius: 24px;
+          padding: clamp(22px, 4vh, 38px) clamp(22px, 4vw, 40px);
+          box-shadow: 0 30px 80px rgba(0,0,0,0.55);
+          max-height: calc(100vh - 88px); overflow-y: auto;
+        }
+        .kCard::-webkit-scrollbar { width: 8px; }
+        .kCard::-webkit-scrollbar-thumb { background: rgba(255,212,28,0.3); border-radius: 8px; }
+        .kCard::-webkit-scrollbar-track { background: rgba(255,255,255,0.04); }
+
+        /* ---- buttons: real hover/active/focus states ---- */
+        .kBtn {
+          flex: 1; display: flex; align-items: center; justify-content: center; gap: 10px;
+          padding: 15px 22px; border-radius: 14px; font-size: 16px; font-weight: 800;
+          cursor: pointer; transition: transform 0.12s ease, box-shadow 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+          font-family: inherit;
+        }
+        .kBtn--primary { background: ${YELLOW}; color: ${NAVY2}; border: none; box-shadow: 0 6px 18px rgba(255,212,28,0.25); }
+        .kBtn--primary:hover:not(:disabled) { box-shadow: 0 8px 26px rgba(255,212,28,0.4); transform: translateY(-1px); }
+        .kBtn--ghost { background: transparent; color: ${MUTED}; border: 2px solid rgba(251,251,251,0.25); }
+        .kBtn--ghost:hover:not(:disabled) { border-color: rgba(251,251,251,0.5); color: ${TEXT}; }
+        .kBtn:active:not(:disabled) { transform: scale(0.97); }
+        .kBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .kBtnRow { display: flex; gap: 12px; margin-top: 4px; }
+
+        /* ---- fields ---- */
+        .kField { margin-bottom: 4px; }
+        .kLabel {
+          display: flex; align-items: center; gap: 7px; color: ${YELLOW};
+          font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 7px;
+        }
+        .kInput {
+          width: 100%; box-sizing: border-box; padding: 12px 14px; border-radius: 12px; font-size: 15px;
+          background: rgba(15,18,39,0.7); color: ${TEXT}; outline: none; font-family: inherit;
+          border: 2px solid rgba(255,212,28,0.22); transition: border-color 0.18s ease, box-shadow 0.18s ease;
+        }
+        .kInput::placeholder { color: rgba(251,251,251,0.28); }
+        .kInput:hover { border-color: rgba(255,212,28,0.4); }
+        .kInput:focus { border-color: ${YELLOW}; box-shadow: 0 0 0 3px rgba(255,212,28,0.15); }
+        .kInput--err { border-color: rgba(239,68,68,0.65); }
+        .kInput--err:focus { border-color: #EF4444; box-shadow: 0 0 0 3px rgba(239,68,68,0.15); }
+        .kErr {
+          display: flex; align-items: center; gap: 6px; color: #F87171; font-size: 12px;
+          min-height: 18px; margin-top: 4px; opacity: 0; transition: opacity 0.15s ease;
+        }
+        .kErr--show { opacity: 1; }
+
+        .kGrid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+        @media (max-width: 640px) { .kGrid2 { grid-template-columns: 1fr; } }
+        @media (max-height: 700px) { .kFootNote { display: none; } }
       `}</style>
 
-      {/* floating background blobs */}
-      <div style={{ position: 'absolute', width: 480, height: 480, top: '-10%', left: '-8%', borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,212,28,0.14) 0%, transparent 70%)', animation: 'kioskFloat 11s ease-in-out infinite' }} />
-      <div style={{ position: 'absolute', width: 560, height: 560, bottom: '-15%', right: '-10%', borderRadius: '50%', background: 'radial-gradient(circle, rgba(59,130,246,0.12) 0%, transparent 70%)', animation: 'kioskFloat2 13s ease-in-out infinite' }} />
+      {/* floating background blobs (fixed so page scroll never moves them) */}
+      <div style={{ position: 'fixed', width: 480, height: 480, top: '-10%', left: '-8%', borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,212,28,0.14) 0%, transparent 70%)', animation: 'kioskFloat 11s ease-in-out infinite', pointerEvents: 'none' }} />
+      <div style={{ position: 'fixed', width: 560, height: 560, bottom: '-15%', right: '-10%', borderRadius: '50%', background: 'radial-gradient(circle, rgba(59,130,246,0.12) 0%, transparent 70%)', animation: 'kioskFloat2 13s ease-in-out infinite', pointerEvents: 'none' }} />
 
       {/* ============ IDLE / ATTRACT ============ */}
       {stage === 'idle' && (
@@ -318,7 +357,7 @@ export default function Kiosk() {
             <h2 style={{ color: TEXT, fontSize: 28, fontWeight: 900, margin: '0 0 8px' }}>This ID isn't registered yet</h2>
             <p style={{ color: MUTED, fontSize: 16, margin: '0 0 6px' }}>Card {maskCard(card)}</p>
             <p style={{ color: MUTED, fontSize: 17, margin: '0 0 30px' }}>Would you like to register for NUCash now? It takes about a minute.</p>
-            <div style={{ display: 'flex', gap: 14 }}>
+            <div className="kBtnRow">
               <Btn ghost onClick={reset}>Not now</Btn>
               <Btn onClick={() => { setErrorMsg(''); setStage('form'); }}>Yes, register <ArrowRight style={{ width: 20, height: 20 }} /></Btn>
             </div>
@@ -341,28 +380,28 @@ export default function Kiosk() {
           )}
 
           <Field label="School Email" icon={Mail} err={fieldErr.email}>
-            <input style={inputStyle(fieldErr.email)} type="email" placeholder="e.g. delacruzjp@students.nu-laguna.edu.ph"
+            <input className={fieldErr.email ? 'kInput kInput--err' : 'kInput'} type="email" placeholder="e.g. delacruzjp@students.nu-laguna.edu.ph"
               value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           </Field>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <div className="kGrid2">
             <Field label="First Name" icon={User} err={fieldErr.firstName}>
-              <input style={inputStyle(fieldErr.firstName)} placeholder="e.g. Juan" value={form.firstName}
+              <input className={fieldErr.firstName ? 'kInput kInput--err' : 'kInput'} placeholder="e.g. Juan" value={form.firstName}
                 onChange={(e) => setForm({ ...form, firstName: e.target.value })} />
             </Field>
             <Field label="Middle Name (optional)" err={fieldErr.middleName}>
-              <input style={inputStyle(fieldErr.middleName)} placeholder="e.g. Ponce" value={form.middleName}
+              <input className={fieldErr.middleName ? 'kInput kInput--err' : 'kInput'} placeholder="e.g. Ponce" value={form.middleName}
                 onChange={(e) => setForm({ ...form, middleName: e.target.value })} />
             </Field>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <div className="kGrid2">
             <Field label="Last Name" err={fieldErr.lastName}>
-              <input style={inputStyle(fieldErr.lastName)} placeholder="e.g. Dela Cruz" value={form.lastName}
+              <input className={fieldErr.lastName ? 'kInput kInput--err' : 'kInput'} placeholder="e.g. Dela Cruz" value={form.lastName}
                 onChange={(e) => setForm({ ...form, lastName: e.target.value })} />
             </Field>
             <Field label="School ID Number" icon={GraduationCap} err={fieldErr.schoolId}>
-              <input style={inputStyle(fieldErr.schoolId)} placeholder="e.g. 2023-121235" inputMode="numeric" value={form.schoolId}
+              <input className={fieldErr.schoolId ? 'kInput kInput--err' : 'kInput'} placeholder="e.g. 2023-121235" inputMode="numeric" value={form.schoolId}
                 onChange={(e) => setForm({ ...form, schoolId: fmtSchoolId(e.target.value.replace(/\D/g, '').slice(0, 10)) })} />
             </Field>
           </div>
@@ -373,7 +412,7 @@ export default function Kiosk() {
             to your school email, and your details help keep shuttle rides and payments safe and traceable.
           </p>
 
-          <div style={{ display: 'flex', gap: 14 }}>
+          <div className="kBtnRow">
             <Btn ghost onClick={() => setStage('prompt')}><ArrowLeft style={{ width: 20, height: 20 }} /> Back</Btn>
             <Btn onClick={() => { if (validate()) { setErrorMsg(''); setStage('review'); } }}>Review details <ArrowRight style={{ width: 20, height: 20 }} /></Btn>
           </div>
@@ -400,7 +439,7 @@ export default function Kiosk() {
             ))}
           </div>
 
-          <div style={{ display: 'flex', gap: 14 }}>
+          <div className="kBtnRow">
             <Btn ghost onClick={() => setStage('form')}><ArrowLeft style={{ width: 20, height: 20 }} /> Edit details</Btn>
             <Btn onClick={submit}>Confirm & Register <CheckCircle2 style={{ width: 20, height: 20 }} /></Btn>
           </div>
@@ -452,7 +491,7 @@ export default function Kiosk() {
       )}
 
       {/* footer */}
-      <div style={{ position: 'absolute', bottom: 18, left: 0, right: 0, textAlign: 'center', color: FAINT, fontSize: 12, zIndex: 2 }}>
+      <div className="kFootNote" style={{ position: 'fixed', bottom: 14, left: 0, right: 0, textAlign: 'center', color: FAINT, fontSize: 12, zIndex: 1, pointerEvents: 'none' }}>
         NUCash Registration Kiosk • Need help? Visit the Treasury Office
       </div>
     </div>
