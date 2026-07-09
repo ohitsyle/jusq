@@ -75,6 +75,14 @@ export function exportToCSV(data, filename, meta = {}) {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
+
+  // Tell the app the export finished — the global ExportCompleteModal
+  // (mounted in App) shows the success dialog on every page for free.
+  window.dispatchEvent(new CustomEvent('nucash:export-complete', {
+    detail: {
+      message: `${prettyTitle} exported to CSV successfully (${data.length} record${data.length !== 1 ? 's' : ''}).`
+    }
+  }));
 }
 
 /**

@@ -18,6 +18,7 @@ import AccountingLayout from './components/layouts/AccountingLayout';
 import SysadLayout from './components/layouts/SysadLayout';
 import UserLayout from './components/layouts/UserLayout';
 import { isMobileDevice } from './utils/isMobile';
+import ExportCompleteModal from './components/shared/ExportCompleteModal';
 import DesktopOnlyGuard from './components/DesktopOnlyGuard';
 
 // Route Guards
@@ -59,7 +60,6 @@ import AccountingTransactionsPage from './pages/admin/Treasury/TransactionsPage'
 import MarketingLayout from './components/layouts/MarketingLayout';
 import MarketingHome from './pages/admin/Marketing/MarketingHome';
 import MarketingPromos from './pages/admin/Marketing/Promos';
-import MarketingLoyalty from './pages/admin/Marketing/Loyalty';
 import MarketingConfig from './pages/admin/Marketing/Config';
 
 // Shared Admin Pages
@@ -408,7 +408,6 @@ function AppContent() {
       {/* ================= MARKETING ROUTES ================= */}
       <Route path="/admin/marketing/home" element={<MarketingProtectedRoute><MarketingHome /></MarketingProtectedRoute>} />
       <Route path="/admin/marketing/promos" element={<MarketingProtectedRoute><MarketingPromos /></MarketingProtectedRoute>} />
-      <Route path="/admin/marketing/loyalty" element={<MarketingProtectedRoute><MarketingLoyalty /></MarketingProtectedRoute>} />
       <Route path="/admin/marketing/logs" element={<MarketingProtectedRoute><TreasuryLogs /></MarketingProtectedRoute>} />
       <Route path="/admin/marketing/config" element={<MarketingProtectedRoute><MarketingConfig /></MarketingProtectedRoute>} />
       <Route path="/admin/marketing/profile" element={<MarketingProtectedRoute><ProfilePage /></MarketingProtectedRoute>} />
@@ -658,6 +657,7 @@ function App() {
       <AppProvider>
         <BrowserRouter>
           <ToastContainer />
+          <ExportCompleteModal />
           <AppContent />
         </BrowserRouter>
       </AppProvider>

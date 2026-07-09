@@ -4,7 +4,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
-import { Home, Gift, Sparkles, ClipboardList, Settings } from 'lucide-react';
+import { Home, Gift, ClipboardList, Settings } from 'lucide-react';
 import MarketingHeader from './MarketingHeader';
 import Footer from './Footer';
 import api from '../../utils/api';
@@ -29,7 +29,6 @@ export default function MarketingLayout({ children }) {
   const marketingTabs = [
     { path: '/admin/marketing/home', icon: Home, label: 'Home' },
     { path: '/admin/marketing/promos', icon: Gift, label: 'Promos' },
-    { path: '/admin/marketing/loyalty', icon: Sparkles, label: 'Loyalty' },
   ];
 
   const systemTabs = [
