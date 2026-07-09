@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { toast } from 'react-toastify';
-import { Search, Download, MessageSquare } from 'lucide-react';
+import { Search, Download, MessageSquare, Clock, Loader2, CheckCircle } from 'lucide-react';
 import { exportToCSV } from '../../../utils/csvExport';
 import { ThemedDateInput } from '../../../components/shared/ThemedControls';
 
@@ -257,6 +257,54 @@ export default function ConcernsPage() {
           </p>
         </div>
 
+        {/* Metrics Cards (matches Motorpool/Sysad concerns pages) */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+          <div
+            style={{ background: theme.bg.card, borderColor: 'rgba(251, 191, 36, 0.3)' }}
+            className="p-4 rounded-xl border flex items-center gap-4 transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
+          >
+            <div style={{ background: 'rgba(251, 191, 36, 0.2)' }} className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0">
+              <Clock style={{ color: '#FBBF24' }} className="w-6 h-6" />
+            </div>
+            <div>
+              <p style={{ color: theme.text.secondary }} className="text-[10px] font-semibold uppercase tracking-wide">Pending</p>
+              <p style={{ color: '#FBBF24' }} className="text-2xl font-bold">
+                {concerns.filter(c => c.status === 'pending' && c.submissionType !== 'feedback').length}
+              </p>
+            </div>
+          </div>
+
+          <div
+            style={{ background: theme.bg.card, borderColor: 'rgba(59, 130, 246, 0.3)' }}
+            className="p-4 rounded-xl border flex items-center gap-4 transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
+          >
+            <div style={{ background: 'rgba(59, 130, 246, 0.2)' }} className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0">
+              <Loader2 style={{ color: '#3B82F6' }} className="w-6 h-6 animate-spin" />
+            </div>
+            <div>
+              <p style={{ color: theme.text.secondary }} className="text-[10px] font-semibold uppercase tracking-wide">In Progress</p>
+              <p style={{ color: '#3B82F6' }} className="text-2xl font-bold">
+                {concerns.filter(c => c.status === 'in_progress').length}
+              </p>
+            </div>
+          </div>
+
+          <div
+            style={{ background: theme.bg.card, borderColor: 'rgba(16, 185, 129, 0.3)' }}
+            className="p-4 rounded-xl border flex items-center gap-4 transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
+          >
+            <div style={{ background: 'rgba(16, 185, 129, 0.2)' }} className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0">
+              <CheckCircle style={{ color: '#10B981' }} className="w-6 h-6" />
+            </div>
+            <div>
+              <p style={{ color: theme.text.secondary }} className="text-[10px] font-semibold uppercase tracking-wide">Resolved</p>
+              <p style={{ color: '#10B981' }} className="text-2xl font-bold">
+                {concerns.filter(c => c.status === 'resolved').length}
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div className="flex gap-2 mb-5">
           <button onClick={() => setActiveTab('all')} style={{ padding: '10px 20px', background: activeTab === 'all' ? 'rgba(255,212,28,0.2)' : 'transparent', border: `2px solid ${activeTab === 'all' ? theme.accent.primary : 'rgba(255,212,28,0.3)'}`, borderRadius: '8px', color: activeTab === 'all' ? theme.accent.primary : theme.text.secondary, fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>
             All ({concerns.length})
@@ -304,7 +352,7 @@ export default function ConcernsPage() {
               {/* Export Button */}
               <button onClick={handleExport} disabled={filteredConcerns.length === 0} style={{ background: filteredConcerns.length === 0 ? 'rgba(16,185,129,0.1)' : 'rgba(16,185,129,0.15)', color: filteredConcerns.length === 0 ? 'rgba(16,185,129,0.5)' : '#10B981', borderColor: filteredConcerns.length === 0 ? 'rgba(16,185,129,0.2)' : 'rgba(16,185,129,0.3)' }} className="px-4 py-2 rounded-xl font-semibold text-sm border flex items-center gap-2 hover:opacity-80 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                 <Download className="w-4 h-4" />
-                Export
+                Export CSV
               </button>
             </div>
           </div>
