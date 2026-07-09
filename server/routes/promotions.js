@@ -7,6 +7,24 @@ import PromotionCampaign from '../models/PromotionCampaign.js';
 import Transaction from '../models/Transaction.js';
 import User from '../models/User.js';
 import { sendEmail } from '../services/emailService.js';
+import { logAdminAction } from '../utils/logger.js';
+
+// Write marketing actions to the event log (visible in Marketing -> Logs).
+const logPromoAction = (req, action, description, targetId, crudOperation = 'crud_update', changes = {}) => {
+  logAdminAction({
+    adminId: req.authAdmin?.adminId || req.headers['x-admin-id'] || 'marketing',
+    adminName: req.headers['x-admin-name'] || 'Marketing Admin',
+    adminRole: req.authAdmin?.role || 'marketing',
+    department: 'marketing',
+    action,
+    description,
+    targetEntity: 'promotion',
+    targetId: String(targetId || ''),
+    crudOperation,
+    changes,
+    ipAddress: req.ip
+  }).catch(() => {});
+};
 
 // ============================================================
 // CAMPAIGN MANAGEMENT
@@ -48,6 +66,7 @@ router.post('/campaigns', async (req, res) => {
     });
 
     await campaign.save();
+    logPromoAction(req, 'Campaign Created', `created promo campaign "${campaign.title}"`, campaign._id, 'crud_create', { title: campaign.title, rewardType: campaign.rewardType, minimumRides: campaign.minimumRides });
     res.status(201).json(campaign);
   } catch (error) {
     console.error('Error creating campaign:', error);
@@ -74,6 +93,8 @@ router.put('/campaigns/:id', async (req, res) => {
       return res.status(404).json({ error: 'Campaign not found' });
     }
 
+    const act = updates.active === true ? 'Campaign Activated' : updates.active === false ? 'Campaign Deactivated' : 'Campaign Updated';
+    logPromoAction(req, act, `${act.toLowerCase()}: "${campaign.title}"`, campaign._id, 'crud_update', updates);
     res.json(campaign);
   } catch (error) {
     console.error('Error updating campaign:', error);
@@ -94,6 +115,7 @@ router.delete('/campaigns/:id', async (req, res) => {
       return res.status(404).json({ error: 'Campaign not found' });
     }
 
+    logPromoAction(req, 'Campaign Deleted', `deleted promo campaign "${campaign.title}"`, campaign._id, 'crud_delete', { title: campaign.title });
     res.json({ message: 'Campaign deleted successfully' });
   } catch (error) {
     console.error('Error deleting campaign:', error);
@@ -111,6 +133,8 @@ router.delete('/campaigns/:id', async (req, res) => {
  */
 router.get('/eligible-users', async (req, res) => {
   try {
+    // Campaigns can preview with their own threshold via ?minRides=N
+    const minRides = Math.max(1, parseInt(req.query.minRides, 10) || 10);
     // Get date range for this month
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -136,7 +160,7 @@ router.get('/eligible-users', async (req, res) => {
       },
       {
         $match: {
-          ridesThisMonth: { $gte: 10 } // Minimum 10 rides to be eligible
+          ridesThisMonth: { $gte: minRides }
         }
       },
       {
@@ -277,6 +301,8 @@ router.post('/campaigns/:id/send-rewards', async (req, res) => {
     campaign.lastRunDate = new Date();
     await campaign.save();
 
+    logPromoAction(req, 'Rewards Sent', `sent ${sentCount} reward email${sentCount !== 1 ? 's' : ''} for campaign "${campaign.title}"`, campaign._id, 'crud_update', { sent: sentCount, eligible: eligibleUsers.length });
+
     res.json({
       message: 'Rewards sent successfully',
       sent: sentCount,
@@ -369,6 +395,7 @@ router.put('/tab-setting', async (req, res) => {
       { $set: { 'tabVisibility.promotions': !!enabled, updatedAt: Date.now() } },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
+    logPromoAction(req, `Promo Tab ${enabled ? 'Enabled' : 'Disabled'}`, `${enabled ? 'enabled' : 'disabled'} the end-user promotions tab`, 'tab-setting', 'config_updated', { enabled: !!enabled });
     res.json({ enabled: cfg?.tabVisibility?.promotions ?? !!enabled });
   } catch (error) {
     console.error('Error updating promo tab setting:', error);

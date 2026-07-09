@@ -31,6 +31,11 @@ export default function Promos() {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ title: '', description: '', rewardType: 'free_ride', minimumRides: 10, frequency: 'monthly' });
 
+  // Send-rewards flow
+  const [rewardTarget, setRewardTarget] = useState(null); // campaign being sent
+  const [eligible, setEligible] = useState(null);         // null = loading
+  const [sendingRewards, setSendingRewards] = useState(false);
+
   const load = async () => {
     try {
       const data = await api.get('/admin/promotions/campaigns');
@@ -78,6 +83,32 @@ export default function Promos() {
     if (!window.confirm(`Delete campaign "${c.title}"? This cannot be undone.`)) return;
     try { await api.delete(`/admin/promotions/campaigns/${c._id}`); toast.success('Campaign deleted'); load(); }
     catch (e) { toast.error('Failed to delete campaign'); }
+  };
+
+  const openRewards = async (c) => {
+    setRewardTarget(c);
+    setEligible(null);
+    try {
+      const users = await api.get(`/admin/promotions/eligible-users?minRides=${c.minimumRides || 1}`);
+      setEligible(Array.isArray(users) ? users : []);
+    } catch (e) {
+      setEligible([]);
+    }
+  };
+
+  const sendRewards = async () => {
+    if (!rewardTarget) return;
+    setSendingRewards(true);
+    try {
+      const res = await api.post(`/admin/promotions/campaigns/${rewardTarget._id}/send-rewards`);
+      toast.success(`Sent ${res?.sent ?? 0} reward email${(res?.sent ?? 0) !== 1 ? 's' : ''}!`);
+      setRewardTarget(null);
+      load();
+    } catch (e) {
+      toast.error(e?.error || 'Failed to send rewards');
+    } finally {
+      setSendingRewards(false);
+    }
   };
 
   const filtered = campaigns.filter((c) =>
@@ -170,7 +201,7 @@ export default function Promos() {
         {filtered.length > 0 ? (
           <div className="grid gap-5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))' }}>
             {filtered.map((c) => (
-              <CampaignCard key={c._id} campaign={c} onToggle={toggleActive} onDelete={removeCampaign} theme={theme} />
+              <CampaignCard key={c._id} campaign={c} onToggle={toggleActive} onDelete={removeCampaign} onSendRewards={openRewards} theme={theme} isDarkMode={isDarkMode} />
             ))}
           </div>
         ) : (
@@ -245,12 +276,71 @@ export default function Promos() {
           </div>
         </div>
       )}
+
+      {/* Send Rewards Modal (system admin modal pattern) */}
+      {rewardTarget && (
+        <div onClick={() => !sendingRewards && setRewardTarget(null)} className="fixed inset-0 flex items-center justify-center z-[9999]" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: isDarkMode ? 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)' : theme.bg.card, borderColor: theme.border.primary }} className="rounded-2xl border p-8 w-[90%] max-w-[560px] max-h-[90vh] overflow-auto shadow-2xl">
+            <h3 style={{ color: theme.text.primary }} className="text-xl font-bold m-0 mb-1">Send Rewards</h3>
+            <p style={{ color: theme.text.secondary }} className="text-sm m-0 mb-5">
+              Campaign: <span style={{ color: accent }} className="font-bold">{rewardTarget.title}</span> • minimum {rewardTarget.minimumRides} ride{rewardTarget.minimumRides !== 1 ? 's' : ''} this month
+            </p>
+
+            {eligible === null ? (
+              <div style={{ color: accent }} className="text-center py-8">
+                <Loader2 className="w-7 h-7 animate-spin mx-auto mb-2" />
+                <p style={{ color: theme.text.secondary }} className="text-sm">Finding eligible riders…</p>
+              </div>
+            ) : eligible.length === 0 ? (
+              <div style={{ background: 'rgba(245,158,11,0.1)', borderColor: 'rgba(245,158,11,0.3)' }} className="rounded-xl border p-4 mb-5">
+                <p style={{ color: '#F59E0B' }} className="text-sm font-semibold m-0">
+                  No students have reached {rewardTarget.minimumRides} rides this month yet. Try again later or lower the campaign's minimum.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div style={{ background: `${accent}12`, borderColor: `${accent}40` }} className="rounded-xl border p-4 mb-4">
+                  <p style={{ color: theme.text.primary }} className="text-sm font-bold m-0">
+                    {eligible.length} eligible rider{eligible.length !== 1 ? 's' : ''} will receive the reward email immediately.
+                  </p>
+                </div>
+                <div className="mb-5 max-h-[200px] overflow-y-auto rounded-xl border" style={{ borderColor: theme.border.primary }}>
+                  {eligible.map((u) => (
+                    <div key={u._id} className="flex justify-between items-center gap-3 px-4 py-2.5 border-b last:border-b-0" style={{ borderColor: theme.border.primary }}>
+                      <div>
+                        <div style={{ color: theme.text.primary }} className="text-sm font-semibold">{u.fullName}</div>
+                        <div style={{ color: theme.text.tertiary }} className="text-xs">{u.email}</div>
+                      </div>
+                      <span className="text-xs font-bold py-1 px-2.5 rounded-xl whitespace-nowrap" style={{ color: accent, background: `${accent}20` }}>
+                        {u.ridesThisMonth} rides
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setRewardTarget(null)} disabled={sendingRewards}
+                style={{ background: `${accent}15`, borderColor: theme.border.primary, color: accent }}
+                className="py-3 px-6 border-2 rounded-lg text-sm font-semibold cursor-pointer">
+                Cancel
+              </button>
+              <button onClick={sendRewards} disabled={sendingRewards || !eligible || eligible.length === 0}
+                style={{ background: sendingRewards ? '#999' : accent, color: isDarkMode ? '#181D40' : '#FFF', opacity: (!eligible || eligible.length === 0) ? 0.5 : 1 }}
+                className="py-3 px-6 border-none rounded-lg text-sm font-bold cursor-pointer shadow-lg">
+                {sendingRewards ? 'Sending…' : `Send to ${eligible?.length ?? 0} rider${(eligible?.length ?? 0) !== 1 ? 's' : ''}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // Campaign card — mirrors MerchantCard structure (badge chip, status dot, info rows, bordered actions)
-function CampaignCard({ campaign: c, onToggle, onDelete, theme }) {
+function CampaignCard({ campaign: c, onToggle, onDelete, onSendRewards, theme, isDarkMode }) {
   const isActive = c.active !== false;
   const rewardLabel = REWARD_TYPES.find((r) => r.value === c.rewardType)?.label || c.rewardType;
 
@@ -292,6 +382,15 @@ function CampaignCard({ campaign: c, onToggle, onDelete, theme }) {
       </div>
 
       {/* Actions */}
+      {isActive && (
+        <button
+          onClick={() => onSendRewards(c)}
+          className="w-full py-2.5 px-4 rounded-lg text-[13px] font-bold cursor-pointer transition-all mb-2 hover:opacity-90 border-none shadow"
+          style={{ background: theme.accent.primary, color: isDarkMode ? '#181D40' : '#FFFFFF' }}
+        >
+          🎁 Send Rewards to Eligible Riders
+        </button>
+      )}
       <div style={{ borderColor: theme.border.primary }} className="flex gap-2 pt-4 border-t">
         <button
           onClick={() => onToggle(c)}

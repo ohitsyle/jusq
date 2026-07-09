@@ -1041,7 +1041,7 @@ router.post('/manual-export-marketing', async (req, res) => {
     const zip = new AdmZip();
     let totalRecords = 0;
 
-    const typeMapping = { 'Logs': 'logs' };
+    const typeMapping = { 'Logs': 'logs', 'Campaigns': 'campaigns' };
 
     for (const type of filterTypesForRole(exportTypes, 'marketing')) {
       try {

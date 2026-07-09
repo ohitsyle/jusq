@@ -90,6 +90,14 @@ export default function SysadConfigPage() {
     try {
       const data = await api.get('/admin/configurations?adminRole=sysad');
       if (data) {
+        // Drop any stored types outside this role's allowed list (keeps the
+        // "N selected" count honest even if the saved config was polluted).
+        const allowed = new Set(SYSAD_EXPORT_TYPES.map((t) => t.value.toLowerCase().replace(/\s+/g, '')));
+        if (data.autoExport?.exportTypes) {
+          data.autoExport.exportTypes = data.autoExport.exportTypes.filter(
+            (t) => allowed.has(String(t).toLowerCase().replace(/\s+/g, ''))
+          );
+        }
         setConfigurations(data);
       }
     } catch (error) {

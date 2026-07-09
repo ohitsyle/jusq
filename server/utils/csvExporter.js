@@ -437,6 +437,34 @@ export async function exportAdmins(dateFilter = {}) {
 }
 
 /**
+ * Export promotional campaigns (Marketing) to CSV
+ */
+export async function exportCampaigns(dateFilter = {}) {
+  const PromotionCampaign = (await import('../models/PromotionCampaign.js')).default;
+  const query = {};
+  if (dateFilter.startDate && dateFilter.endDate) {
+    query.createdAt = { $gte: new Date(dateFilter.startDate), $lte: new Date(dateFilter.endDate) };
+  }
+
+  const campaigns = await PromotionCampaign.find(query).lean();
+  const headers = ['title', 'description', 'rewardType', 'minimumRides', 'frequency', 'active', 'rewardsSent', 'lastRunDate', 'createdAt'];
+
+  const data = campaigns.map(c => ({
+    title: c.title,
+    description: c.description || '',
+    rewardType: c.rewardType || '',
+    minimumRides: c.minimumRides ?? '',
+    frequency: c.frequency || '',
+    active: c.active ? 'Yes' : 'No',
+    rewardsSent: c.rewardsSent || 0,
+    lastRunDate: c.lastRunDate ? new Date(c.lastRunDate).toISOString() : '',
+    createdAt: c.createdAt ? new Date(c.createdAt).toISOString() : ''
+  }));
+
+  return { csv: arrayToCSV(data, headers), count: data.length };
+}
+
+/**
  * Export data by type with optional date filtering
  */
 export async function exportByType(exportType, dateFilter = {}, role = null) {
@@ -474,6 +502,8 @@ export async function exportByType(exportType, dateFilter = {}, role = null) {
       return await exportBalances(dateFilter);
     case 'admins':
       return await exportAdmins(dateFilter);
+    case 'campaigns':
+      return await exportCampaigns(dateFilter);
     default:
       throw new Error(`Unknown export type: ${exportType}`);
   }

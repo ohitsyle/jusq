@@ -10,7 +10,7 @@ export const ROLE_EXPORT_TYPES = {
   treasury: ['Transactions', 'Cash-Ins', 'Logs', 'Concerns'],
   accounting: ['Transactions', 'Cash-Ins', 'Balances', 'Logs'],
   sysad: ['Transactions', 'Users', 'Merchants', 'Admins', 'Logs', 'Concerns'],
-  marketing: ['Logs'],
+  marketing: ['Campaigns', 'Logs'],
 };
 
 // Keep only the export types a given role is actually allowed to export.
