@@ -50,7 +50,7 @@ router.get('/campaigns', async (req, res) => {
  */
 router.post('/campaigns', async (req, res) => {
   try {
-    const { title, description, rewardType, minimumRides, frequency, active } = req.body;
+    const { title, description, rewardType, rewardValue, minimumRides, frequency, active } = req.body;
 
     if (!title || !description) {
       return res.status(400).json({ error: 'Title and description are required' });
@@ -60,6 +60,7 @@ router.post('/campaigns', async (req, res) => {
       title,
       description,
       rewardType: rewardType || 'free_ride',
+      rewardValue: rewardValue !== undefined ? Math.max(0, Number(rewardValue) || 0) : 1,
       minimumRides: minimumRides || 10,
       frequency: frequency || 'monthly',
       active: active !== undefined ? active : true
@@ -273,7 +274,11 @@ router.post('/campaigns/:id/send-rewards', async (req, res) => {
               <p>Since you've been regularly using the NU Shuttle Service, we thought you deserve a reward for your loyalty.</p>
               <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
                 <h3 style="margin-top: 0; color: #1E2347;">Your Reward:</h3>
-                <p style="font-size: 18px; font-weight: bold; color: #FFD41C;">${campaign.rewardType === 'free_ride' ? 'One Free Ride!' : campaign.rewardType}</p>
+                <p style="font-size: 18px; font-weight: bold; color: #FFD41C;">${
+                  campaign.rewardType === 'free_ride' ? `${campaign.rewardValue || 1} Free Ride${(campaign.rewardValue || 1) !== 1 ? 's' : ''}!`
+                  : campaign.rewardType === 'discount' ? `${campaign.rewardValue || 0}% Off Your Next Ride!`
+                  : `₱${(campaign.rewardValue || 0).toFixed ? (campaign.rewardValue || 0).toFixed(2) : campaign.rewardValue} NUCash Credit!`
+                }</p>
                 <p>${campaign.description}</p>
               </div>
               <p><strong>Your Stats This Month:</strong></p>

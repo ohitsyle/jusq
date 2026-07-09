@@ -19,6 +19,7 @@ import SysadLayout from './components/layouts/SysadLayout';
 import UserLayout from './components/layouts/UserLayout';
 import { isMobileDevice } from './utils/isMobile';
 import ExportCompleteModal from './components/shared/ExportCompleteModal';
+import ConfirmDialogHost from './components/shared/ConfirmDialogHost';
 import DesktopOnlyGuard from './components/DesktopOnlyGuard';
 
 // Route Guards
@@ -52,7 +53,8 @@ import TreasuryConfigPage from './pages/admin/Treasury/ConfigPage';
 
 // Accounting Pages
 import AccountingHome from './pages/admin/Accounting/AccountingHome';
-import AccountingMerchantsPage from './pages/admin/Accounting/MerchantsPage';
+// Accounting reuses the Treasury merchants page (read-only GETs) so both roles see identical data/UI.
+import AccountingMerchantsPage from './pages/admin/Treasury/MerchantsPage';
 // Reuse Treasury pages for read-only views
 import AccountingTransactionsPage from './pages/admin/Treasury/TransactionsPage';
 
@@ -658,6 +660,7 @@ function App() {
         <BrowserRouter>
           <ToastContainer />
           <ExportCompleteModal />
+          <ConfirmDialogHost />
           <AppContent />
         </BrowserRouter>
       </AppProvider>

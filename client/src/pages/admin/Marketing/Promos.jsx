@@ -7,6 +7,7 @@ import api from '../../../utils/api';
 import { toast } from 'react-toastify';
 import { Plus, Megaphone, Power, Loader2, Gift, Repeat, Send, Bus } from 'lucide-react';
 import { ThemedSelect } from '../../../components/shared/ThemedControls';
+import { confirmDialog } from '../../../components/shared/ConfirmDialogHost';
 
 const REWARD_TYPES = [
   { value: 'free_ride', label: 'Free Ride' },
@@ -18,6 +19,19 @@ const FREQUENCIES = [
   { value: 'biweekly', label: 'Bi-weekly' },
   { value: 'monthly', label: 'Monthly' },
 ];
+// Per-reward-type config for the dynamic value field in the create modal.
+const REWARD_VALUE_META = {
+  free_ride: { label: 'Number of Free Rides', hint: 'How many free shuttle rides the student receives', min: 1, max: 20, default: 1 },
+  discount:  { label: 'Discount Percentage (%)', hint: 'Percent off the student\'s next ride fare', min: 1, max: 100, default: 10 },
+  credit:    { label: 'Credit Amount (₱)', hint: 'Pesos credited straight to the student\'s NUCash balance', min: 1, max: 5000, default: 50 },
+};
+// Badge text for campaign cards, e.g. "Free Ride ×2" / "15% Off" / "₱50 Credit"
+const rewardChip = (c) => {
+  const v = c.rewardValue ?? 1;
+  if (c.rewardType === 'discount') return `${v}% Off`;
+  if (c.rewardType === 'credit') return `₱${v} Credit`;
+  return v > 1 ? `Free Rides ×${v}` : 'Free Ride';
+};
 
 export default function Promos() {
   const { theme, isDarkMode } = useTheme();
@@ -29,7 +43,7 @@ export default function Promos() {
   const [togglingTab, setTogglingTab] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ title: '', description: '', rewardType: 'free_ride', minimumRides: 10, frequency: 'monthly' });
+  const [form, setForm] = useState({ title: '', description: '', rewardType: 'free_ride', rewardValue: 1, minimumRides: 10, frequency: 'monthly' });
 
   // Send-rewards flow
   const [rewardTarget, setRewardTarget] = useState(null); // campaign being sent
@@ -39,7 +53,10 @@ export default function Promos() {
   const load = async () => {
     try {
       const data = await api.get('/admin/promotions/campaigns');
-      setCampaigns(Array.isArray(data) ? data : []);
+      const list = Array.isArray(data) ? data : [];
+      // Active campaigns first, deactivated last; newest first within each group.
+      list.sort((a, b) => (b.active === true) - (a.active === true) || new Date(b.createdAt) - new Date(a.createdAt));
+      setCampaigns(list);
     } catch (e) { /* ignore */ } finally { setLoading(false); }
   };
 
@@ -67,7 +84,7 @@ export default function Promos() {
       await api.post('/admin/promotions/campaigns', form);
       toast.success('Campaign created');
       setIsModalOpen(false);
-      setForm({ title: '', description: '', rewardType: 'free_ride', minimumRides: 10, frequency: 'monthly' });
+      setForm({ title: '', description: '', rewardType: 'free_ride', rewardValue: 1, minimumRides: 10, frequency: 'monthly' });
       load();
     } catch (e) {
       toast.error('Failed to create campaign');
@@ -80,7 +97,7 @@ export default function Promos() {
   };
 
   const removeCampaign = async (c) => {
-    if (!window.confirm(`Delete campaign "${c.title}"? This cannot be undone.`)) return;
+    if (!(await confirmDialog(`Delete campaign "${c.title}"? This cannot be undone.`, { title: 'Delete Campaign', confirmText: 'Delete', type: 'danger' }))) return;
     try { await api.delete(`/admin/promotions/campaigns/${c._id}`); toast.success('Campaign deleted'); load(); }
     catch (e) { toast.error('Failed to delete campaign'); }
   };
@@ -243,7 +260,7 @@ export default function Promos() {
               </Field>
               <div className="grid grid-cols-2 gap-4">
                 <Field label="Reward Type" theme={theme}>
-                  <ThemedSelect value={form.rewardType} onChange={(e) => setForm({ ...form, rewardType: e.target.value })}
+                  <ThemedSelect value={form.rewardType} onChange={(e) => setForm({ ...form, rewardType: e.target.value, rewardValue: REWARD_VALUE_META[e.target.value]?.default ?? 1 })}
                     style={inputStyle(theme, isDarkMode)} className="w-full py-3 px-4 border-2 rounded-lg text-sm outline-none box-border">
                     {REWARD_TYPES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
                   </ThemedSelect>
@@ -255,10 +272,43 @@ export default function Promos() {
                   </ThemedSelect>
                 </Field>
               </div>
-              <Field label="Minimum Rides" theme={theme}>
-                <input type="number" min={1} value={form.minimumRides} onChange={(e) => setForm({ ...form, minimumRides: parseInt(e.target.value, 10) || 1 })}
-                  style={inputStyle(theme, isDarkMode)} className="w-full py-3 px-4 border-2 rounded-lg text-sm outline-none box-border" />
-              </Field>
+              <div className="grid grid-cols-2 gap-4">
+                <Field label={REWARD_VALUE_META[form.rewardType]?.label || 'Reward Value'} theme={theme}>
+                  <input type="number"
+                    min={REWARD_VALUE_META[form.rewardType]?.min ?? 1}
+                    max={REWARD_VALUE_META[form.rewardType]?.max}
+                    value={form.rewardValue}
+                    onChange={(e) => {
+                      const meta = REWARD_VALUE_META[form.rewardType] || { min: 1 };
+                      let v = parseInt(e.target.value, 10) || meta.min;
+                      if (meta.max) v = Math.min(v, meta.max);
+                      setForm({ ...form, rewardValue: Math.max(meta.min, v) });
+                    }}
+                    style={inputStyle(theme, isDarkMode)} className="w-full py-3 px-4 border-2 rounded-lg text-sm outline-none box-border" />
+                  <p style={{ color: theme.text.tertiary }} className="text-[11px] m-0 mt-1.5">
+                    {REWARD_VALUE_META[form.rewardType]?.hint}
+                  </p>
+                </Field>
+                <Field label="Minimum Rides" theme={theme}>
+                  <input type="number" min={1} value={form.minimumRides} onChange={(e) => setForm({ ...form, minimumRides: parseInt(e.target.value, 10) || 1 })}
+                    style={inputStyle(theme, isDarkMode)} className="w-full py-3 px-4 border-2 rounded-lg text-sm outline-none box-border" />
+                  <p style={{ color: theme.text.tertiary }} className="text-[11px] m-0 mt-1.5">
+                    Rides a student must complete to qualify
+                  </p>
+                </Field>
+              </div>
+              {/* Live preview of what students will earn */}
+              <div style={{ background: `${accent}12`, borderColor: `${accent}40` }} className="rounded-xl border p-3.5">
+                <p style={{ color: theme.text.primary }} className="text-[13px] m-0">
+                  <Gift className="w-4 h-4 inline-block mr-1.5 -mt-0.5" style={{ color: accent }} />
+                  Students who complete <b>{form.minimumRides} ride{form.minimumRides !== 1 ? 's' : ''}</b> get{' '}
+                  <b style={{ color: accent }}>
+                    {form.rewardType === 'free_ride' ? `${form.rewardValue} free ride${form.rewardValue !== 1 ? 's' : ''}`
+                      : form.rewardType === 'discount' ? `${form.rewardValue}% off their next ride`
+                      : `₱${form.rewardValue} NUCash credit`}
+                  </b>
+                </p>
+              </div>
             </div>
 
             <div className="flex gap-3 mt-6 justify-end">
@@ -342,7 +392,7 @@ export default function Promos() {
 // Campaign card — mirrors MerchantCard structure (badge chip, status dot, info rows, bordered actions)
 function CampaignCard({ campaign: c, onToggle, onDelete, onSendRewards, theme, isDarkMode }) {
   const isActive = c.active !== false;
-  const rewardLabel = REWARD_TYPES.find((r) => r.value === c.rewardType)?.label || c.rewardType;
+  const rewardLabel = rewardChip(c);
 
   return (
     <div

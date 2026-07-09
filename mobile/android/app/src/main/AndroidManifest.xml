@@ -1,5 +1,6 @@
 <!-- android/app/src/main/AndroidManifest.xml -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     
     <!-- NFC -->
     <uses-permission android:name="android.permission.NFC"/>
@@ -35,7 +36,8 @@
       android:roundIcon="@mipmap/ic_launcher_round"
       android:allowBackup="false"
       android:theme="@style/AppTheme"
-      android:usesCleartextTraffic="${usesCleartextTraffic}"
+      android:usesCleartextTraffic="true"
+      tools:replace="android:usesCleartextTraffic"
       android:supportsRtl="true">
       <!-- Add Google Maps API Key -->
         <meta-data

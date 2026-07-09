@@ -18,6 +18,15 @@ const promotionCampaignSchema = new mongoose.Schema({
     enum: ['free_ride', 'discount', 'credit'],
     default: 'free_ride'
   },
+  // Meaning depends on rewardType:
+  //   free_ride -> number of free rides granted
+  //   discount  -> percent off (1..100)
+  //   credit    -> peso amount credited
+  rewardValue: {
+    type: Number,
+    default: 1,
+    min: 0
+  },
   minimumRides: {
     type: Number,
     default: 10,

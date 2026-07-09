@@ -7,6 +7,7 @@ import ExportButton from '../../../components/shared/ExportButton';
 import { exportToCSV, prepareDataForExport } from '../../../utils/csvExport';
 import { useTheme } from '../../../context/ThemeContext';
 import { ThemedSelect } from '../../../components/shared/ThemedControls';
+import { confirmDialog } from '../../../components/shared/ConfirmDialogHost';
 
 export default function PhonesList() {
   const { theme, isDarkMode } = useTheme();
@@ -129,7 +130,7 @@ export default function PhonesList() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this phone?')) return;
+    if (!(await confirmDialog('Are you sure you want to delete this phone?', { title: 'Delete Phone', confirmText: 'Delete', type: 'danger' }))) return;
     try {
       await api.delete(`/admin/phones/${id}`);
       setAlert({ type: 'success', message: 'Phone deleted successfully!' });

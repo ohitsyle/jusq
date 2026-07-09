@@ -5,6 +5,7 @@ import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { toast } from 'react-toastify';
 import { Bell, Plus, Trash2, X, Loader2, Eye, EyeOff, Info, AlertTriangle, AlertOctagon, CheckCircle2 } from 'lucide-react';
+import { confirmDialog } from '../../../components/shared/ConfirmDialogHost';
 
 const SEVERITIES = [
   { value: 'info', label: 'Info', color: '#3B82F6', Icon: Info },
@@ -49,7 +50,7 @@ export default function SystemAlerts() {
   };
 
   const remove = async (a) => {
-    if (!window.confirm(`Delete alert "${a.title}"?`)) return;
+    if (!(await confirmDialog(`Delete alert "${a.title}"?`, { title: 'Delete Alert', confirmText: 'Delete', type: 'danger' }))) return;
     try { await api.delete(`/system-alerts/${a._id}`); toast.success('Alert deleted'); load(); }
     catch (e) { toast.error('Failed to delete alert'); }
   };

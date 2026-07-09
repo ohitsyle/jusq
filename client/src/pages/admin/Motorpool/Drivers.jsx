@@ -7,6 +7,7 @@ import ExportButton from '../../../components/shared/ExportButton';
 import { exportToCSV, prepareDataForExport } from '../../../utils/csvExport';
 import { useTheme } from '../../../context/ThemeContext';
 import { ThemedDateInput, ThemedSelect } from '../../../components/shared/ThemedControls';
+import { confirmDialog } from '../../../components/shared/ConfirmDialogHost';
 
 export default function DriversList() {
   const { theme, isDarkMode } = useTheme();
@@ -192,7 +193,7 @@ export default function DriversList() {
   };
 
   const handleDelete = async (driver) => {
-    if (!window.confirm(`Delete driver ${driver.fullName}? This cannot be undone.`)) {
+    if (!(await confirmDialog(`Delete driver ${driver.fullName}? This cannot be undone.`, { title: 'Delete Driver', confirmText: 'Delete', type: 'danger' }))) {
       return;
     }
     

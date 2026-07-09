@@ -190,6 +190,14 @@ export default function LogsList() {
       ];
     }
 
+    if (role === 'marketing') {
+      return [
+        { value: 'access_control', label: 'Access Control' },
+        { value: 'admin_action', label: 'Admin Actions' },
+        { value: 'data_management', label: 'Data Management' }
+      ];
+    }
+
     // System admin (sysad) - sees everything
     return [
       { value: 'access_control', label: 'Access Control' },

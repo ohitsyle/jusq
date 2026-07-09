@@ -9,6 +9,7 @@ import ExportButton from '../../../components/shared/ExportButton';
 import Alert from '../../../components/shared/Alert';
 import { exportToCSV, prepareDataForExport } from '../../../utils/csvExport';
 import { ThemedSelect } from '../../../components/shared/ThemedControls';
+import { confirmDialog } from '../../../components/shared/ConfirmDialogHost';
 
 // Single Location Map Picker Component
 function LocationMapPicker({ location, onLocationChange, onConfirm, pointLabel, pointColor, apiKey }) {
@@ -516,7 +517,7 @@ export default function RoutesList() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this route?')) return;
+    if (!(await confirmDialog('Are you sure you want to delete this route?', { title: 'Delete Route', confirmText: 'Delete', type: 'danger' }))) return;
     try {
       await api.delete(`/admin/routes/${id}`);
       setAlert({ type: 'success', message: 'Route deleted successfully!' });

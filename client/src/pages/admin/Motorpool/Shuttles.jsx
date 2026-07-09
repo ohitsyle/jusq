@@ -8,6 +8,7 @@ import StatusFilter from '../../../components/shared/StatusFilter';
 import { exportToCSV, prepareDataForExport } from '../../../utils/csvExport';
 import { useTheme } from '../../../context/ThemeContext';
 import { ThemedSelect } from '../../../components/shared/ThemedControls';
+import { confirmDialog } from '../../../components/shared/ConfirmDialogHost';
 
 export default function ShuttlesList() {
   const { theme, isDarkMode } = useTheme();
@@ -96,7 +97,7 @@ export default function ShuttlesList() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this shuttle?')) return;
+    if (!(await confirmDialog('Are you sure you want to delete this shuttle?', { title: 'Delete Shuttle', confirmText: 'Delete', type: 'danger' }))) return;
     try {
       await api.delete(`/admin/shuttles/${id}`);
       setAlert({ type: 'success', message: 'Shuttle deleted successfully!' });
