@@ -36,8 +36,36 @@ function usePopupColors() {
   };
 }
 
-const popupStyle = (c, extra = {}) => ({
-  position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 1200,
+// Popups render with position:fixed (viewport coordinates) so they escape
+// overflow/scroll containers like table wrappers; position recomputes on any
+// scroll/resize and flips above the trigger when there's no room below.
+function useFixedPopupPos(wrapRef, open, estHeight, estWidth) {
+  const [pos, setPos] = useState(null);
+  useEffect(() => {
+    if (!open) { setPos(null); return; }
+    const update = () => {
+      const el = wrapRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - r.bottom;
+      const openUp = spaceBelow < estHeight + 12 && r.top > spaceBelow;
+      setPos({
+        left: Math.max(8, Math.min(r.left, window.innerWidth - Math.max(r.width, estWidth) - 8)),
+        width: r.width,
+        top: openUp ? undefined : r.bottom + 6,
+        bottom: openUp ? window.innerHeight - r.top + 6 : undefined,
+      });
+    };
+    update();
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    return () => { window.removeEventListener('scroll', update, true); window.removeEventListener('resize', update); };
+  }, [open]); // eslint-disable-line
+  return pos;
+}
+
+const popupStyle = (c, pos, extra = {}) => ({
+  position: 'fixed', top: pos?.top, bottom: pos?.bottom, left: pos?.left, zIndex: 10000,
   background: c.popupBg, border: `2px solid ${c.popupBorder}`, borderRadius: 12,
   boxShadow: c.popupShadow, overflow: 'hidden', ...extra
 });
@@ -49,6 +77,7 @@ export function ThemedSelect({ value, onChange, children, style = {}, className 
   const wrapRef = useRef(null);
   const c = usePopupColors();
   useClickOutside(wrapRef, () => setOpen(false));
+  const pos = useFixedPopupPos(wrapRef, open, 272, 240);
 
   // Parse <option> children (supports arrays from .map)
   const options = useMemo(() => {
@@ -93,8 +122,8 @@ export function ThemedSelect({ value, onChange, children, style = {}, className 
         <ChevronDown style={{ width: 14, height: 14, flexShrink: 0, transition: 'transform 0.15s', transform: open ? 'rotate(180deg)' : 'none', color: c.accent }} />
       </button>
 
-      {open && (
-        <div style={popupStyle(c, { minWidth: '100%', maxHeight: 260, overflowY: 'auto', padding: 4 })}>
+      {open && pos && (
+        <div style={popupStyle(c, pos, { minWidth: pos.width, maxHeight: 260, overflowY: 'auto', padding: 4 })}>
           {options.map((opt, i) => {
             const isSel = String(opt.value) === String(value);
             return (
@@ -143,6 +172,7 @@ export function ThemedDateInput({ value, onChange, min, max, style = {}, classNa
   const wrapRef = useRef(null);
   const c = usePopupColors();
   useClickOutside(wrapRef, () => setOpen(false));
+  const pos = useFixedPopupPos(wrapRef, open, 360, 252);
 
   useEffect(() => { if (open) setView(parseYMD(value) || new Date()); }, [open]); // eslint-disable-line
 
@@ -180,8 +210,8 @@ export function ThemedDateInput({ value, onChange, min, max, style = {}, classNa
         <CalendarIcon style={{ width: 14, height: 14, flexShrink: 0, color: c.accent }} />
       </button>
 
-      {open && (
-        <div style={popupStyle(c, { width: 252, padding: 12 })}>
+      {open && pos && (
+        <div style={popupStyle(c, pos, { width: 252, padding: 12 })}>
           {/* Month header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
             <button type="button" onClick={() => setView(new Date(year, month - 1, 1))}
@@ -262,6 +292,7 @@ export function ThemedTimeInput({ value, onChange, style = {}, className = '' })
   const wrapRef = useRef(null);
   const c = usePopupColors();
   useClickOutside(wrapRef, () => setOpen(false));
+  const pos = useFixedPopupPos(wrapRef, open, 200, 190);
 
   const [hh, mm] = (value || '00:00').split(':').map((n) => parseInt(n, 10) || 0);
   const period = hh >= 12 ? 'PM' : 'AM';
@@ -296,8 +327,8 @@ export function ThemedTimeInput({ value, onChange, style = {}, className = '' })
         <Clock style={{ width: 14, height: 14, flexShrink: 0, color: c.accent }} />
       </button>
 
-      {open && (
-        <div style={popupStyle(c, { display: 'flex', gap: 2, padding: 6 })}>
+      {open && pos && (
+        <div style={popupStyle(c, pos, { display: 'flex', gap: 2, padding: 6 })}>
           <div style={colStyle}>
             {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
               <div key={h} style={itemStyle(h === hour12)} onClick={() => emit(h, mm, period)}

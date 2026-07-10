@@ -149,7 +149,7 @@ export default function DriverNotifications() {
               <option value="all">All Active Drivers ({activeDrivers.length})</option>
               {activeDrivers.map(driver => (
                 <option key={driver.driverId} value={driver.driverId}>
-                  {driver.name} ({driver.driverId})
+                  {driver.fullName || driver.name} ({driver.driverId})
                 </option>
               ))}
             </ThemedSelect>

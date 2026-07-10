@@ -88,7 +88,7 @@ export default function PhonesList() {
       setFormData({
         ...formData,
         assignedDriverId: driverId,
-        assignedDriverName: driver?.name || '',
+        assignedDriverName: driver?.fullName || driver?.name || '',
         status: 'assigned',
         assignedDate: new Date()
       });
@@ -147,7 +147,7 @@ export default function PhonesList() {
       const updatedPhone = {
         ...phone,
         assignedDriverId: newDriverId || null,
-        assignedDriverName: driver?.name || null,
+        assignedDriverName: driver?.fullName || driver?.name || null,
         assignedDate: newDriverId ? new Date() : null,
         status: newDriverId ? 'assigned' : 'available'
       };
@@ -342,7 +342,7 @@ export default function PhonesList() {
                         <option value="">Unassigned</option>
                         {drivers.map(driver => (
                           <option key={driver.driverId} value={driver.driverId}>
-                            {driver.name} ({driver.driverId})
+                            {driver.fullName || driver.name} ({driver.driverId})
                           </option>
                         ))}
                       </ThemedSelect>
@@ -580,7 +580,7 @@ export default function PhonesList() {
                   <option value="">Unassigned</option>
                   {drivers.map(driver => (
                     <option key={driver.driverId} value={driver.driverId}>
-                      {driver.name} ({driver.driverId})
+                      {driver.fullName || driver.name} ({driver.driverId})
                     </option>
                   ))}
                 </ThemedSelect>
