@@ -1,4 +1,5 @@
 // src/pages/admin/Merchant/Dashboard.jsx
+import { toast } from 'react-toastify';
 // Main dashboard - Matches Treasury/Sysad admin design pattern (buttons open modals directly)
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -258,7 +259,8 @@ function DashboardAddMerchantModal({ theme, isDarkMode, onClose, onSuccess }) {
     password: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [alert, setAlert] = useState(null);
+  const alert = null; // legacy banner never renders — alerts route to the global pop-up
+  const setAlert = (a) => { if (a && a.message) (a.type === 'error' ? toast.error : a.type === 'warning' ? toast.warn : a.type === 'info' ? toast.info : toast.success)(a.message); };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -468,7 +470,8 @@ function DashboardAddPhoneModal({ theme, isDarkMode, onClose, onSuccess }) {
     notes: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [alert, setAlert] = useState(null);
+  const alert = null; // legacy banner never renders — alerts route to the global pop-up
+  const setAlert = (a) => { if (a && a.message) (a.type === 'error' ? toast.error : a.type === 'warning' ? toast.warn : a.type === 'info' ? toast.info : toast.success)(a.message); };
 
   useEffect(() => {
     loadData();

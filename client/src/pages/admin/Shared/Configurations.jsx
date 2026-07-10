@@ -1,4 +1,5 @@
 // src/admin/components/Configurations/ConfigurationsPage.jsx
+import { toast } from 'react-toastify';
 // System configurations: Auto-export reports
 
 import React, { useState, useEffect } from 'react';
@@ -17,7 +18,8 @@ export default function ConfigurationsPage() {
     }
   });
   const [loading, setLoading] = useState(false);
-  const [alert, setAlert] = useState(null);
+  const alert = null; // legacy banner never renders — alerts route to the global pop-up
+  const setAlert = (a) => { if (a && a.message) (a.type === 'error' ? toast.error : a.type === 'warning' ? toast.warn : a.type === 'info' ? toast.info : toast.success)(a.message); };
   const [showExportModal, setShowExportModal] = useState(false);
   const [showManualExportModal, setShowManualExportModal] = useState(false);
   const [exportHistory, setExportHistory] = useState([]);

@@ -1,4 +1,5 @@
 // src/admin/components/Trips/TripDetailModal.jsx
+import { toast } from 'react-toastify';
 import React, { useEffect, useRef, useState } from 'react';
 import { GOOGLE_MAPS_API_KEY } from '../../config/api.config';
 import api from '../../utils/api';
@@ -164,7 +165,7 @@ export default function TripDetailModal({ trip, onClose, onUpdate }) {
       }
     } catch (error) {
       console.error('Error adding note:', error);
-      alert('Failed to add note. Please try again.');
+      toast.error('Failed to add note. Please try again.');
     } finally {
       setSubmittingNote(false);
     }

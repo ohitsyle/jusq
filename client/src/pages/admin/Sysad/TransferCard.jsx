@@ -1,4 +1,5 @@
 // src/pages/admin/Sysad/TransferCard.jsx
+import { toast } from 'react-toastify';
 // Transfer RFID card data from one card to another - Table-based design like ManageUsers
 
 import React, { useState, useEffect } from 'react';
@@ -84,7 +85,7 @@ function TransferModal({ isOpen, onClose, selectedUser }) {
       setCurrentStep(4);
     } catch (error) {
       console.error('Transfer failed:', error);
-      alert('Transfer failed. Please try again.');
+      toast.error('Transfer failed. Please try again.');
     } finally {
       setIsProcessing(false);
     }

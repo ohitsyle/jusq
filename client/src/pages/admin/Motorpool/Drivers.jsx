@@ -1,4 +1,5 @@
 // src/admin/components/Drivers/DriversList.jsx
+import { toast } from 'react-toastify';
 import React, { useState, useEffect } from 'react';
 import { Users, UserCheck, UserX, BadgeAlert } from 'lucide-react';
 import api from '../../../utils/api';
@@ -27,7 +28,8 @@ export default function DriversList() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDriver, setEditingDriver] = useState(null);
-  const [alert, setAlert] = useState(null);
+  const alert = null; // legacy banner never renders — alerts route to the global pop-up
+  const setAlert = (a) => { if (a && a.message) (a.type === 'error' ? toast.error : a.type === 'warning' ? toast.warn : a.type === 'info' ? toast.info : toast.success)(a.message); };
   const [searchQuery, setSearchQuery] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);

@@ -1,4 +1,5 @@
 // src/admin/components/Communication/DriverNotifications.jsx
+import { toast } from 'react-toastify';
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
@@ -43,7 +44,7 @@ export default function DriverNotifications() {
 
   const handleSendNotification = async () => {
     if (!messageTitle.trim() || !messageContent.trim()) {
-      alert('Please fill in both title and message');
+      toast.error('Please fill in both title and message');
       return;
     }
 
@@ -83,10 +84,10 @@ export default function DriverNotifications() {
       // Clear form
       setMessageTitle('');
       setMessageContent('');
-      alert('Notification sent successfully!');
+      toast.success('Notification sent successfully!');
     } catch (error) {
       console.error('Error sending notification:', error);
-      alert('Failed to send notification. Please try again.');
+      toast.error('Failed to send notification. Please try again.');
     } finally {
       setSending(false);
     }

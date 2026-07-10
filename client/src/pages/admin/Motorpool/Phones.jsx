@@ -1,4 +1,5 @@
 // src/admin/components/Phones/PhonesList.jsx
+import { toast } from 'react-toastify';
 import React, { useState, useEffect } from 'react';
 import { Smartphone } from 'lucide-react';
 import api from '../../../utils/api';
@@ -16,7 +17,8 @@ export default function PhonesList() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingPhone, setEditingPhone] = useState(null);
-  const [alert, setAlert] = useState(null);
+  const alert = null; // legacy banner never renders — alerts route to the global pop-up
+  const setAlert = (a) => { if (a && a.message) (a.type === 'error' ? toast.error : a.type === 'warning' ? toast.warn : a.type === 'info' ? toast.info : toast.success)(a.message); };
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;

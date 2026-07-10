@@ -1,4 +1,5 @@
 // src/admin/components/Routes/RoutesList.jsx
+import { toast } from 'react-toastify';
 // Interactive map-based route creation with step-by-step wizard
 import React, { useState, useEffect, useRef } from 'react';
 import { Map } from 'lucide-react';
@@ -312,7 +313,8 @@ export default function RoutesList() {
   const [showModal, setShowModal] = useState(false);
   const [modalStep, setModalStep] = useState(1); // 1: Point A, 2: Point B, 3: Route Details, 4: Summary
   const [editingRoute, setEditingRoute] = useState(null);
-  const [alert, setAlert] = useState(null);
+  const alert = null; // legacy banner never renders — alerts route to the global pop-up
+  const setAlert = (a) => { if (a && a.message) (a.type === 'error' ? toast.error : a.type === 'warning' ? toast.warn : a.type === 'info' ? toast.info : toast.success)(a.message); };
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;

@@ -1,4 +1,5 @@
 // src/admin/components/Concerns/ConcernsList.jsx
+import { toast } from 'react-toastify';
 // User concerns management matching treasury concerns logic
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle } from 'lucide-react';
@@ -16,7 +17,8 @@ export default function ConcernsList() {
     const { theme, isDarkMode } = useTheme();
   const [concerns, setConcerns] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [alert, setAlert] = useState(null);
+  const alert = null; // legacy banner never renders — alerts route to the global pop-up
+  const setAlert = (a) => { if (a && a.message) (a.type === 'error' ? toast.error : a.type === 'warning' ? toast.warn : a.type === 'info' ? toast.info : toast.success)(a.message); };
   const [activeTab, setActiveTab] = useState('all'); // 'all', 'assistance', 'feedback'
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
