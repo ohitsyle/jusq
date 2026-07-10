@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import { AppProvider } from './context/AppContext';
@@ -7,7 +7,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { useMaintenanceMode } from './hooks/useMaintenanceMode.js';
 
 import UnifiedLogin from './pages/account/UnifiedLogin';
-import Kiosk from './pages/kiosk/Kiosk';
+const Kiosk = lazy(() => import('./pages/kiosk/Kiosk'));
 import AccountActivation from './pages/account/AccountActivation';
 
 // Layout Components
@@ -27,51 +27,51 @@ import ProtectedRoute from './components/routes/ProtectedRoute';
 import AdminRoute from './components/routes/AdminRoute';
 
 // Motorpool Pages
-import MotorpoolDashboard from './pages/admin/Motorpool/Dashboard';
-import RoutesPage from './pages/admin/Motorpool/Routes';
-import DriversPage from './pages/admin/Motorpool/Drivers';
-import ShuttlesPage from './pages/admin/Motorpool/Shuttles';
-import TripsPage from './pages/admin/Motorpool/Trips';
-import PhonesPage from './pages/admin/Motorpool/Phones';
-import MotorpoolConcernsPage from './pages/admin/Motorpool/Concerns';
-import MotorpoolConfigurationsPage from './pages/admin/Motorpool/Configurations';
+const MotorpoolDashboard = lazy(() => import('./pages/admin/Motorpool/Dashboard'));
+const RoutesPage = lazy(() => import('./pages/admin/Motorpool/Routes'));
+const DriversPage = lazy(() => import('./pages/admin/Motorpool/Drivers'));
+const ShuttlesPage = lazy(() => import('./pages/admin/Motorpool/Shuttles'));
+const TripsPage = lazy(() => import('./pages/admin/Motorpool/Trips'));
+const PhonesPage = lazy(() => import('./pages/admin/Motorpool/Phones'));
+const MotorpoolConcernsPage = lazy(() => import('./pages/admin/Motorpool/Concerns'));
+const MotorpoolConfigurationsPage = lazy(() => import('./pages/admin/Motorpool/Configurations'));
 
 // Merchant Pages
-import MerchantDashboard from './pages/admin/Merchant/Dashboard';
-import MerchantsPage from './pages/admin/Merchant/Merchants';
-import MerchantPhonesPage from './pages/admin/Merchant/Phones';
-import MerchantConcernsPage from './pages/admin/Merchant/Concerns';
-import MerchantConfigurationsPage from './pages/admin/Merchant/Configurations';
+const MerchantDashboard = lazy(() => import('./pages/admin/Merchant/Dashboard'));
+const MerchantsPage = lazy(() => import('./pages/admin/Merchant/Merchants'));
+const MerchantPhonesPage = lazy(() => import('./pages/admin/Merchant/Phones'));
+const MerchantConcernsPage = lazy(() => import('./pages/admin/Merchant/Concerns'));
+const MerchantConfigurationsPage = lazy(() => import('./pages/admin/Merchant/Configurations'));
 
 // Treasury Pages
-import TreasuryDashboard from './pages/admin/Treasury/TreasuryDashboard';
-import RegistrationForm from './pages/admin/Treasury/RegistrationForm';
-import TreasuryTransactionsPage from './pages/admin/Treasury/TransactionsPage';
-import TreasuryMerchantsPage from './pages/admin/Treasury/MerchantsPage';
-import TreasuryConcernsPage from './pages/admin/Treasury/ConcernsPage';
-import TreasuryConfigPage from './pages/admin/Treasury/ConfigPage';
+const TreasuryDashboard = lazy(() => import('./pages/admin/Treasury/TreasuryDashboard'));
+const RegistrationForm = lazy(() => import('./pages/admin/Treasury/RegistrationForm'));
+const TreasuryTransactionsPage = lazy(() => import('./pages/admin/Treasury/TransactionsPage'));
+const TreasuryMerchantsPage = lazy(() => import('./pages/admin/Treasury/MerchantsPage'));
+const TreasuryConcernsPage = lazy(() => import('./pages/admin/Treasury/ConcernsPage'));
+const TreasuryConfigPage = lazy(() => import('./pages/admin/Treasury/ConfigPage'));
 
 // Accounting Pages
-import AccountingHome from './pages/admin/Accounting/AccountingHome';
+const AccountingHome = lazy(() => import('./pages/admin/Accounting/AccountingHome'));
 // Accounting reuses the Treasury merchants page (read-only GETs) so both roles see identical data/UI.
-import AccountingMerchantsPage from './pages/admin/Treasury/MerchantsPage';
+const AccountingMerchantsPage = lazy(() => import('./pages/admin/Treasury/MerchantsPage'));
 // Reuse Treasury pages for read-only views
-import AccountingTransactionsPage from './pages/admin/Treasury/TransactionsPage';
+const AccountingTransactionsPage = lazy(() => import('./pages/admin/Treasury/TransactionsPage'));
 
 // Marketing Pages
 import MarketingLayout from './components/layouts/MarketingLayout';
-import MarketingHome from './pages/admin/Marketing/MarketingHome';
-import MarketingPromos from './pages/admin/Marketing/Promos';
-import MarketingConfig from './pages/admin/Marketing/Config';
+const MarketingHome = lazy(() => import('./pages/admin/Marketing/MarketingHome'));
+const MarketingPromos = lazy(() => import('./pages/admin/Marketing/Promos'));
+const MarketingConfig = lazy(() => import('./pages/admin/Marketing/Config'));
 
 // Shared Admin Pages
-import LogsPage from './pages/admin/Shared/Logs';
-import ProfilePage from './pages/admin/Shared/Profile';
-import ConcernsPage from './pages/admin/Shared/Concerns';
-import Merchants from './pages/admin/Shared/Merchants';
-import TreasuryLogs from './pages/admin/Shared/Logs';
-import ConcernsManagement from './pages/admin/Shared/ConcernsManagement';
-import Config from './pages/admin/Shared/Config';
+const LogsPage = lazy(() => import('./pages/admin/Shared/Logs'));
+const ProfilePage = lazy(() => import('./pages/admin/Shared/Profile'));
+const ConcernsPage = lazy(() => import('./pages/admin/Shared/Concerns'));
+const Merchants = lazy(() => import('./pages/admin/Shared/Merchants'));
+const TreasuryLogs = lazy(() => import('./pages/admin/Shared/Logs'));
+const ConcernsManagement = lazy(() => import('./pages/admin/Shared/ConcernsManagement'));
+const Config = lazy(() => import('./pages/admin/Shared/Config'));
 
 // User Pages
 import UserDashboard from './pages/user/UserDashboard';
@@ -82,12 +82,12 @@ import UserProfile from './pages/user/UserProfile';
 import FAQ from './pages/user/FAQ';
 
 // System Admin Pages
-import SysadDashboard from './pages/admin/Sysad/Dashboard';
-import ManageUsers from './pages/admin/Sysad/ManageUsers';
-import TransferCard from './pages/admin/Sysad/TransferCard';
-import SysadConcernsPage from './pages/admin/Sysad/ConcernsPage';
-import SysadConfigPage from './pages/admin/Sysad/ConfigPage';
-import SysadSystemAlerts from './pages/admin/Sysad/SystemAlerts';
+const SysadDashboard = lazy(() => import('./pages/admin/Sysad/Dashboard'));
+const ManageUsers = lazy(() => import('./pages/admin/Sysad/ManageUsers'));
+const TransferCard = lazy(() => import('./pages/admin/Sysad/TransferCard'));
+const SysadConcernsPage = lazy(() => import('./pages/admin/Sysad/ConcernsPage'));
+const SysadConfigPage = lazy(() => import('./pages/admin/Sysad/ConfigPage'));
+const SysadSystemAlerts = lazy(() => import('./pages/admin/Sysad/SystemAlerts'));
 
 // Maintenance Mode Page
 import MaintenanceMode from './pages/MaintenanceMode';
@@ -95,6 +95,14 @@ import MaintenanceMode from './pages/MaintenanceMode';
 // Legal Pages
 import TermsAndConditions from './pages/legal/TermsAndConditions';
 import PrivacyPolicy from './pages/legal/PrivacyPolicy';
+
+// Shown while a lazy route chunk downloads
+const PageLoader = () => (
+  <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ width: 36, height: 36, border: '4px solid rgba(59,130,246,0.25)', borderTopColor: '#3B82F6', borderRadius: '50%', animation: 'pageLoaderSpin 0.8s linear infinite' }} />
+    <style>{'@keyframes pageLoaderSpin { to { transform: rotate(360deg); } }'}</style>
+  </div>
+);
 
 // Protected Route wrapper for Motorpool Admin
 const MotorpoolProtectedRoute = ({ children }) => {
@@ -213,6 +221,7 @@ function AppContent() {
   }
 
   return (
+    <Suspense fallback={<PageLoader />}>
     <Routes>
       {/* Login Routes */}
       <Route path="/login" element={<UnifiedLogin />} />
@@ -642,6 +651,7 @@ function AppContent() {
       <Route path="/admin" element={<Navigate to="/admin/motorpool" replace />} />
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
+    </Suspense>
   );
 };
 

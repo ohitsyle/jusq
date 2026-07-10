@@ -5,6 +5,8 @@ import dotenv from 'dotenv';
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
+import helmet from 'helmet';
+import compression from 'compression';
 import bodyParser from 'body-parser';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -29,6 +31,10 @@ const corsOptions = {
 
 // Middleware
 app.use(cors(corsOptions));
+// Security headers. CSP/COEP disabled: the admin dashboards load Google Maps
+// scripts and tiles from external origins, which strict defaults would block.
+app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
+app.use(compression());
 app.use(bodyParser.json());
 // Cache policy: hashed JS/CSS bundles are immutable; everything else (html,
 // images copied from public/) must revalidate so deploys reach browsers
@@ -79,6 +85,7 @@ import { initializeDeactivationCron } from './jobs/deactivationCron.js';
 import { checkMaintenanceMode } from './middlewares/maintenanceMode.js';
 import { requireAdminAuth, requireAdminAuthExcept } from './middlewares/requireAdminAuth.js';
 import { loginRateLimit } from './middlewares/loginRateLimit.js';
+import { shuttlePayLimit, merchantPayLimit, transferLimit } from './middlewares/rateLimit.js';
 import websocketService from './services/websocketService.js';
 
 // Apply maintenance mode middleware to all routes (but we'll handle auth checking inside)
@@ -87,6 +94,12 @@ app.use(checkMaintenanceMode);
 // Brute-force protection on login endpoints
 app.use('/api/login', loginRateLimit);
 app.use('/api/admin/auth/login', loginRateLimit);
+
+// Throughput guards on money endpoints (per-IP, generous for real usage)
+app.use('/api/shuttle/pay', shuttlePayLimit);
+app.use('/api/shuttle/sync', shuttlePayLimit);
+app.use('/api/merchant/pay', merchantPayLimit);
+app.use('/api/user/transfer', transferLimit);
 
 // Mount all API routes at /api
 // NOTE: More specific routes MUST come before more general routes
@@ -139,32 +152,7 @@ app.get('/force-logout', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'force-logout.html'));
 });
 
-// Catch-all handler for React Router - serve index.html for all non-API routes
-app.get('*', (req, res) => {
-  // Don't intercept API routes
-  if (req.path.startsWith('/api') || req.path.startsWith('/assets')) {
-    return res.status(404).json({ error: 'API endpoint not found' });
-  }
-  sendIndex(res);
-});
-
-// DEBUG: Check all users in database
-// Root endpoint
-app.get('/', (req, res) => {
-  res.json({
-    message: 'NUCash API Server',
-    version: '3.0.0',
-    status: 'online',
-    endpoints: {
-      mobile: '/api',
-      admin: '/admin',
-      motorpool: '/motorpool',
-      health: '/health'
-    }
-  });
-});
-
-// Health check
+// Health check — must register BEFORE the SPA catch-all or it never matches
 app.get('/health', (req, res) => {
   const dbStatus = mongoose.connection.readyState;
   const dbStates = {
@@ -174,7 +162,7 @@ app.get('/health', (req, res) => {
     3: 'disconnecting'
   };
   
-  res.json({ 
+  res.json({
     status: dbStatus === 1 ? 'healthy' : 'unhealthy',
     timestamp: new Date(),
     database: dbStates[dbStatus],
@@ -193,9 +181,18 @@ app.get('/api/test', (req, res) => {
   });
 });
 
+// Catch-all for React Router — serve index.html for all non-API GETs.
+// Registered last (after /health and /api/test) so real endpoints win.
+app.get('*', (req, res) => {
+  if (req.path.startsWith('/api') || req.path.startsWith('/assets')) {
+    return res.status(404).json({ error: 'API endpoint not found' });
+  }
+  sendIndex(res);
+});
+
 // 404 handler
 app.use((req, res) => {
-  res.status(404).json({ 
+  res.status(404).json({
     error: 'Endpoint not found',
     path: req.path,
     method: req.method
