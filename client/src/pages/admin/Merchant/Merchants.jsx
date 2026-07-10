@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { Mail, Plus, User } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
-import ConfirmDialog from '../../../components/shared/ConfirmDialog';
+import { confirmDialog } from '../../../components/shared/ConfirmDialogHost';
 
 export default function MerchantsList() {
   const { theme, isDarkMode } = useTheme();
@@ -18,7 +18,6 @@ export default function MerchantsList() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
-  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, merchantId: null });
   const [formData, setFormData] = useState({
     businessName: '',
     firstName: '',
@@ -136,13 +135,11 @@ export default function MerchantsList() {
     }
   };
 
-  const handleDeleteClick = (merchantId) => {
-    setConfirmDialog({ isOpen: true, merchantId });
-  };
-
-  const handleDeleteConfirm = async () => {
-    const merchantId = confirmDialog.merchantId;
-    setConfirmDialog({ isOpen: false, merchantId: null });
+  const handleDeleteClick = async (merchantId) => {
+    if (!(await confirmDialog(
+      'Are you sure you want to permanently delete this merchant? This action cannot be undone.',
+      { title: 'Delete Merchant', confirmText: 'Delete Merchant', type: 'danger' }
+    ))) return;
 
     try {
       await api.delete(`/merchant/merchants/${merchantId}`);
@@ -413,16 +410,6 @@ export default function MerchantsList() {
       )}
 
       {/* Confirmation Dialog */}
-      <ConfirmDialog
-        isOpen={confirmDialog.isOpen}
-        title="Delete Merchant"
-        message="Are you sure you want to permanently delete this merchant? This action cannot be undone."
-        confirmText="Delete Merchant"
-        cancelText="Cancel"
-        confirmColor="danger"
-        onConfirm={handleDeleteConfirm}
-        onCancel={() => setConfirmDialog({ isOpen: false, merchantId: null })}
-      />
     </div>
   );
 }

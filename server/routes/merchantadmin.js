@@ -207,7 +207,9 @@ router.post('/merchants', verifyMerchantToken, async (req, res) => {
       email: email.toLowerCase().trim(),
       pin: password,
       role: 'merchant',
-      isActive: false // Needs activation
+      // Auto-active like drivers: merchants only sign in on the phone app
+      // with the admin-set PIN — there is no web activation flow for them.
+      isActive: true
     });
 
     await merchant.save();
@@ -310,6 +312,14 @@ router.delete('/merchants/:id', verifyMerchantToken, async (req, res) => {
     if (!merchant) {
       return res.status(404).json({ error: 'Merchant not found' });
     }
+
+    // Cascade: free any phones assigned to this merchant so nothing keeps
+    // pointing at a deleted business.
+    const { default: Phone } = await import('../models/Phone.js');
+    await Phone.updateMany(
+      { assignedMerchantId: merchant.merchantId },
+      { $set: { assignedMerchantId: null, assignedBusinessName: null, assignedMerchantDate: null, status: 'available' } }
+    );
 
     // Log merchant deletion
     const { logAdminAction } = await import('../utils/logger.js');

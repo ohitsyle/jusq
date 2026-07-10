@@ -38,7 +38,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     loadMerchantStats();
-    intervalRef.current = setInterval(loadMerchantStats, 5000);
+    intervalRef.current = setInterval(() => { if (!document.hidden) loadMerchantStats(); }, 20000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };

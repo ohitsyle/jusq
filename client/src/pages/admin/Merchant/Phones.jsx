@@ -55,7 +55,7 @@ export default function MerchantPhonesList() {
   useEffect(() => {
     loadPhones();
     loadMerchants();
-    const interval = setInterval(loadPhones, 5000);
+    const interval = setInterval(() => { if (!document.hidden) loadPhones(); }, 20000);
     return () => clearInterval(interval);
   }, []);
 
@@ -475,6 +475,32 @@ export default function MerchantPhonesList() {
                     </option>
                   ))}
                 </ThemedSelect>
+              </div>
+
+              {/* Device status — only choosable when unassigned; assignment forces 'assigned' */}
+              <div className="mb-5">
+                <label style={{ color: theme.accent.primary }} className="block mb-2 text-xs font-bold uppercase">Device Status</label>
+                {formData.assignedMerchantId ? (
+                  <div style={{ background: 'rgba(59,130,246,0.08)', borderColor: theme.border.primary, color: '#3B82F6' }}
+                    className="py-3 px-4 border-2 rounded-lg text-[13px] font-semibold">
+                    Assigned — set automatically while a merchant holds this phone
+                  </div>
+                ) : (
+                  <ThemedSelect
+                    value={formData.status || 'available'}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    style={{
+                      background: isDarkMode ? 'rgba(251,251,251,0.05)' : 'rgba(0,0,0,0.03)',
+                      borderColor: theme.border.primary,
+                      color: theme.text.primary
+                    }}
+                    className="w-full py-3 px-4 border-2 rounded-lg text-sm cursor-pointer box-border"
+                  >
+                    <option value="available">Available</option>
+                    <option value="maintenance">Maintenance</option>
+                    <option value="retired">Retired</option>
+                  </ThemedSelect>
+                )}
               </div>
 
               <div className="mb-6">
