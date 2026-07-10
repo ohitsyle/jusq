@@ -45,6 +45,17 @@ const promotionCampaignSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  // Duplicate-send guard: users already rewarded in the current period.
+  // The key derives from frequency (week/fortnight/month); when the period
+  // rolls over the list resets and everyone becomes eligible again.
+  sentPeriodKey: {
+    type: String,
+    default: null
+  },
+  sentUserIds: {
+    type: [String],
+    default: []
+  },
   lastRunDate: {
     type: Date,
     default: null

@@ -129,7 +129,8 @@ export default function Promos() {
     setRewardTarget(c);
     setEligible(null);
     try {
-      const users = await api.get(`/admin/promotions/eligible-users?minRides=${c.minimumRides || 1}`);
+      // campaignId gives the server the frequency window + duplicate-send state
+      const users = await api.get(`/admin/promotions/eligible-users?campaignId=${c._id}`);
       setEligible(Array.isArray(users) ? users : []);
     } catch (e) {
       setEligible([]);
@@ -141,7 +142,8 @@ export default function Promos() {
     setSendingRewards(true);
     try {
       const res = await api.post(`/admin/promotions/campaigns/${rewardTarget._id}/send-rewards`);
-      toast.success(`Sent ${res?.sent ?? 0} reward email${(res?.sent ?? 0) !== 1 ? 's' : ''}!`);
+      const sent = res?.sent ?? 0;
+      toast.success(`Sent ${sent} reward email${sent !== 1 ? 's' : ''}!${res?.skipped ? ` (${res.skipped} already rewarded this period)` : ''}`);
       setRewardTarget(null);
       load();
     } catch (e) {
@@ -150,6 +152,10 @@ export default function Promos() {
       setSendingRewards(false);
     }
   };
+
+  // Human label for a campaign's eligibility window
+  const periodLabel = (frequency) =>
+    frequency === 'weekly' ? 'this week' : frequency === 'biweekly' ? 'this fortnight' : 'this month';
 
   const filtered = campaigns.filter((c) =>
     !searchQuery ||
@@ -362,7 +368,7 @@ export default function Promos() {
           <div onClick={(e) => e.stopPropagation()} style={{ background: isDarkMode ? 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)' : theme.bg.card, borderColor: theme.border.primary }} className="rounded-2xl border p-8 w-[90%] max-w-[560px] max-h-[90vh] overflow-auto shadow-2xl">
             <h3 style={{ color: theme.text.primary }} className="text-xl font-bold m-0 mb-1">Send Rewards</h3>
             <p style={{ color: theme.text.secondary }} className="text-sm m-0 mb-5">
-              Campaign: <span style={{ color: accent }} className="font-bold">{rewardTarget.title}</span> • minimum {rewardTarget.minimumRides} ride{rewardTarget.minimumRides !== 1 ? 's' : ''} this month
+              Campaign: <span style={{ color: accent }} className="font-bold">{rewardTarget.title}</span> • minimum {rewardTarget.minimumRides} ride{rewardTarget.minimumRides !== 1 ? 's' : ''} {periodLabel(rewardTarget.frequency)}
             </p>
 
             {eligible === null ? (
@@ -373,26 +379,40 @@ export default function Promos() {
             ) : eligible.length === 0 ? (
               <div style={{ background: 'rgba(245,158,11,0.1)', borderColor: 'rgba(245,158,11,0.3)' }} className="rounded-xl border p-4 mb-5">
                 <p style={{ color: '#F59E0B' }} className="text-sm font-semibold m-0">
-                  No students have reached {rewardTarget.minimumRides} rides this month yet. Try again later or lower the campaign's minimum.
+                  No students have reached {rewardTarget.minimumRides} rides {periodLabel(rewardTarget.frequency)} yet. Try again later or lower the campaign's minimum.
                 </p>
               </div>
             ) : (
               <>
-                <div style={{ background: `${accent}12`, borderColor: `${accent}40` }} className="rounded-xl border p-4 mb-4">
-                  <p style={{ color: theme.text.primary }} className="text-sm font-bold m-0">
-                    {eligible.length} eligible rider{eligible.length !== 1 ? 's' : ''} will receive the reward email immediately.
-                  </p>
-                </div>
+                {(() => {
+                  const fresh = eligible.filter((u) => !u.alreadyRewarded).length;
+                  const done = eligible.length - fresh;
+                  return (
+                    <div style={{ background: `${accent}12`, borderColor: `${accent}40` }} className="rounded-xl border p-4 mb-4">
+                      <p style={{ color: theme.text.primary }} className="text-sm font-bold m-0">
+                        {fresh} rider{fresh !== 1 ? 's' : ''} will receive the reward email immediately.
+                        {done > 0 && <span style={{ color: theme.text.secondary }} className="font-semibold"> {done} already rewarded {periodLabel(rewardTarget.frequency)} and will be skipped.</span>}
+                      </p>
+                    </div>
+                  );
+                })()}
                 <div className="mb-5 max-h-[200px] overflow-y-auto rounded-xl border" style={{ borderColor: theme.border.primary }}>
                   {eligible.map((u) => (
-                    <div key={u._id} className="flex justify-between items-center gap-3 px-4 py-2.5 border-b last:border-b-0" style={{ borderColor: theme.border.primary }}>
+                    <div key={u._id} className="flex justify-between items-center gap-3 px-4 py-2.5 border-b last:border-b-0" style={{ borderColor: theme.border.primary, opacity: u.alreadyRewarded ? 0.55 : 1 }}>
                       <div>
                         <div style={{ color: theme.text.primary }} className="text-sm font-semibold">{u.fullName}</div>
                         <div style={{ color: theme.text.tertiary }} className="text-xs">{u.email}</div>
                       </div>
-                      <span className="text-xs font-bold py-1 px-2.5 rounded-xl whitespace-nowrap" style={{ color: accent, background: `${accent}20` }}>
-                        {u.ridesThisMonth} rides
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {u.alreadyRewarded && (
+                          <span className="text-[10px] font-bold py-1 px-2 rounded-lg whitespace-nowrap" style={{ color: '#10B981', background: 'rgba(16,185,129,0.15)' }}>
+                            ✓ Rewarded
+                          </span>
+                        )}
+                        <span className="text-xs font-bold py-1 px-2.5 rounded-xl whitespace-nowrap" style={{ color: accent, background: `${accent}20` }}>
+                          {u.ridesThisMonth} rides
+                        </span>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -405,10 +425,10 @@ export default function Promos() {
                 className="py-3 px-6 border-2 rounded-lg text-sm font-semibold cursor-pointer">
                 Cancel
               </button>
-              <button onClick={sendRewards} disabled={sendingRewards || !eligible || eligible.length === 0}
-                style={{ background: sendingRewards ? '#999' : accent, color: isDarkMode ? '#181D40' : '#FFF', opacity: (!eligible || eligible.length === 0) ? 0.5 : 1 }}
+              <button onClick={sendRewards} disabled={sendingRewards || !eligible || eligible.filter((u) => !u.alreadyRewarded).length === 0}
+                style={{ background: sendingRewards ? '#999' : accent, color: isDarkMode ? '#181D40' : '#FFF', opacity: (!eligible || eligible.filter((u) => !u.alreadyRewarded).length === 0) ? 0.5 : 1 }}
                 className="py-3 px-6 border-none rounded-lg text-sm font-bold cursor-pointer shadow-lg">
-                {sendingRewards ? 'Sending…' : `Send to ${eligible?.length ?? 0} rider${(eligible?.length ?? 0) !== 1 ? 's' : ''}`}
+                {sendingRewards ? 'Sending…' : `Send to ${eligible?.filter((u) => !u.alreadyRewarded).length ?? 0} rider${(eligible?.filter((u) => !u.alreadyRewarded).length ?? 0) !== 1 ? 's' : ''}`}
               </button>
             </div>
           </div>

@@ -23,6 +23,32 @@ const rewardHeadline = (p) => {
   return v > 1 ? `${v} FREE RIDES` : 'FREE RIDE';
 };
 
+// Eligibility window start per promo frequency — mirrors the marketing
+// rewards engine (weekly = Monday-start week, biweekly = 14-day blocks,
+// monthly = calendar month).
+const periodStart = (frequency) => {
+  const now = new Date();
+  if (frequency === 'weekly') {
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+    return start;
+  }
+  if (frequency === 'biweekly') {
+    return new Date(Math.floor(now.getTime() / (14 * 86400000)) * 14 * 86400000);
+  }
+  return new Date(now.getFullYear(), now.getMonth(), 1);
+};
+
+const periodName = (frequency) =>
+  frequency === 'weekly' ? 'This Week' : frequency === 'biweekly' ? 'This Fortnight' : MONTH_NAMES[new Date().getMonth()];
+
+// Completed (non-refunded) rides inside the promo's current window
+const ridesInPeriod = (trips, frequency) => {
+  const start = periodStart(frequency);
+  return trips.filter((t) => !t.isRefund && new Date(t.date) >= start).length;
+};
+
 export default function UserPromotions() {
   const { theme, isDarkMode } = useTheme();
   const navigate = useNavigate();
@@ -30,7 +56,7 @@ export default function UserPromotions() {
   const [promos, setPromos] = useState([]);
   const [enabled, setEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
-  const [ridesThisMonth, setRidesThisMonth] = useState(0);
+  const [trips, setTrips] = useState([]);
 
   useEffect(() => {
     Promise.all([
@@ -38,15 +64,7 @@ export default function UserPromotions() {
       api.get('/user/trips').catch(() => null),
     ]).then(([p, t]) => {
       if (p) { setPromos(p.promos || []); setEnabled(p.tabEnabled ?? true); }
-      if (t) {
-        const now = new Date();
-        const count = (t.trips || []).filter((trip) => {
-          if (trip.isRefund) return false;
-          const d = new Date(trip.date);
-          return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-        }).length;
-        setRidesThisMonth(count);
-      }
+      if (t) setTrips(t.trips || []);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -60,6 +78,7 @@ export default function UserPromotions() {
   }
 
   const monthName = MONTH_NAMES[new Date().getMonth()];
+  const ridesThisMonth = ridesInPeriod(trips, 'monthly');
   // Punch cards are the hero pieces — show them first, full width.
   const stampCards = promos.filter((p) => p.rewardType === 'free_ride');
   const tickets = promos.filter((p) => p.rewardType !== 'free_ride');
@@ -99,7 +118,7 @@ export default function UserPromotions() {
             </div>
             <h1 className="text-3xl md:text-4xl font-black text-white m-0 mb-2">Promos & Rewards</h1>
             <p className="text-white/85 text-sm md:text-base m-0 max-w-xl">
-              Ride the shuttle, collect stamps, unlock treats. Your progress resets each month — make {monthName} count! 🎉
+              Ride the shuttle, collect stamps, unlock treats. Each promo tracks its own week, fortnight, or month — make every ride count! 🎉
             </p>
           </div>
           <div className="bg-white/15 backdrop-blur rounded-2xl px-6 py-4 text-center border border-white/25">
@@ -119,22 +138,22 @@ export default function UserPromotions() {
         <>
           {/* ============ PUNCH CARDS (free rides) ============ */}
           {stampCards.map((p) => (
-            <StampCard key={p._id} promo={p} rides={ridesThisMonth} monthName={monthName} theme={theme} isDarkMode={isDarkMode} accent={accent} />
+            <StampCard key={p._id} promo={p} rides={ridesInPeriod(trips, p.frequency)} periodTitle={periodName(p.frequency)} theme={theme} isDarkMode={isDarkMode} accent={accent} />
           ))}
 
           {/* ============ COUPONS & VOUCHERS ============ */}
           {tickets.length > 0 && (
             <div className="grid gap-6 mb-8" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(420px, 100%), 1fr))' }}>
               {tickets.map((p) => p.rewardType === 'discount'
-                ? <CouponTicket key={p._id} promo={p} rides={ridesThisMonth} theme={theme} isDarkMode={isDarkMode} />
-                : <CashVoucher key={p._id} promo={p} rides={ridesThisMonth} theme={theme} isDarkMode={isDarkMode} />)}
+                ? <CouponTicket key={p._id} promo={p} rides={ridesInPeriod(trips, p.frequency)} theme={theme} isDarkMode={isDarkMode} />
+                : <CashVoucher key={p._id} promo={p} rides={ridesInPeriod(trips, p.frequency)} theme={theme} isDarkMode={isDarkMode} />)}
             </div>
           )}
         </>
       )}
 
       <p style={{ color: theme.text.tertiary }} className="text-xs text-center mt-2 pb-4">
-        Progress counts your completed shuttle rides this month (refunds excluded). Rewards are sent to your school email once you qualify. 💌
+        Progress counts your completed shuttle rides within each promo's period (refunds excluded). Rewards are sent to your school email once you qualify. 💌
       </p>
     </div>
   );
@@ -144,7 +163,7 @@ export default function UserPromotions() {
 /* Free ride -> loyalty punch card. One stamp per ride this month;   */
 /* the final slot is the golden reward slot.                          */
 /* ---------------------------------------------------------------- */
-function StampCard({ promo: p, rides, monthName, theme, isDarkMode, accent }) {
+function StampCard({ promo: p, rides, periodTitle, theme, isDarkMode, accent }) {
   const goal = Math.max(1, p.minimumRides || 1);
   const stamped = Math.min(rides, goal);
   const remaining = goal - stamped;
@@ -179,7 +198,7 @@ function StampCard({ promo: p, rides, monthName, theme, isDarkMode, accent }) {
             </div>
             <div>
               <div className="text-[10px] font-black uppercase tracking-[0.25em] mb-1" style={{ color: qualified ? '#F59E0B' : accent }}>
-                Ride Club · {monthName}
+                Ride Club · {periodTitle}
               </div>
               <h3 style={{ color: theme.text.primary }} className="text-xl md:text-2xl font-black m-0 mb-1">{p.title}</h3>
               <p style={{ color: theme.text.secondary }} className="text-sm m-0 max-w-2xl">{p.description}</p>

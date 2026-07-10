@@ -26,6 +26,67 @@ const logPromoAction = (req, action, description, targetId, crudOperation = 'cru
   }).catch(() => {});
 };
 
+// Eligibility window + duplicate-guard key for a campaign frequency.
+// weekly   -> current calendar week (Monday start)
+// biweekly -> fixed 14-day blocks (epoch-anchored)
+// monthly  -> current calendar month
+export function campaignPeriod(frequency) {
+  const now = new Date();
+  if (frequency === 'weekly') {
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - ((start.getDay() + 6) % 7)); // back to Monday
+    return { start, key: `W-${start.toISOString().slice(0, 10)}` };
+  }
+  if (frequency === 'biweekly') {
+    const block = Math.floor(now.getTime() / (14 * 86400000));
+    return { start: new Date(block * 14 * 86400000), key: `BW-${block}` };
+  }
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  return { start, key: `M-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}` };
+}
+
+// Riders with at least minRides completed shuttle rides since `start`.
+async function findEligibleRiders(minRides, start) {
+  const riders = await Transaction.aggregate([
+    {
+      $match: {
+        transactionType: 'debit',
+        shuttleId: { $ne: null },
+        status: { $nin: ['Refunded', 'Failed'] },
+        createdAt: { $gte: start }
+      }
+    },
+    {
+      $group: {
+        _id: '$userId',
+        ridesThisMonth: { $sum: 1 }, // field name kept for client compatibility; means "rides this period"
+        totalSpent: { $sum: '$amount' },
+        lastRideDate: { $max: '$createdAt' }
+      }
+    },
+    { $match: { ridesThisMonth: { $gte: minRides } } },
+    { $sort: { ridesThisMonth: -1 } }
+  ]);
+
+  const users = [];
+  for (const rider of riders) {
+    const user = await User.findById(rider._id);
+    if (user) {
+      users.push({
+        _id: user._id,
+        fullName: user.fullName,
+        schoolUId: user.schoolUId,
+        email: user.email,
+        ridesThisMonth: rider.ridesThisMonth,
+        totalSpent: rider.totalSpent,
+        lastRideDate: rider.lastRideDate
+      });
+    }
+  }
+  return users;
+}
+
 // ============================================================
 // CAMPAIGN MANAGEMENT
 // ============================================================
@@ -141,57 +202,26 @@ router.delete('/campaigns/:id', async (req, res) => {
  */
 router.get('/eligible-users', async (req, res) => {
   try {
-    // Campaigns can preview with their own threshold via ?minRides=N
-    const minRides = Math.max(1, parseInt(req.query.minRides, 10) || 10);
-    // Get date range for this month
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    // Preferred: ?campaignId= uses that campaign's threshold, frequency window,
+    // and duplicate-send state. Legacy ?minRides=N previews with a month window.
+    let minRides = Math.max(1, parseInt(req.query.minRides, 10) || 10);
+    let period = campaignPeriod('monthly');
+    let alreadySent = new Set();
 
-    // Aggregate shuttle transactions to find frequent riders
-    const frequentRiders = await Transaction.aggregate([
-      {
-        $match: {
-          transactionType: 'debit',
-          shuttleId: { $ne: null },
-          status: { $nin: ['Refunded', 'Failed'] },
-          createdAt: { $gte: startOfMonth, $lte: endOfMonth }
-        }
-      },
-      {
-        $group: {
-          _id: '$userId',
-          ridesThisMonth: { $sum: 1 },
-          totalSpent: { $sum: '$amount' },
-          lastRideDate: { $max: '$createdAt' }
-        }
-      },
-      {
-        $match: {
-          ridesThisMonth: { $gte: minRides }
-        }
-      },
-      {
-        $sort: { ridesThisMonth: -1 }
-      }
-    ]);
-
-    // Populate user details
-    const eligibleUsers = [];
-    for (const rider of frequentRiders) {
-      const user = await User.findById(rider._id);
-      if (user) {
-        eligibleUsers.push({
-          _id: user._id,
-          fullName: user.fullName,
-          schoolUId: user.schoolUId,
-          email: user.email,
-          ridesThisMonth: rider.ridesThisMonth,
-          totalSpent: rider.totalSpent,
-          lastRideDate: rider.lastRideDate
-        });
+    if (req.query.campaignId) {
+      const campaign = await PromotionCampaign.findById(req.query.campaignId);
+      if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
+      minRides = campaign.minimumRides || 1;
+      period = campaignPeriod(campaign.frequency);
+      if (campaign.sentPeriodKey === period.key) {
+        alreadySent = new Set((campaign.sentUserIds || []).map(String));
       }
     }
+
+    const eligibleUsers = (await findEligibleRiders(minRides, period.start)).map((u) => ({
+      ...u,
+      alreadyRewarded: alreadySent.has(String(u._id))
+    }));
 
     res.json(eligibleUsers);
   } catch (error) {
@@ -217,55 +247,19 @@ router.post('/campaigns/:id/send-rewards', async (req, res) => {
       return res.status(400).json({ error: 'Campaign is not active' });
     }
 
-    // Get eligible users directly
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    // Eligibility window follows the campaign's frequency; users already
+    // rewarded in this period are skipped (no double-sending).
+    const period = campaignPeriod(campaign.frequency);
+    const alreadySent = campaign.sentPeriodKey === period.key
+      ? new Set((campaign.sentUserIds || []).map(String))
+      : new Set();
 
-    const frequentRiders = await Transaction.aggregate([
-      {
-        $match: {
-          transactionType: 'debit',
-          shuttleId: { $ne: null },
-          status: { $nin: ['Refunded', 'Failed'] },
-          createdAt: { $gte: startOfMonth, $lte: endOfMonth }
-        }
-      },
-      {
-        $group: {
-          _id: '$userId',
-          ridesThisMonth: { $sum: 1 },
-          totalSpent: { $sum: '$amount' },
-          lastRideDate: { $max: '$createdAt' }
-        }
-      },
-      {
-        $match: {
-          ridesThisMonth: { $gte: campaign.minimumRides }
-        }
-      },
-      {
-        $sort: { ridesThisMonth: -1 }
-      }
-    ]);
-
-    const eligibleUsers = [];
-    for (const rider of frequentRiders) {
-      const user = await User.findById(rider._id);
-      if (user) {
-        eligibleUsers.push({
-          _id: user._id,
-          fullName: user.fullName,
-          schoolUId: user.schoolUId,
-          email: user.email,
-          ridesThisMonth: rider.ridesThisMonth,
-          totalSpent: rider.totalSpent,
-          lastRideDate: rider.lastRideDate
-        });
-      }
-    }
+    const allEligible = await findEligibleRiders(campaign.minimumRides || 1, period.start);
+    const eligibleUsers = allEligible.filter((u) => !alreadySent.has(String(u._id)));
+    const skippedCount = allEligible.length - eligibleUsers.length;
 
     let sentCount = 0;
+    const sentIds = [];
     const errors = [];
 
     // Send reward emails
@@ -302,74 +296,36 @@ router.post('/campaigns/:id/send-rewards', async (req, res) => {
           `
         });
         sentCount++;
+        sentIds.push(String(user._id));
       } catch (emailError) {
         console.error(`Failed to send email to ${user.email}:`, emailError);
         errors.push({ user: user.email, error: emailError.message });
       }
     }
 
-    // Update campaign
+    // Update campaign + record who was rewarded this period
     campaign.rewardsSent = (campaign.rewardsSent || 0) + sentCount;
     campaign.lastRunDate = new Date();
+    if (campaign.sentPeriodKey === period.key) {
+      campaign.sentUserIds = [...new Set([...(campaign.sentUserIds || []), ...sentIds])];
+    } else {
+      campaign.sentPeriodKey = period.key;
+      campaign.sentUserIds = sentIds;
+    }
     await campaign.save();
 
-    logPromoAction(req, 'Rewards Sent', `sent ${sentCount} reward email${sentCount !== 1 ? 's' : ''} for campaign "${campaign.title}"`, campaign._id, 'crud_update', { sent: sentCount, eligible: eligibleUsers.length });
+    logPromoAction(req, 'Rewards Sent', `sent ${sentCount} reward email${sentCount !== 1 ? 's' : ''} for campaign "${campaign.title}"${skippedCount ? ` (${skippedCount} already rewarded this period)` : ''}`, campaign._id, 'crud_update', { sent: sentCount, skipped: skippedCount, eligible: allEligible.length });
 
     res.json({
       message: 'Rewards sent successfully',
       sent: sentCount,
-      total: eligibleUsers.length,
+      skipped: skippedCount,
+      total: allEligible.length,
       errors: errors.length > 0 ? errors : undefined
     });
   } catch (error) {
     console.error('Error sending rewards:', error);
     res.status(500).json({ error: 'Failed to send rewards' });
-  }
-});
-
-/**
- * POST /admin/promotions/send-reward
- * Send reward email to a specific user
- */
-router.post('/send-reward', async (req, res) => {
-  try {
-    const { userId, rewardType } = req.body;
-
-    if (!userId || !rewardType) {
-      return res.status(400).json({ error: 'userId and rewardType are required' });
-    }
-
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    // Send reward email
-    await sendEmail({
-      to: user.email,
-      subject: '🎁 You\'ve Earned a Special Reward!',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #FFD41C;">🎉 Congratulations, ${user.fullName}!</h2>
-          <p>We have a special gift for you!</p>
-          <p>Thank you for being a loyal NU Shuttle Service user. We appreciate your continued support!</p>
-          <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="margin-top: 0; color: #1E2347;">Your Reward:</h3>
-            <p style="font-size: 18px; font-weight: bold; color: #FFD41C;">${rewardType === 'free_ride' ? 'One Free Ride!' : rewardType}</p>
-          </div>
-          <p>Keep riding with us to earn more rewards!</p>
-          <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
-          <p style="font-size: 12px; color: #666;">
-            This reward is valid for the next 30 days. Terms and conditions apply.
-          </p>
-        </div>
-      `
-    });
-
-    res.json({ message: 'Reward email sent successfully' });
-  } catch (error) {
-    console.error('Error sending reward:', error);
-    res.status(500).json({ error: 'Failed to send reward email' });
   }
 });
 
