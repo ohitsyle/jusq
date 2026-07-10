@@ -147,32 +147,27 @@ router.post('/pay', async (req, res) => {
 
     const negativeLimit = (await Setting.findOne())?.negativeLimit || -14;
 
-    // Get balance BEFORE any modification
-    const balanceBefore = user.balance;
-    const balanceAfter = balanceBefore - fare;
-    
-    console.log(`💰 Balance calculation: ${balanceBefore} - ${fare} = ${balanceAfter}`);
-    
-    // Skip balance check for offline payments (they were already validated offline)
+    // Atomic debit: the balance guard lives in the query itself, so two
+    // concurrent taps can never race past the negative limit or lose an
+    // update. Offline syncs were validated on-device and apply unconditionally.
     const isOfflineMode = req.body.offlineMode === true;
-    if (!isOfflineMode) {
-      // Check if balance would go below limit (only for online payments)
-      if (balanceAfter < negativeLimit) {
-        return res.status(400).json({
-          error: 'Insufficient balance. Please recharge your card.',
-          requiresRecharge: true,
-          currentBalance: balanceBefore,
-          fare: fare,
-          negativeLimit: negativeLimit
-        });
-      }
-    } else {
-      console.log('🔄 Offline mode detected - skipping balance check');
+    const debitQuery = isOfflineMode
+      ? { _id: user._id }
+      : { _id: user._id, balance: { $gte: negativeLimit + fare } };
+    const debited = await User.findOneAndUpdate(debitQuery, { $inc: { balance: -fare } }, { new: true });
+
+    if (!debited) {
+      return res.status(400).json({
+        error: 'Insufficient balance. Please recharge your card.',
+        requiresRecharge: true,
+        currentBalance: user.balance,
+        fare: fare,
+        negativeLimit: negativeLimit
+      });
     }
 
-    // Update user balance ONCE
-    user.balance = balanceAfter;
-    await user.save();
+    const balanceAfter = debited.balance;
+    const balanceBefore = balanceAfter + fare;
 
     // Generate transaction ID
     const transactionId = Transaction.generateTransactionId();
@@ -213,7 +208,7 @@ router.post('/pay', async (req, res) => {
       console.warn('⚠️ ShuttleTransaction creation failed:', stErr.message);
     }
 
-    console.log(`✅ Payment processed: ${user.fullName} - ₱${fare} (${balanceBefore} → ${balanceAfter})`);
+    console.log(`✅ Payment processed: ₱${fare} (${transactionId})`);
 
     // Send email receipt
     if (sendReceipt && user.email) {
@@ -278,12 +273,10 @@ router.post('/refund', async (req, res) => {
         return res.status(403).json({ error: 'Account is inactive' });
       }
 
-      // Process refund
-      const balanceBefore = user.balance;
-      const balanceAfter = balanceBefore + fareAmount;
-      
-      user.balance = balanceAfter;
-      await user.save();
+      // Atomic credit — refunds can race with taps on the same card
+      const credited = await User.findByIdAndUpdate(user._id, { $inc: { balance: fareAmount } }, { new: true });
+      const balanceAfter = credited.balance;
+      const balanceBefore = balanceAfter - fareAmount;
 
       // Create refund transaction record
       const transactionId = Transaction.generateTransactionId();
@@ -305,7 +298,7 @@ router.post('/refund', async (req, res) => {
 
       await transaction.save();
 
-      console.log(`✅ Offline refund processed: ${user.fullName} + ₱${fareAmount} (${balanceBefore} → ${balanceAfter})`);
+      console.log(`✅ Refund processed: +₱${fareAmount} (${transactionId})`);
 
       // Log the refund
       const { logEvent } = await import('../utils/logger.js');
@@ -392,14 +385,11 @@ router.post('/refund', async (req, res) => {
           continue;
         }
 
-        // Calculate refund
+        // Atomic credit — refunds can race with taps on the same card
         const refundAmount = transaction.amount;
-        const balanceBefore = user.balance;
-        const balanceAfter = balanceBefore + refundAmount;
-
-        // Refund the amount
-        user.balance = balanceAfter;
-        await user.save();
+        const credited = await User.findByIdAndUpdate(user._id, { $inc: { balance: refundAmount } }, { new: true });
+        const balanceAfter = credited.balance;
+        const balanceBefore = balanceAfter - refundAmount;
 
         // Update transaction status
         transaction.status = 'Refunded';
@@ -619,19 +609,22 @@ router.post('/sync', async (req, res) => {
         // Use fare from transaction, or default
         const fare = tx.fareAmount || 15;
 
-        // Deduct balance (apply negativeLimit: student needs ₱1 minimum)
-        const balanceBefore = user.balance;
-        const balanceAfter = balanceBefore - fare;
+        // Atomic debit with the negative-limit guard in the query itself
         const setting = await Setting.findOne();
         const negativeLimit = setting?.negativeLimit ?? -(fare - 1);
 
-        if (balanceAfter < negativeLimit) {
+        const debited = await User.findOneAndUpdate(
+          { _id: user._id, balance: { $gte: negativeLimit + fare } },
+          { $inc: { balance: -fare } },
+          { new: true }
+        );
+
+        if (!debited) {
           rejected.push({ rfidUId: tx.rfidUId, error: 'Insufficient balance' });
           continue;
         }
 
-        user.balance = balanceAfter;
-        await user.save();
+        const balanceAfter = debited.balance;
 
         // Generate transaction ID
         const transactionId = Transaction.generateTransactionId();

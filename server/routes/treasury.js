@@ -420,26 +420,31 @@ router.post('/transactions/:transactionId/refund', async (req, res) => {
     originalTx.status = 'Refunded';
     await originalTx.save();
 
-    // Update user balance based on transaction type
+    // Atomic balance adjustment — a refund can race with a tap or cash-in
+    // on the same account, so the guard lives in the query.
+    let updatedUser;
     if (originalTx.transactionType === 'debit') {
       // Refunding a payment - give money back
-      user.balance += originalTx.amount;
+      updatedUser = await User.findByIdAndUpdate(user._id, { $inc: { balance: originalTx.amount } }, { new: true });
     } else if (originalTx.transactionType === 'credit') {
-      // Refunding a cash-in - take money back
-      if (user.balance < originalTx.amount) {
+      // Refunding a cash-in - take money back (never below zero)
+      updatedUser = await User.findOneAndUpdate(
+        { _id: user._id, balance: { $gte: originalTx.amount } },
+        { $inc: { balance: -originalTx.amount } },
+        { new: true }
+      );
+      if (!updatedUser) {
         // Rollback the transaction status
         originalTx.status = 'Completed';
         await originalTx.save();
-        
+
         return res.status(400).json({
           success: false,
           message: 'Insufficient balance to refund cash-in'
         });
       }
-      user.balance -= originalTx.amount;
     }
-
-    await user.save();
+    const newUserBalance = updatedUser ? updatedUser.balance : user.balance;
 
     // Log the refund
     logAdminAction({
@@ -455,7 +460,7 @@ router.post('/transactions/:transactionId/refund', async (req, res) => {
       changes: {
         reason,
         refundAmount: originalTx.amount,
-        newUserBalance: user.balance
+        newUserBalance: newUserBalance
       },
       ipAddress: req.ip
     }).catch(() => {});
@@ -469,7 +474,7 @@ router.post('/transactions/:transactionId/refund', async (req, res) => {
         transactionId: originalTx.transactionId,
         amount: originalTx.amount,
         type: originalTx.transactionType,
-        userBalance: user.balance,
+        userBalance: newUserBalance,
         refundedAt: new Date()
       }
     });
@@ -631,7 +636,14 @@ router.post('/cash-in', async (req, res) => {
     // Create transaction ID
     const transactionId = await Transaction.generateTransactionId();
 
-    // Create transaction
+    // Atomic credit first — safe against a concurrent tap on the same card —
+    // then record the transaction with the real resulting balance.
+    const creditedUser = await User.findByIdAndUpdate(
+      user._id,
+      { $inc: { balance: parseFloat(amount) } },
+      { new: true }
+    );
+
     const transaction = new Transaction({
       transactionId,
       transactionType: 'credit',
@@ -640,16 +652,12 @@ router.post('/cash-in', async (req, res) => {
       userId: user._id,
       schoolUId: user.schoolUId,
       email: user.email,
-      balance: user.balance + parseFloat(amount),
+      balance: creditedUser.balance,
       adminId: adminId || null,
       viewFor: 'treasury'
     });
 
     await transaction.save();
-
-    // Update user balance
-    user.balance += parseFloat(amount);
-    await user.save();
 
     // Log admin action
     logAdminAction({
@@ -662,7 +670,7 @@ router.post('/cash-in', async (req, res) => {
       targetEntity: 'transaction',
       targetId: transactionId,
       crudOperation: 'cash_in',
-      changes: { amount, newBalance: user.balance },
+      changes: { amount, newBalance: creditedUser.balance },
       ipAddress: req.ip
     }).catch(() => {});
 
@@ -683,7 +691,7 @@ router.post('/cash-in', async (req, res) => {
         transactionId: transaction.transactionId,
         transaction_id: transaction.transactionId, // alias for client compatibility
         amount: transaction.amount,
-        newBalance: user.balance,
+        newBalance: creditedUser.balance,
         status: transaction.status,
         createdAt: transaction.createdAt
       },
@@ -693,7 +701,7 @@ router.post('/cash-in', async (req, res) => {
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
-        balance: user.balance
+        balance: creditedUser.balance
       }
     });
   } catch (error) {

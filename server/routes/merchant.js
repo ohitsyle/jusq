@@ -11,43 +11,24 @@ router.post('/pay', async (req, res) => {
   try {
     const { rfidUId, amount, deviceId, merchantId, pin } = req.body;
 
-    console.log('======================');
-    console.log('Merchant Payment Request');
-    console.log('Card UID:', rfidUId);
-    console.log('Amount:', amount);
-    console.log('PIN provided:', pin ? 'YES' : 'NO');
-    console.log('PIN value:', pin);
+    // NOTE: never log PINs (plaintext or hashed) — these lines end up in pm2 logs.
+    console.log('💳 Merchant payment request:', { merchantId, amount });
 
     // Find user
     const user = await User.findOne({ rfidUId });
     if (!user) {
-      console.log('❌ User not found for RFID:', rfidUId);
       return res.status(404).json({ error: 'User not found' });
     }
-
-    console.log('✅ User found:', user.fullName);
-    console.log('   User email:', user.email);
-    console.log('   Stored PIN hash:', user.pin);
-    console.log('   Incoming PIN:', pin);
 
     // Verify PIN
     if (!pin) {
       return res.status(400).json({ error: 'PIN is required for merchant payments' });
     }
 
-    // Compare hashed PIN with bcrypt
-    console.log('🔐 Comparing PIN...');
     const isPinValid = await bcrypt.compare(pin, user.pin);
-    console.log('   Comparison result:', isPinValid);
-
     if (!isPinValid) {
-      console.log('❌ Incorrect PIN');
-      console.log('   Expected hash:', user.pin);
-      console.log('   Provided PIN:', pin);
       return res.status(401).json({ error: 'Incorrect PIN. Please try again.' });
     }
-
-    console.log('✅ PIN verified successfully');
 
     // Validate amount
     const fareAmount = parseFloat(amount);
@@ -55,24 +36,28 @@ router.post('/pay', async (req, res) => {
       return res.status(400).json({ error: 'Invalid amount' });
     }
 
-    const newBalance = Math.round((user.balance - fareAmount) * 100) / 100;
+    // Atomic debit — merchants require a non-negative balance, and the guard
+    // lives in the query so concurrent payments can never overspend.
+    const debited = await User.findOneAndUpdate(
+      { _id: user._id, balance: { $gte: fareAmount } },
+      { $inc: { balance: -fareAmount } },
+      { new: true }
+    );
 
-    // MERCHANTS: NO negative balance allowed - must have enough funds
-    if (newBalance < 0) {
-      return res.status(409).json({ 
-        error: 'Insufficient balance - Merchant payments require positive balance' 
+    if (!debited) {
+      return res.status(409).json({
+        error: 'Insufficient balance - Merchant payments require positive balance'
       });
     }
 
-    const previous = user.balance;
-    user.balance = newBalance;
-    await user.save();
+    const newBalance = debited.balance;
+    const previous = newBalance + fareAmount;
 
     const tx = await Transaction.create({
       transactionId: Transaction.generateTransactionId(),
       transactionType: 'debit',
       amount: fareAmount,
-      balance: user.balance,
+      balance: newBalance,
       status: 'Completed',
       userId: user._id,
       schoolUId: user.schoolUId,
@@ -96,20 +81,20 @@ router.post('/pay', async (req, res) => {
       userName: user.fullName,
       fareAmount: fareAmount,
       previousBalance: previous,
-      newBalance: user.balance,
+      newBalance: newBalance,
       timestamp: tx.createdAt,
       merchantName: merchantName,
       transactionId: tx.transactionId
     }).catch(err => console.error('Email error:', err));
 
-    console.log(`✅ Payment successful: ${user.fullName} - ₱${fareAmount}`);
+    console.log(`✅ Merchant payment successful: ₱${fareAmount} (${tx.transactionId})`);
 
     return res.json({
       transactionId: tx._id,
       studentName: user.fullName,
       previousBalance: previous,
       fareAmount: fareAmount,
-      newBalance: user.balance,
+      newBalance: newBalance,
       timestamp: tx.createdAt
     });
   } catch (e) {

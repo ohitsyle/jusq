@@ -149,23 +149,6 @@ app.get('*', (req, res) => {
 });
 
 // DEBUG: Check all users in database
-app.get('/debug/users', async (req, res) => {
-  try {
-    const User = (await import('./models/User.js')).default;
-    const users = await User.find({}).select('email isActive createdAt');
-    res.json({
-      count: users.length,
-      users: users.map(u => ({
-        email: u.email,
-        isActive: u.isActive,
-        createdAt: u.createdAt
-      }))
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({
