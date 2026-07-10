@@ -1,6 +1,6 @@
 // src/pages/admin/Treasury/RegistrationForm.jsx
 import React, { useState, useRef } from 'react';
-import { FileText, Settings } from 'lucide-react';
+import { FileText, Settings, Check, AlertCircle, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
@@ -28,8 +28,55 @@ export default function RegistrationForm() {
   const [success, setSuccess] = useState(false);
   const [registeredUser, setRegisteredUser] = useState(null);
 
+  // Live availability checks (debounced): null | 'checking' | 'available' | 'taken'
+  const [rfidStatus, setRfidStatus] = useState(null);
+  const [schoolIdStatus, setSchoolIdStatus] = useState(null);
+  const rfidTimer = useRef(null);
+  const schoolIdTimer = useRef(null);
+
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleRfidInput = (value) => {
+    handleInputChange('rfidUId', value);
+    setRfidStatus(null);
+    if (rfidTimer.current) clearTimeout(rfidTimer.current);
+    if (!value.trim()) return;
+    rfidTimer.current = setTimeout(async () => {
+      const normalized = convertToHexLittleEndian(value.trim());
+      if (normalized.length < 8) return;
+      setRfidStatus('checking');
+      try {
+        const res = await api.get(`/admin/treasury/users/check-rfid?rfidUId=${encodeURIComponent(normalized)}`);
+        setRfidStatus(res.available === true ? 'available' : 'taken');
+      } catch { setRfidStatus(null); }
+    }, 300);
+  };
+
+  const handleSchoolIdInput = (value) => {
+    handleInputChange('schoolUId', value);
+    setSchoolIdStatus(null);
+    if (schoolIdTimer.current) clearTimeout(schoolIdTimer.current);
+    if (!value.trim()) return;
+    schoolIdTimer.current = setTimeout(async () => {
+      if (value.trim().length < 6) return;
+      setSchoolIdStatus('checking');
+      try {
+        const res = await api.get(`/admin/treasury/users/check-schoolid?schoolUId=${encodeURIComponent(value.trim())}`);
+        setSchoolIdStatus(res.available === true ? 'available' : 'taken');
+      } catch { setSchoolIdStatus(null); }
+    }, 300);
+  };
+
+  // Shared bits for the availability indicators
+  const statusBorder = (status, fallback) =>
+    status === 'taken' ? '#EF4444' : status === 'available' ? '#10B981' : fallback;
+  const StatusIcon = ({ status }) => {
+    if (status === 'checking') return <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-blue-500" />;
+    if (status === 'available') return <Check className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-500" />;
+    if (status === 'taken') return <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500" />;
+    return null;
   };
 
   const validateForm = () => {
@@ -37,8 +84,16 @@ export default function RegistrationForm() {
       toast.error('RFID is required');
       return false;
     }
+    if (rfidStatus === 'taken') {
+      toast.error('This RFID is already registered to another user');
+      return false;
+    }
     if (!formData.schoolUId.trim()) {
       toast.error('School ID is required');
+      return false;
+    }
+    if (schoolIdStatus === 'taken') {
+      toast.error('This School ID is already registered');
       return false;
     }
     if (!formData.firstName.trim()) {
@@ -111,6 +166,8 @@ export default function RegistrationForm() {
     });
     setSuccess(false);
     setRegisteredUser(null);
+    setRfidStatus(null);
+    setSchoolIdStatus(null);
     rfidInputRef.current?.focus();
   };
 
@@ -171,7 +228,9 @@ export default function RegistrationForm() {
                   Register Another
                 </button>
                 <button
-                  onClick={() => navigate('/admin/treasury/cashin')}
+                  onClick={() => navigate('/admin/treasury/dashboard', {
+                    state: { cashInRfid: registeredUser?.rfidUId || convertToHexLittleEndian(formData.rfidUId) }
+                  })}
                   style={{ background: theme.accent.primary, color: theme.accent.secondary }}
                   className="flex-1 py-3 rounded-xl font-bold hover:opacity-90 transition"
                 >
@@ -210,43 +269,53 @@ export default function RegistrationForm() {
               <label style={{ color: theme.text.secondary }} className="block text-xs font-bold uppercase mb-2">
                 RFID <span className="text-red-500">*</span>
               </label>
-              <input
-                ref={rfidInputRef}
-                type="text"
-                value={formData.rfidUId}
-                onChange={(e) => handleInputChange('rfidUId', e.target.value)}
-                onBlur={() => {
-                  if (formData.rfidUId.trim()) {
-                    const converted = convertToHexLittleEndian(formData.rfidUId);
-                    handleInputChange('rfidUId', converted);
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === 'Tab') {
+              <div className="relative">
+                <input
+                  ref={rfidInputRef}
+                  type="text"
+                  value={formData.rfidUId}
+                  onChange={(e) => handleRfidInput(e.target.value)}
+                  onBlur={() => {
                     if (formData.rfidUId.trim()) {
                       const converted = convertToHexLittleEndian(formData.rfidUId);
                       handleInputChange('rfidUId', converted);
                     }
-                  }
-                }}
-                placeholder="Scan or enter RFID"
-                style={{ background: theme.bg.tertiary, color: theme.text.primary, borderColor: theme.border.primary }}
-                className="w-full px-4 py-3 rounded-xl border font-mono text-sm focus:outline-none"
-                autoFocus
-              />
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === 'Tab') {
+                      if (formData.rfidUId.trim()) {
+                        const converted = convertToHexLittleEndian(formData.rfidUId);
+                        handleInputChange('rfidUId', converted);
+                      }
+                    }
+                  }}
+                  placeholder="Scan or enter RFID"
+                  style={{ background: theme.bg.tertiary, color: theme.text.primary, borderColor: statusBorder(rfidStatus, theme.border.primary) }}
+                  className="w-full px-4 py-3 pr-9 rounded-xl border font-mono text-sm focus:outline-none"
+                  autoFocus
+                />
+                <StatusIcon status={rfidStatus} />
+              </div>
+              {rfidStatus === 'taken' && <p className="text-red-500 text-xs mt-1">Already registered to another user</p>}
+              {rfidStatus === 'available' && <p className="text-green-500 text-xs mt-1">RFID is available</p>}
             </div>
             <div>
               <label style={{ color: theme.text.secondary }} className="block text-xs font-bold uppercase mb-2">
                 School ID <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
-                value={formData.schoolUId}
-                onChange={(e) => handleInputChange('schoolUId', e.target.value)}
-                placeholder="e.g., 2024-12345"
-                style={{ background: theme.bg.tertiary, color: theme.text.primary, borderColor: theme.border.primary }}
-                className="w-full px-4 py-3 rounded-xl border text-sm focus:outline-none"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  value={formData.schoolUId}
+                  onChange={(e) => handleSchoolIdInput(e.target.value)}
+                  placeholder="e.g., 2024-12345"
+                  style={{ background: theme.bg.tertiary, color: theme.text.primary, borderColor: statusBorder(schoolIdStatus, theme.border.primary) }}
+                  className="w-full px-4 py-3 pr-9 rounded-xl border text-sm focus:outline-none"
+                />
+                <StatusIcon status={schoolIdStatus} />
+              </div>
+              {schoolIdStatus === 'taken' && <p className="text-red-500 text-xs mt-1">Already registered</p>}
+              {schoolIdStatus === 'available' && <p className="text-green-500 text-xs mt-1">School ID is available</p>}
             </div>
           </div>
 

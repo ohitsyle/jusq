@@ -1,6 +1,7 @@
 // src/pages/admin/Treasury/TreasuryDashboard.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { Home } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import TransactionTable from '../../../components/TreasuryDashboard/TransactionTable';
@@ -60,8 +61,8 @@ export default function TreasuryDashboard() {
   useEffect(() => {
     loadDashboardData();
 
-    // Auto-refresh every 5 seconds
-    intervalRef.current = setInterval(loadDashboardData, 5000);
+    // Auto-refresh every 20s; skip while the tab is hidden
+    intervalRef.current = setInterval(() => { if (!document.hidden) loadDashboardData(); }, 20000);
 
     return () => {
       if (intervalRef.current) {
@@ -69,6 +70,19 @@ export default function TreasuryDashboard() {
       }
     };
   }, []);
+
+  // "Cash In Now" from the registration success screen lands here with the
+  // new user's RFID — open the cash-in modal pre-filled, then clear the
+  // navigation state so a refresh doesn't reopen it.
+  const location = useLocation();
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (location.state?.cashInRfid) {
+      setCashInPrefillRfid(location.state.cashInRfid);
+      setShowCashInModal(true);
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.state]); // eslint-disable-line
 
   // Handle opening register modal from cash-in modal (when user not found)
   const handleRegisterFromCashIn = (rfid) => {

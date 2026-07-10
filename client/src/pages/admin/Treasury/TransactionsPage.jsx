@@ -51,7 +51,7 @@ export default function TransactionsPage() {
 
   useEffect(() => {
     fetchTransactions();
-    intervalRef.current = setInterval(() => fetchTransactions(true), 10000);
+    intervalRef.current = setInterval(() => { if (!document.hidden) fetchTransactions(true); }, 30000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };

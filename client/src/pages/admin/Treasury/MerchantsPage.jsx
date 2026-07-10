@@ -52,7 +52,8 @@ export default function MerchantsPage() {
     fetchMerchants();
 
     intervalRef.current = setInterval(() => {
-      fetchAllMerchantsForStats(); // ✅ Update stats periodically
+      if (document.hidden) return;
+      fetchAllMerchantsForStats();
       fetchMerchants(true);
     }, 30000);
 
