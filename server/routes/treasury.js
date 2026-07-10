@@ -636,28 +636,43 @@ router.post('/cash-in', async (req, res) => {
     // Create transaction ID
     const transactionId = await Transaction.generateTransactionId();
 
+    // Transaction.adminId is an ObjectId ref — prefer the verified JWT
+    // identity; only accept a body value if it's actually a valid ObjectId
+    // (numeric admin IDs used to 500 here on schema cast).
+    const mongooseLib = (await import('mongoose')).default;
+    const adminObjectId = mongooseLib.isValidObjectId(req.authAdmin?.id) ? req.authAdmin.id
+      : mongooseLib.isValidObjectId(adminId) ? adminId
+      : null;
+
     // Atomic credit first — safe against a concurrent tap on the same card —
-    // then record the transaction with the real resulting balance.
+    // then record the transaction with the real resulting balance. If the
+    // record can't be written, roll the credit back so no untracked money
+    // is left on the account.
     const creditedUser = await User.findByIdAndUpdate(
       user._id,
       { $inc: { balance: parseFloat(amount) } },
       { new: true }
     );
 
-    const transaction = new Transaction({
-      transactionId,
-      transactionType: 'credit',
-      amount: parseFloat(amount),
-      status: 'Completed',
-      userId: user._id,
-      schoolUId: user.schoolUId,
-      email: user.email,
-      balance: creditedUser.balance,
-      adminId: adminId || null,
-      viewFor: 'treasury'
-    });
-
-    await transaction.save();
+    let transaction;
+    try {
+      transaction = new Transaction({
+        transactionId,
+        transactionType: 'credit',
+        amount: parseFloat(amount),
+        status: 'Completed',
+        userId: user._id,
+        schoolUId: user.schoolUId,
+        email: user.email,
+        balance: creditedUser.balance,
+        adminId: adminObjectId,
+        viewFor: 'treasury'
+      });
+      await transaction.save();
+    } catch (txErr) {
+      await User.findByIdAndUpdate(user._id, { $inc: { balance: -parseFloat(amount) } });
+      throw txErr;
+    }
 
     // Log admin action
     logAdminAction({
