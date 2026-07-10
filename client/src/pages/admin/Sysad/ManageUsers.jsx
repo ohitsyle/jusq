@@ -250,7 +250,7 @@ export default function ManageUsers() {
         <MetricCard icon={<UserX className="w-5 h-5" />} label="Deactivated" value={metrics.deactivated} color="#F97316" theme={theme} />
         <MetricCard icon={<Shield className="w-5 h-5" />} label="Admins" value={metrics.admins} color={isDarkMode ? '#FFD41C' : '#3B82F6'} theme={theme} />
         <MetricCard icon={<Briefcase className="w-5 h-5" />} label="Employees" value={metrics.employees} color="#F59E0B" theme={theme} />
-        <MetricCard icon={<GraduationCap className="w-5 h-5" />} label="Students" value={metrics.students} color="#06B6D4" theme={theme} />
+        <MetricCard icon={<GraduationCap className="w-5 h-5" />} label="Students" value={metrics.students} color="#6366F1" theme={theme} />
       </div>
 
       {/* Actions Bar */}
@@ -448,36 +448,13 @@ export default function ManageUsers() {
                               <Shield className="w-3.5 h-3.5" /> Root — Protected
                             </span>
                           ) : (
-                            <>
-                              {user._type !== 'admin' && (
-                                <button
-                                  onClick={() => handleResetPin(user)}
-                                  title="Issue a new temporary PIN and email it; the user re-activates their account"
-                                  style={{ background: 'rgba(245,158,11,0.15)', color: '#F59E0B', borderColor: 'rgba(245,158,11,0.3)' }}
-                                  className="px-3 py-1.5 rounded-lg hover:opacity-80 transition-all text-xs font-semibold border"
-                                >
-                                  Reset PIN
-                                </button>
-                              )}
-                              <button
-                                onClick={() => handleToggleStatus(user._id, user.isDeactivated)}
-                                style={{
-                                  background: user.isDeactivated ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
-                                  color: user.isDeactivated ? '#10B981' : '#EF4444',
-                                  borderColor: user.isDeactivated ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'
-                                }}
-                                className="px-3 py-1.5 rounded-lg hover:opacity-80 transition-all text-xs font-semibold border"
-                              >
-                                {user.isDeactivated ? 'Undeactivate' : 'Deactivate'}
-                              </button>
-                              <button
-                                onClick={() => handleDeleteUser(user._id)}
-                                style={{ background: 'rgba(239,68,68,0.15)', color: '#EF4444', borderColor: 'rgba(239,68,68,0.3)' }}
-                                className="px-3 py-1.5 rounded-lg hover:opacity-80 transition-all text-xs font-semibold border"
-                              >
-                                Delete
-                              </button>
-                            </>
+                            <button
+                              onClick={() => handleDeleteUser(user._id)}
+                              style={{ background: 'rgba(239,68,68,0.15)', color: '#EF4444', borderColor: 'rgba(239,68,68,0.3)' }}
+                              className="px-3 py-1.5 rounded-lg hover:opacity-80 transition-all text-xs font-semibold border"
+                            >
+                              Delete
+                            </button>
                           )}
                         </div>
                       </td>
@@ -546,6 +523,8 @@ export default function ManageUsers() {
           user={selectedUser}
           onClose={() => { setShowEditModal(false); setSelectedUser(null); }}
           onSuccess={() => { setShowEditModal(false); setSelectedUser(null); fetchUsers(true); showNotification('success', 'User Updated', 'User information has been updated successfully.'); }}
+          onResetPin={() => { const u = selectedUser; setShowEditModal(false); setSelectedUser(null); handleResetPin(u); }}
+          onToggleStatus={() => { const u = selectedUser; setShowEditModal(false); setSelectedUser(null); handleToggleStatus(u._id, u.isDeactivated); }}
         />
       )}
 
@@ -595,7 +574,7 @@ function RoleBadge({ role, isDarkMode }) {
     motorpool: { bg: 'rgba(245,158,11,0.15)', color: '#F59E0B', label: 'Motorpool' },
     merchant: { bg: 'rgba(236,72,153,0.15)', color: '#EC4899', label: 'Merchant' },
     marketing: { bg: 'rgba(6,182,212,0.15)', color: '#06B6D4', label: 'Marketing' },
-    student: { bg: 'rgba(6,182,212,0.15)', color: '#06B6D4', label: 'Student' },
+    student: { bg: 'rgba(99,102,241,0.15)', color: '#6366F1', label: 'Student' },
     employee: { bg: 'rgba(245,158,11,0.15)', color: '#F59E0B', label: 'Employee' },
     user: { bg: 'rgba(107,114,128,0.15)', color: '#6B7280', label: 'User' }
   };
@@ -628,7 +607,7 @@ function DeactivatedBadge({ isDeactivated }) {
 }
 
 // Edit User Modal
-function EditUserModal({ theme, isDarkMode, user, onClose, onSuccess }) {
+function EditUserModal({ theme, isDarkMode, user, onClose, onSuccess, onResetPin, onToggleStatus }) {
   const [formData, setFormData] = useState({
     firstName: user.firstName || '',
     middleName: user.middleName || '',
@@ -772,6 +751,46 @@ function EditUserModal({ theme, isDarkMode, user, onClose, onSuccess }) {
               {formData.isActive ? 'Active' : 'Inactive'}
             </button>
           </div>
+
+          {/* Account Actions — PIN rescue + deactivation live here, not in the table */}
+          {user.email?.toLowerCase() !== 'sysad@nu.edu.ph' && (
+            <div
+              style={{ background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB', borderColor: theme.border.primary }}
+              className="p-4 rounded-xl border"
+            >
+              <p style={{ color: theme.text.primary }} className="font-semibold mb-1">Account Actions</p>
+              <p style={{ color: theme.text.secondary }} className="text-xs mb-3">
+                These take effect immediately — no need to save.
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                {user._type !== 'admin' && onResetPin && (
+                  <button
+                    type="button"
+                    onClick={onResetPin}
+                    title="Issue a new temporary PIN and email it; the user re-activates their account"
+                    style={{ background: 'rgba(245,158,11,0.15)', color: '#F59E0B', borderColor: 'rgba(245,158,11,0.3)' }}
+                    className="px-4 py-2 rounded-lg hover:opacity-80 transition-all text-xs font-semibold border"
+                  >
+                    🔑 Reset PIN
+                  </button>
+                )}
+                {onToggleStatus && (
+                  <button
+                    type="button"
+                    onClick={onToggleStatus}
+                    style={{
+                      background: user.isDeactivated ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
+                      color: user.isDeactivated ? '#10B981' : '#EF4444',
+                      borderColor: user.isDeactivated ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'
+                    }}
+                    className="px-4 py-2 rounded-lg hover:opacity-80 transition-all text-xs font-semibold border"
+                  >
+                    {user.isDeactivated ? '✅ Undeactivate' : '🚫 Deactivate'}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex gap-3 pt-4">

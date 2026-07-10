@@ -125,7 +125,7 @@ const EventLogSchema = new mongoose.Schema({
   },
   targetEntity: {
     type: String,
-    enum: ['driver', 'shuttle', 'route', 'trip', 'phone', 'user', 'transaction', 'merchant', 'admin', 'concern', 'config', 'promotion'],
+    enum: ['driver', 'shuttle', 'route', 'trip', 'phone', 'user', 'transaction', 'merchant', 'admin', 'concern', 'config', 'promotion', 'alert'],
     default: null,
     index: true
   },

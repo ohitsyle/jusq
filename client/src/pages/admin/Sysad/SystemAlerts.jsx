@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { toast } from 'react-toastify';
-import { Bell, Plus, Trash2, X, Loader2, Eye, EyeOff, Info, AlertTriangle, AlertOctagon, CheckCircle2 } from 'lucide-react';
+import { Bell, Plus, Trash2, X, Loader2, Eye, EyeOff, Info, AlertTriangle, AlertOctagon, CheckCircle2, Clock } from 'lucide-react';
 import { confirmDialog } from '../../../components/shared/ConfirmDialogHost';
 
 const SEVERITIES = [
@@ -69,18 +69,39 @@ export default function SystemAlerts() {
     catch (e) { toast.error('Failed to delete alert'); }
   };
 
+  const now = new Date();
+  const isExpired = (a) => a.expiresAt && new Date(a.expiresAt) <= now;
+  const visibleCount = alerts.filter((a) => a.active && !isExpired(a)).length;
+  const hiddenCount = alerts.filter((a) => !a.active).length;
+  const expiredCount = alerts.filter((a) => isExpired(a)).length;
+
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+    <div className="h-full flex flex-col">
+      {/* Header (standard sysad tab pattern) */}
+      <div style={{ borderColor: theme.border.primary }} className="mb-6 border-b-2 pb-5 flex justify-between items-start flex-wrap gap-4">
         <div>
-          <h1 style={{ color: theme.text.primary }} className="text-2xl font-bold">System Alerts</h1>
-          <p style={{ color: theme.text.secondary }} className="text-sm">Post announcements and alerts shown to all end-users.</p>
+          <h2 style={{ color: accent }} className="text-2xl font-bold m-0 mb-2 flex items-center gap-[10px]">
+            <Bell className="w-5 h-5" /> System Alerts
+          </h2>
+          <p style={{ color: theme.text.secondary }} className="text-[13px] m-0">
+            Post announcements and alerts shown to all end-users • {alerts.length} alert{alerts.length !== 1 ? 's' : ''}
+          </p>
         </div>
-        <button onClick={() => setShowModal(true)} style={{ background: accent, color: isDarkMode ? '#181D40' : '#FFFFFF' }} className="px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:opacity-90 transition">
+        <button onClick={() => setShowModal(true)} style={{ background: accent, color: isDarkMode ? '#181D40' : '#FFFFFF' }} className="py-3 px-6 rounded-xl text-sm font-bold cursor-pointer flex items-center gap-2 shadow-lg border-none hover:opacity-90 transition">
           <Plus className="w-5 h-5" /> New Alert
         </button>
       </div>
 
+      {/* Metrics */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+        <AlertMetric icon={Bell} label="Total Alerts" value={alerts.length} color="#3B82F6" theme={theme} />
+        <AlertMetric icon={Eye} label="Visible to Users" value={visibleCount} color="#10B981" theme={theme} />
+        <AlertMetric icon={EyeOff} label="Hidden" value={hiddenCount} color="#6B7280" theme={theme} />
+        <AlertMetric icon={Clock} label="Expired" value={expiredCount} color="#F59E0B" theme={theme} />
+      </div>
+
+      {/* Alert list */}
+      <div className="flex-1 overflow-y-auto pr-2">
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin" style={{ color: accent }} /></div>
       ) : alerts.length === 0 ? (
@@ -129,6 +150,7 @@ export default function SystemAlerts() {
           })}
         </div>
       )}
+      </div>{/* end scrollable list */}
 
       {showModal && (
         <div onClick={() => !saving && setShowModal(false)} className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
@@ -184,6 +206,21 @@ export default function SystemAlerts() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Metric card matching the Manage Users summary row
+function AlertMetric({ icon: Icon, label, value, color, theme }) {
+  return (
+    <div style={{ background: theme.bg.card, borderColor: `${color}25` }} className="p-4 rounded-xl border flex items-center gap-3">
+      <div style={{ background: `${color}20`, color }} className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0">
+        <Icon className="w-5 h-5" />
+      </div>
+      <div>
+        <p style={{ color: theme.text.secondary }} className="text-[11px] font-bold uppercase m-0">{label}</p>
+        <p style={{ color }} className="text-lg font-bold m-0">{value}</p>
+      </div>
     </div>
   );
 }

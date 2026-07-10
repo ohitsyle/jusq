@@ -80,6 +80,12 @@ router.get('/dashboard', async (req, res) => {
     const lastAutoExport = await ExportHistory.findOne({ triggeredBy: 'automatic' })
       .sort({ exportedAt: -1 }).select('fileName exportedAt').lean();
 
+    // Auto-export enabled state lives in the Configuration collection (what
+    // the Settings tab writes via /admin/configurations/auto-export), not in
+    // the legacy in-memory systemConfig.
+    const Configuration = (await import('../models/Configuration.js')).default;
+    const sysadExportCfg = await Configuration.findOne({ configType: 'autoExport', adminRole: 'sysad' }).lean();
+
     res.json({
       success: true,
       userMetrics: {
@@ -94,7 +100,7 @@ router.get('/dashboard', async (req, res) => {
       systemStatus: {
         maintenance: getMaintenanceStatus(),
         deactivationScheduler: systemConfig.deactivationScheduler || { enabled: false },
-        autoExportEnabled: systemConfig.autoExport?.enabled ?? false,
+        autoExportEnabled: sysadExportCfg?.autoExport?.enabled ?? false,
         lastAutoExport: lastAutoExport ? { fileName: lastAutoExport.fileName, at: lastAutoExport.exportedAt } : null,
         uptimeSeconds: Math.floor(process.uptime()),
         dbConnected: User.db.readyState === 1

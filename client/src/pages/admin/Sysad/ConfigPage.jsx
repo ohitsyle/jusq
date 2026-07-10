@@ -629,7 +629,7 @@ export default function SysadConfigPage() {
           </div>
 
           {/* Scheduler Form */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5 max-w-xl">
             <div>
               <label style={{ color: accentColor }} className="block text-xs font-bold uppercase mb-2">
                 Deactivation Date

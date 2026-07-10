@@ -179,7 +179,7 @@ export default function SysadDashboard() {
           icon={<GraduationCap className="w-6 h-6" />}
           label="Students"
           value={metrics.students?.toLocaleString() || '0'}
-          color="#F59E0B"
+          color="#6366F1"
           theme={theme}
           isDarkMode={isDarkMode}
         />
@@ -187,7 +187,7 @@ export default function SysadDashboard() {
           icon={<Briefcase className="w-6 h-6" />}
           label="Employees"
           value={metrics.employees?.toLocaleString() || '0'}
-          color="#06B6D4"
+          color="#F59E0B"
           theme={theme}
           isDarkMode={isDarkMode}
         />
