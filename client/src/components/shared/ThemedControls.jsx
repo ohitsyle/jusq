@@ -7,19 +7,24 @@
 // and apply the caller's style/className to the trigger so each page keeps its look.
 
 import React, { useState, useRef, useEffect, useMemo, Children } from 'react';
+import { createPortal } from 'react-dom';
 import { useTheme } from '../../context/ThemeContext';
 import { ChevronDown, ChevronLeft, ChevronRight, Check, Calendar as CalendarIcon, Clock } from 'lucide-react';
 
 // ---------- shared popup plumbing ------------------------------------------
 
-function useClickOutside(ref, onClose) {
+// Accepts one ref or an array (trigger + portaled popup live in different trees)
+function useClickOutside(refs, onClose) {
   useEffect(() => {
-    const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
+    const list = Array.isArray(refs) ? refs : [refs];
+    const onDown = (e) => {
+      if (list.every((r) => !r.current || !r.current.contains(e.target))) onClose();
+    };
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('mousedown', onDown);
     document.addEventListener('keydown', onKey);
     return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
-  }, [ref, onClose]);
+  });
 }
 
 function usePopupColors() {
@@ -75,8 +80,9 @@ const popupStyle = (c, pos, extra = {}) => ({
 export function ThemedSelect({ value, onChange, children, style = {}, className = '', disabled }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);
+  const popRef = useRef(null);
   const c = usePopupColors();
-  useClickOutside(wrapRef, () => setOpen(false));
+  useClickOutside([wrapRef, popRef], () => setOpen(false));
   const pos = useFixedPopupPos(wrapRef, open, 272, 240);
 
   // Parse <option> children (supports arrays from .map)
@@ -122,8 +128,8 @@ export function ThemedSelect({ value, onChange, children, style = {}, className 
         <ChevronDown style={{ width: 14, height: 14, flexShrink: 0, transition: 'transform 0.15s', transform: open ? 'rotate(180deg)' : 'none', color: c.accent }} />
       </button>
 
-      {open && pos && (
-        <div style={popupStyle(c, pos, { minWidth: pos.width, maxHeight: 260, overflowY: 'auto', padding: 4 })}>
+      {open && pos && createPortal(
+        <div ref={popRef} style={popupStyle(c, pos, { minWidth: pos.width, maxHeight: 260, overflowY: 'auto', padding: 4 })}>
           {options.map((opt, i) => {
             const isSel = String(opt.value) === String(value);
             return (
@@ -146,7 +152,8 @@ export function ThemedSelect({ value, onChange, children, style = {}, className 
               </div>
             );
           })}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -170,8 +177,9 @@ export function ThemedDateInput({ value, onChange, min, max, style = {}, classNa
   const selDate = parseYMD(value);
   const [view, setView] = useState(() => selDate || new Date());
   const wrapRef = useRef(null);
+  const popRef = useRef(null);
   const c = usePopupColors();
-  useClickOutside(wrapRef, () => setOpen(false));
+  useClickOutside([wrapRef, popRef], () => setOpen(false));
   const pos = useFixedPopupPos(wrapRef, open, 360, 252);
 
   useEffect(() => { if (open) setView(parseYMD(value) || new Date()); }, [open]); // eslint-disable-line
@@ -210,8 +218,8 @@ export function ThemedDateInput({ value, onChange, min, max, style = {}, classNa
         <CalendarIcon style={{ width: 14, height: 14, flexShrink: 0, color: c.accent }} />
       </button>
 
-      {open && pos && (
-        <div style={popupStyle(c, pos, { width: 252, padding: 12 })}>
+      {open && pos && createPortal(
+        <div ref={popRef} style={popupStyle(c, pos, { width: 252, padding: 12 })}>
           {/* Month header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
             <button type="button" onClick={() => setView(new Date(year, month - 1, 1))}
@@ -279,7 +287,8 @@ export function ThemedDateInput({ value, onChange, min, max, style = {}, classNa
               Clear
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -290,8 +299,9 @@ export function ThemedDateInput({ value, onChange, min, max, style = {}, classNa
 export function ThemedTimeInput({ value, onChange, style = {}, className = '' }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);
+  const popRef = useRef(null);
   const c = usePopupColors();
-  useClickOutside(wrapRef, () => setOpen(false));
+  useClickOutside([wrapRef, popRef], () => setOpen(false));
   const pos = useFixedPopupPos(wrapRef, open, 200, 190);
 
   const [hh, mm] = (value || '00:00').split(':').map((n) => parseInt(n, 10) || 0);
@@ -327,8 +337,8 @@ export function ThemedTimeInput({ value, onChange, style = {}, className = '' })
         <Clock style={{ width: 14, height: 14, flexShrink: 0, color: c.accent }} />
       </button>
 
-      {open && pos && (
-        <div style={popupStyle(c, pos, { display: 'flex', gap: 2, padding: 6 })}>
+      {open && pos && createPortal(
+        <div ref={popRef} style={popupStyle(c, pos, { display: 'flex', gap: 2, padding: 6 })}>
           <div style={colStyle}>
             {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
               <div key={h} style={itemStyle(h === hour12)} onClick={() => emit(h, mm, period)}
@@ -356,7 +366,8 @@ export function ThemedTimeInput({ value, onChange, style = {}, className = '' })
               </div>
             ))}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
