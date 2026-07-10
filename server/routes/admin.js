@@ -314,6 +314,19 @@ router.delete('/drivers/:id', async (req, res) => {
     const driver = await Driver.findByIdAndDelete(req.params.id);
     if (!driver) return res.status(404).json({ error: 'Driver not found' });
 
+    // Cascade: free phones assigned to this driver and clear shuttle
+    // assignments so nothing keeps pointing at a deleted driver.
+    await Promise.all([
+      Phone.updateMany(
+        { assignedDriverId: driver.driverId },
+        { $set: { assignedDriverId: null, assignedDriverName: null, assignedDate: null, status: 'available' } }
+      ),
+      Shuttle.updateMany(
+        { assignedDriverId: driver.driverId },
+        { $set: { assignedDriverId: null, assignedDriverName: null } }
+      )
+    ]);
+
     // Log admin action
     await logAdminAction({
       adminId: req.adminInfo?.adminId || 'system',

@@ -35,7 +35,7 @@ export default function TripsList() {
 
   useEffect(() => {
     loadTrips();
-    const interval = setInterval(loadTrips, 5000);
+    const interval = setInterval(() => { if (!document.hidden) loadTrips(); }, 20000);
     return () => clearInterval(interval);
   }, []);
 

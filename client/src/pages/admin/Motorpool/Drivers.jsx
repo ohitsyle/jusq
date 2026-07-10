@@ -1,6 +1,6 @@
 // src/admin/components/Drivers/DriversList.jsx
 import React, { useState, useEffect } from 'react';
-import { Users } from 'lucide-react';
+import { Users, UserCheck, UserX, BadgeAlert } from 'lucide-react';
 import api from '../../../utils/api';
 import SearchBar from '../../../components/shared/SearchBar';
 import ExportButton from '../../../components/shared/ExportButton';
@@ -8,6 +8,18 @@ import { exportToCSV, prepareDataForExport } from '../../../utils/csvExport';
 import { useTheme } from '../../../context/ThemeContext';
 import { ThemedDateInput, ThemedSelect } from '../../../components/shared/ThemedControls';
 import { confirmDialog } from '../../../components/shared/ConfirmDialogHost';
+
+// License expiry status: expired -> red, within 30 days -> amber, else plain date
+const licenseState = (driver) => {
+  if (!driver.licenseExpiry) return null;
+  const exp = new Date(driver.licenseExpiry);
+  if (isNaN(exp)) return null;
+  const days = Math.ceil((exp - Date.now()) / 86400000);
+  const dateLabel = exp.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  if (days < 0) return { badge: 'EXPIRED', color: '#EF4444', dateLabel, alert: true };
+  if (days <= 30) return { badge: `${days}d left`, color: '#F59E0B', dateLabel, alert: true };
+  return { badge: null, color: null, dateLabel, alert: false };
+};
 
 export default function DriversList() {
   const { theme, isDarkMode } = useTheme();
@@ -46,7 +58,7 @@ export default function DriversList() {
 
   useEffect(() => {
     loadDrivers();
-    const interval = setInterval(loadDrivers, 5000);
+    const interval = setInterval(() => { if (!document.hidden) loadDrivers(); }, 20000);
     return () => clearInterval(interval);
   }, []);
 
@@ -321,6 +333,14 @@ export default function DriversList() {
           </button>
         </div>
 
+        {/* Metrics */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+          <DriverMetric icon={Users} label="Total Drivers" value={drivers.length} color="#3B82F6" theme={theme} />
+          <DriverMetric icon={UserCheck} label="Active" value={drivers.filter((d) => d.isActive).length} color="#10B981" theme={theme} />
+          <DriverMetric icon={UserX} label="Inactive" value={drivers.filter((d) => !d.isActive).length} color="#EF4444" theme={theme} />
+          <DriverMetric icon={BadgeAlert} label="License Alerts" value={drivers.filter((d) => licenseState(d)?.alert).length} color="#F59E0B" theme={theme} />
+        </div>
+
         {/* Search and Export Row */}
         <div className="rounded-xl border-2 p-4" style={{ background: isDarkMode ? 'rgba(15,18,39,0.8)' : theme.bg.card, borderColor: theme.accent.primary }}>
           <div className="flex gap-3 items-center flex-wrap">
@@ -368,6 +388,7 @@ export default function DriversList() {
                 <th className="text-left p-4 text-[11px] font-extrabold uppercase" style={{ color: theme.accent.primary, borderBottom: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}` }}>Name</th>
                 <th className="text-left p-4 text-[11px] font-extrabold uppercase" style={{ color: theme.accent.primary, borderBottom: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}` }}>Email</th>
                 <th className="text-left p-4 text-[11px] font-extrabold uppercase" style={{ color: theme.accent.primary, borderBottom: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}` }}>Shuttle</th>
+                <th className="text-left p-4 text-[11px] font-extrabold uppercase" style={{ color: theme.accent.primary, borderBottom: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}` }}>License Expiry</th>
                 <th className="text-left p-4 text-[11px] font-extrabold uppercase" style={{ color: theme.accent.primary, borderBottom: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}` }}>Status</th>
                 <th className="text-left p-4 text-[11px] font-extrabold uppercase" style={{ color: theme.accent.primary, borderBottom: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}` }}>Actions</th>
               </tr>
@@ -388,7 +409,24 @@ export default function DriversList() {
                     {driver.shuttleId || 'None'}
                   </td>
                   <td style={{ padding: '16px' }}>
-                    <ThemedSelect 
+                    {(() => {
+                      const lic = licenseState(driver);
+                      if (!lic) return <span style={{ color: theme.text.tertiary }}>—</span>;
+                      return (
+                        <span className="inline-flex items-center gap-2">
+                          <span style={{ color: lic.alert ? lic.color : theme.text.primary }}>{lic.dateLabel}</span>
+                          {lic.badge && (
+                            <span style={{ background: `${lic.color}22`, color: lic.color, border: `1px solid ${lic.color}44` }}
+                              className="px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase whitespace-nowrap">
+                              {lic.badge}
+                            </span>
+                          )}
+                        </span>
+                      );
+                    })()}
+                  </td>
+                  <td style={{ padding: '16px' }}>
+                    <ThemedSelect
                       value={driver.isActive ? 'active' : 'inactive'}
                       onChange={(e) => handleStatusChange(driver, e.target.value)}
                       style={{
@@ -745,6 +783,20 @@ export default function DriversList() {
           }
         }
       `}</style>
+    </div>
+  );
+}
+// Metric card matching the Manage Users summary row
+function DriverMetric({ icon: Icon, label, value, color, theme }) {
+  return (
+    <div style={{ background: theme.bg.card, borderColor: `${color}25` }} className="p-4 rounded-xl border flex items-center gap-3">
+      <div style={{ background: `${color}20`, color }} className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0">
+        <Icon className="w-5 h-5" />
+      </div>
+      <div>
+        <p style={{ color: theme.text.secondary }} className="text-[11px] font-bold uppercase m-0">{label}</p>
+        <p style={{ color }} className="text-lg font-bold m-0">{value}</p>
+      </div>
     </div>
   );
 }

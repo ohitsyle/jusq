@@ -53,7 +53,7 @@ export default function PhonesList() {
   useEffect(() => {
     loadPhones();
     loadDrivers();
-    const interval = setInterval(loadPhones, 5000);
+    const interval = setInterval(() => { if (!document.hidden) loadPhones(); }, 20000);
     return () => clearInterval(interval);
   }, []);
 
@@ -584,6 +584,40 @@ export default function PhonesList() {
                     </option>
                   ))}
                 </ThemedSelect>
+              </div>
+
+              {/* Device status — only choosable when unassigned; assigning a driver forces 'assigned' */}
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', fontWeight: 700, color: theme.accent.primary, textTransform: 'uppercase' }}>Device Status</label>
+                {formData.assignedDriverId ? (
+                  <div style={{
+                    padding: '12px',
+                    border: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.2)' : 'rgba(59,130,246,0.2)'}`,
+                    borderRadius: '8px',
+                    background: 'rgba(59,130,246,0.08)',
+                    color: '#3B82F6',
+                    fontSize: '13px',
+                    fontWeight: 600
+                  }}>
+                    Assigned — set automatically while a driver holds this phone
+                  </div>
+                ) : (
+                  <ThemedSelect value={formData.status || 'available'} onChange={(e) => setFormData({ ...formData, status: e.target.value })} style={{
+                    width: '100%',
+                    padding: '12px',
+                    border: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}`,
+                    borderRadius: '8px',
+                    background: isDarkMode ? 'rgba(251,251,251,0.05)' : 'rgba(0,0,0,0.03)',
+                    color: theme.text.primary,
+                    fontSize: '14px',
+                    boxSizing: 'border-box',
+                    cursor: 'pointer'
+                  }}>
+                    <option value="available">Available</option>
+                    <option value="maintenance">Maintenance</option>
+                    <option value="retired">Retired</option>
+                  </ThemedSelect>
+                )}
               </div>
 
               <div style={{ marginBottom: '24px' }}>
