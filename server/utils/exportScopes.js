@@ -131,10 +131,13 @@ export function buildDepartmentConcernQuery(role) {
   if (role === 'merchant') {
     return { $or: [{ reportTo: 'Merchant Office' }, { reportTo: { $regex: 'merchant', $options: 'i' } }] };
   }
-  if (role === 'treasury' || role === 'accounting') {
+  if (role === 'treasury') {
     return { $or: [{ reportTo: 'Treasury Office' }, { reportTo: { $regex: 'treasury', $options: 'i' } }] };
   }
-  return {};
+  // Accounting is view-only for financial data and does not handle concerns.
+  // Unknown roles also match nothing — falling through to {} would mean
+  // "see everything", which is sysad-only.
+  return { _id: null };
 }
 
 // Phone: merchant phones vs driver phones (shared collection).

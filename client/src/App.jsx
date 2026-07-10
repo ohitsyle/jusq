@@ -380,14 +380,6 @@ function AppContent() {
         }
       />
       <Route
-        path="/admin/accounting/concerns"
-        element={
-          <AccountingProtectedRoute>
-            <ConcernsManagement />
-          </AccountingProtectedRoute>
-        }
-      />
-      <Route
         path="/admin/accounting/config"
         element={
           <AccountingProtectedRoute>

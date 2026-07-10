@@ -96,7 +96,7 @@ export default function AccountingHome() {
       </div>
 
       {/* Main Stats Grid */}
-      <div className="grid grid-cols-4 gap-5 mb-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-5">
         <StatCard icon="🏪" label="TOTAL COLLECTIONS" value={`₱${analytics.totalCollections.toLocaleString()}`} subtitle="from payments" color="#10B981" theme={theme} />
         <StatCard icon="💵" label="CASH-IN" value={`₱${analytics.todayCashIn.toLocaleString()}`} subtitle="loaded" color="#3B82F6" theme={theme} />
         <StatCard icon="💸" label="CASH-OUT" value={`₱${analytics.todayCashOut.toLocaleString()}`} subtitle="withdrawn" color="#EF4444" theme={theme} />
@@ -104,7 +104,7 @@ export default function AccountingHome() {
       </div>
 
       {/* Secondary Stats */}
-      <div className="grid grid-cols-2 gap-5 mb-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
         <StatCard icon="👥" label="TOTAL USERS" value={analytics.totalUsers.toLocaleString()} subtitle="registered" color="#F59E0B" theme={theme} />
         <StatCard icon="🏪" label="MERCHANTS" value={analytics.totalMerchants.toLocaleString()} subtitle="active" color="#06B6D4" theme={theme} />
       </div>

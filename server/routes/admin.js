@@ -16,7 +16,7 @@ import ShuttleTransaction from '../models/ShuttleTransaction.js';
 import { logAdminAction, logError, logDriverLogin, logDriverLogout, logDriverShuttleSelection, logDriverRouteChange, logMerchantLogin, logMerchantLogout, logCashIn, logAutoExportConfigChange, logManualExport, logMaintenanceMode, logStudentDeactivation } from '../utils/logger.js';
 import { extractAdminInfo } from '../middlewares/extractAdminInfo.js';
 import { broadcastChanges, forceMobileRefresh } from '../middlewares/realtimeMiddleware.js';
-import { buildDepartmentLogQuery } from '../utils/exportScopes.js';
+import { buildDepartmentLogQuery, buildDepartmentConcernQuery } from '../utils/exportScopes.js';
 
 // Apply admin info extraction middleware to all admin routes
 router.use(extractAdminInfo);
@@ -737,7 +737,10 @@ router.delete('/routes/:id', async (req, res) => {
 
 router.get('/event-logs', async (req, res) => {
   try {
-    const { department } = req.query;
+    // Scope by the verified JWT role, not the client-supplied query param —
+    // otherwise any admin could request another department's (or everyone's)
+    // logs. sysad maps to "see everything" inside the shared query builder.
+    const department = req.authAdmin?.role || req.query.department;
 
     // Department scoping is shared with the export system (single source of
     // truth) — handles all roles incl. marketing. sysad/empty sees everything.
@@ -810,22 +813,12 @@ router.get('/user-concerns', async (req, res) => {
     // returns other departments' concerns. Unknown/no role (e.g. the mobile
     // admin app, which sends no role header) falls through to all — preserving
     // current behaviour with no breakage.
-    const role = (req.adminRole || req.adminInfo?.adminRole || '').toLowerCase();
-    let filter = {};
-    if (role === 'motorpool') {
-      filter = {
-        $or: [
-          { reportTo: 'NU Shuttle Service' },
-          { reportTo: { $regex: 'motorpool', $options: 'i' } },
-          { reportTo: { $regex: 'shuttle', $options: 'i' } }
-        ]
-      };
-    } else if (role === 'merchant') {
-      filter = { reportTo: 'Merchant Office' };
-    } else if (role === 'accounting' || role === 'treasury') {
-      filter = { reportTo: 'Treasury Office' };
-    }
-    // sysad and unknown roles see everything.
+    // Scope by the verified JWT role (set by requireAdminAuth) — the X-Admin-*
+    // headers are client-supplied and spoofable. The query itself comes from
+    // the shared builder (same one exports use) so the two can't drift; it
+    // maps sysad -> everything, accounting -> nothing (view-only role).
+    const role = (req.authAdmin?.role || req.adminRole || req.adminInfo?.adminRole || '').toLowerCase();
+    const filter = buildDepartmentConcernQuery(role);
 
     const concerns = await UserConcern.find(filter).sort({ submittedAt: -1 });
     res.json({ success: true, concerns });
