@@ -15,6 +15,16 @@ const SEVERITIES = [
 ];
 const sevMeta = (s) => SEVERITIES.find((x) => x.value === s) || SEVERITIES[0];
 
+// Auto-hide choices; value = hours (0 = never expires)
+const EXPIRY_OPTIONS = [
+  { value: 0, label: 'Never' },
+  { value: 1, label: '1 hour' },
+  { value: 6, label: '6 hours' },
+  { value: 24, label: '24 hours' },
+  { value: 72, label: '3 days' },
+  { value: 168, label: '7 days' },
+];
+
 export default function SystemAlerts() {
   const { theme, isDarkMode } = useTheme();
   const accent = theme.accent.primary;
@@ -22,7 +32,7 @@ export default function SystemAlerts() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ title: '', message: '', severity: 'info', active: true });
+  const [form, setForm] = useState({ title: '', message: '', severity: 'info', active: true, expiryHours: 0 });
 
   const load = async () => {
     try {
@@ -36,10 +46,14 @@ export default function SystemAlerts() {
     if (!form.title.trim() || !form.message.trim()) { toast.error('Title and message are required'); return; }
     setSaving(true);
     try {
-      await api.post('/system-alerts', form);
+      const { expiryHours, ...body } = form;
+      await api.post('/system-alerts', {
+        ...body,
+        expiresAt: expiryHours > 0 ? new Date(Date.now() + expiryHours * 3600 * 1000).toISOString() : null,
+      });
       toast.success('Alert posted');
       setShowModal(false);
-      setForm({ title: '', message: '', severity: 'info', active: true });
+      setForm({ title: '', message: '', severity: 'info', active: true, expiryHours: 0 });
       load();
     } catch (e) { toast.error('Failed to post alert'); } finally { setSaving(false); }
   };
@@ -89,9 +103,17 @@ export default function SystemAlerts() {
                       <h3 style={{ color: theme.text.primary }} className="font-bold">{a.title}</h3>
                       <span style={{ background: `${m.color}22`, color: m.color }} className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">{m.label}</span>
                       {!a.active && <span style={{ background: 'rgba(107,114,128,0.15)', color: '#9CA3AF' }} className="text-[10px] font-bold px-2 py-0.5 rounded-full">HIDDEN</span>}
+                      {a.expiresAt && new Date(a.expiresAt) <= new Date() && (
+                        <span style={{ background: 'rgba(107,114,128,0.15)', color: '#9CA3AF' }} className="text-[10px] font-bold px-2 py-0.5 rounded-full">EXPIRED</span>
+                      )}
                     </div>
                     <p style={{ color: theme.text.secondary }} className="text-sm">{a.message}</p>
-                    <p style={{ color: theme.text.tertiary }} className="text-xs mt-2">{new Date(a.createdAt).toLocaleString()}</p>
+                    <p style={{ color: theme.text.tertiary }} className="text-xs mt-2">
+                      {new Date(a.createdAt).toLocaleString()}
+                      {a.expiresAt && new Date(a.expiresAt) > new Date() && (
+                        <span> • auto-hides {new Date(a.expiresAt).toLocaleString()}</span>
+                      )}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -121,6 +143,24 @@ export default function SystemAlerts() {
 
             <label style={{ color: theme.text.tertiary }} className="block text-xs font-bold uppercase mb-1">Message</label>
             <textarea value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} rows={3} style={{ background: isDarkMode ? 'rgba(15,18,39,0.6)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }} className="w-full p-3 rounded-xl border text-sm mb-4 outline-none resize-none" placeholder="What do you want students to know?" />
+
+            <label style={{ color: theme.text.tertiary }} className="block text-xs font-bold uppercase mb-2">Auto-hide After</label>
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-4">
+              {EXPIRY_OPTIONS.map((o) => {
+                const active = form.expiryHours === o.value;
+                return (
+                  <button key={o.value} onClick={() => setForm({ ...form, expiryHours: o.value })}
+                    style={{
+                      borderColor: active ? accent : theme.border.primary,
+                      background: active ? `${accent}1A` : 'transparent',
+                      color: active ? accent : theme.text.secondary
+                    }}
+                    className="py-2 rounded-xl border-2 text-xs font-bold transition">
+                    {o.label}
+                  </button>
+                );
+              })}
+            </div>
 
             <label style={{ color: theme.text.tertiary }} className="block text-xs font-bold uppercase mb-2">Severity</label>
             <div className="grid grid-cols-4 gap-2 mb-6">

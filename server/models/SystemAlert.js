@@ -23,6 +23,12 @@ const systemAlertSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  // Optional auto-hide: alert stops showing to end-users after this time.
+  // null = never expires.
+  expiresAt: {
+    type: Date,
+    default: null
+  },
   createdBy: {
     type: String,
     default: 'System Administrator'

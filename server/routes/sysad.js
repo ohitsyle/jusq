@@ -73,6 +73,13 @@ router.get('/dashboard', async (req, res) => {
       timestamp: log.timestamp || log.createdAt,
     }));
 
+    // System-status strip: maintenance / last auto-export / scheduler / uptime.
+    // systemConfig is declared later in this module; handlers run post-load so
+    // the reference is safe.
+    const ExportHistory = (await import('../models/ExportHistory.js')).default;
+    const lastAutoExport = await ExportHistory.findOne({ triggeredBy: 'automatic' })
+      .sort({ exportedAt: -1 }).select('fileName exportedAt').lean();
+
     res.json({
       success: true,
       userMetrics: {
@@ -83,7 +90,15 @@ router.get('/dashboard', async (req, res) => {
         students: studentCount,
         employees: employeeCount
       },
-      recentActivity: mergedActivity
+      recentActivity: mergedActivity,
+      systemStatus: {
+        maintenance: getMaintenanceStatus(),
+        deactivationScheduler: systemConfig.deactivationScheduler || { enabled: false },
+        autoExportEnabled: systemConfig.autoExport?.enabled ?? false,
+        lastAutoExport: lastAutoExport ? { fileName: lastAutoExport.fileName, at: lastAutoExport.exportedAt } : null,
+        uptimeSeconds: Math.floor(process.uptime()),
+        dbConnected: User.db.readyState === 1
+      }
     });
   } catch (error) {
     console.error('❌ Sysad dashboard error:', error);
@@ -341,7 +356,7 @@ router.post('/users', async (req, res) => {
     } = req.body;
 
     // Check if this is an admin role
-    const adminRoles = ['sysad', 'treasury', 'accounting', 'motorpool', 'merchant'];
+    const adminRoles = ['sysad', 'treasury', 'accounting', 'motorpool', 'merchant', 'marketing'];
     const isAdminRole = adminRoles.includes(role);
 
     // Validate required fields
@@ -796,6 +811,61 @@ router.patch('/users/:userId/toggle-status', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Toggle status error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * POST /api/admin/sysad/users/:userId/reset-pin
+ * PIN rescue for locked-out students/employees. Issues a fresh 6-digit
+ * temporary PIN (stored plaintext, same as registration), flips the account
+ * back to inactive so the user re-runs the activation flow (set new PIN +
+ * email OTP), and emails them the temporary PIN.
+ */
+router.post('/users/:userId/reset-pin', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    if (user.isDeactivated) {
+      return res.status(400).json({ success: false, message: 'Account is deactivated — reactivate it before resetting the PIN' });
+    }
+
+    const crypto = (await import('crypto')).default;
+    const tempPin = crypto.randomInt(100000, 999999).toString();
+
+    await User.findByIdAndUpdate(user._id, {
+      $set: { pin: tempPin, isActive: false }
+    });
+
+    const fullName = `${user.firstName} ${user.lastName}`.trim();
+    const emailSent = await sendTemporaryPIN(user.email, tempPin, fullName, user.schoolUId);
+
+    logAdminAction({
+      adminId: req.adminId || 'sysad',
+      adminName: req.adminName || req.adminInfo?.adminName || 'System Admin',
+      adminRole: 'sysad',
+      department: 'system',
+      action: 'PIN Reset',
+      description: `reset PIN for ${fullName} (${user.schoolUId || user.email}); account returned to activation`,
+      targetEntity: 'user',
+      targetId: String(user._id),
+      crudOperation: 'crud_update',
+      ipAddress: req.ip
+    }).catch(() => {});
+
+    res.json({
+      success: true,
+      emailSent,
+      // Surfaced in the UI only when the email failed, so the admin can hand it over
+      temporaryPin: emailSent ? undefined : tempPin,
+      message: emailSent
+        ? `Temporary PIN sent to ${user.email}. The user must re-activate their account.`
+        : `Email failed — temporary PIN is ${tempPin}. The user must re-activate their account.`
+    });
+  } catch (error) {
+    console.error('❌ Reset PIN error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });

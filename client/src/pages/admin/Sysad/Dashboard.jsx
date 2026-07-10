@@ -2,15 +2,27 @@
 // System Admin Home with comprehensive system overview
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { toast } from 'react-toastify';
-import { Users, UserCheck, UserX, Shield, GraduationCap, Briefcase, Clock, Plus, CreditCard, Search, Check, Loader2, AlertCircle, X, ArrowRight, CheckCircle, ClipboardList, Home } from 'lucide-react';
+import { Users, UserCheck, UserX, Shield, GraduationCap, Briefcase, Clock, Plus, CreditCard, Search, Check, Loader2, AlertCircle, X, ArrowRight, CheckCircle, ClipboardList, Home, Server, Wrench, FileDown, CalendarClock } from 'lucide-react';
 import { convertToHexLittleEndian } from '../../../utils/rfidConverter';
+import AddUserModal from './AddUserModal';
+
+const fmtUptime = (s) => {
+  if (!s && s !== 0) return '—';
+  const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+};
 
 export default function SysadDashboard() {
   const { theme, isDarkMode } = useTheme();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [systemStatus, setSystemStatus] = useState(null);
   const [metrics, setMetrics] = useState({
     totalUsers: 0,
     activeUsers: 0,
@@ -40,6 +52,7 @@ export default function SysadDashboard() {
           recentLogins: data.recentActivity || data.recentLogins || []
         };
         setMetrics(metricsData);
+        if (data.systemStatus) setSystemStatus(data.systemStatus);
       }
     } catch (error) {
       if (!silent) toast.error('Failed to load dashboard metrics');
@@ -80,6 +93,53 @@ export default function SysadDashboard() {
 
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto pr-2">
+
+      {/* System status strip */}
+      {systemStatus && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <StatusTile
+            icon={<Server className="w-5 h-5" />}
+            label="Server"
+            value={systemStatus.dbConnected ? 'Online' : 'DB Offline'}
+            detail={`up ${fmtUptime(systemStatus.uptimeSeconds)}`}
+            ok={systemStatus.dbConnected}
+            theme={theme}
+          />
+          <StatusTile
+            icon={<Wrench className="w-5 h-5" />}
+            label="Maintenance Mode"
+            value={systemStatus.maintenance?.enabled ? 'ON' : 'Off'}
+            detail={systemStatus.maintenance?.enabled ? 'End-users are blocked' : 'All systems go'}
+            ok={!systemStatus.maintenance?.enabled}
+            warn={systemStatus.maintenance?.enabled}
+            onClick={() => navigate('/admin/sysad/config')}
+            theme={theme}
+          />
+          <StatusTile
+            icon={<FileDown className="w-5 h-5" />}
+            label="Auto-Export"
+            value={systemStatus.autoExportEnabled ? 'Enabled' : 'Disabled'}
+            detail={systemStatus.lastAutoExport
+              ? `Last: ${new Date(systemStatus.lastAutoExport.at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+              : 'No runs yet'}
+            ok={systemStatus.autoExportEnabled}
+            onClick={() => navigate('/admin/sysad/config')}
+            theme={theme}
+          />
+          <StatusTile
+            icon={<CalendarClock className="w-5 h-5" />}
+            label="Deactivation Scheduler"
+            value={systemStatus.deactivationScheduler?.enabled ? 'Scheduled' : 'Off'}
+            detail={systemStatus.deactivationScheduler?.enabled
+              ? `${systemStatus.deactivationScheduler.date || ''} ${systemStatus.deactivationScheduler.time || ''}`.trim() || 'Pending'
+              : 'No schedule set'}
+            ok={!systemStatus.deactivationScheduler?.enabled}
+            warn={systemStatus.deactivationScheduler?.enabled}
+            onClick={() => navigate('/admin/sysad/config')}
+            theme={theme}
+          />
+        </div>
+      )}
 
       {/* User Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
@@ -187,6 +247,13 @@ export default function SysadDashboard() {
               Latest admin activity across the system
             </p>
           </div>
+          <button
+            onClick={() => navigate('/admin/sysad/logs')}
+            style={{ background: `${theme.accent.primary}15`, borderColor: `${theme.accent.primary}40`, color: theme.accent.primary }}
+            className="px-4 py-2 rounded-xl border text-xs font-bold hover:opacity-80 transition"
+          >
+            View all →
+          </button>
         </div>
         {metrics.recentLogins && metrics.recentLogins.length > 0 ? (
           <div className="overflow-x-auto">
@@ -213,7 +280,7 @@ export default function SysadDashboard() {
                     action.includes('concern') ? { bg: 'rgba(245,158,11,0.15)', text: '#F59E0B' } :
                     { bg: `${theme.accent.primary}20`, text: theme.accent.primary };
                   return (
-                  <tr key={log.id || i} style={{ borderBottom: `1px solid ${theme.border.primary}` }} className="hover:bg-white/5 transition">
+                  <tr key={log.id || i} onClick={() => navigate('/admin/sysad/logs')} style={{ borderBottom: `1px solid ${theme.border.primary}` }} className="hover:bg-white/5 transition cursor-pointer">
                     <td className="p-4">
                       <span style={{
                         display: 'inline-block',
@@ -253,13 +320,13 @@ export default function SysadDashboard() {
 
       </div>{/* end scrollable content */}
 
-      {/* Add User Modal */}
+      {/* Add User Modal (shared with Manage Users; it toasts its own success incl. PIN email status) */}
       {showAddUserModal && (
-        <DashboardAddUserModal
+        <AddUserModal
           theme={theme}
           isDarkMode={isDarkMode}
           onClose={() => setShowAddUserModal(false)}
-          onSuccess={() => { setShowAddUserModal(false); fetchMetrics(true); toast.success('User created successfully!'); }}
+          onSuccess={() => { setShowAddUserModal(false); fetchMetrics(true); }}
         />
       )}
 
@@ -271,226 +338,6 @@ export default function SysadDashboard() {
           onClose={() => { setShowTransferModal(false); fetchMetrics(true); }}
         />
       )}
-    </div>
-  );
-}
-
-// ============================================================
-// DASHBOARD ADD USER MODAL (inline, opens directly)
-// ============================================================
-function DashboardAddUserModal({ theme, isDarkMode, onClose, onSuccess }) {
-  const [formData, setFormData] = useState({
-    rfidUId: '', firstName: '', middleName: '', lastName: '',
-    email: '', schoolUId: '', role: 'student', adminRole: ''
-  });
-  const [submitting, setSubmitting] = useState(false);
-  const [validationError, setValidationError] = useState(null);
-  const [rfidStatus, setRfidStatus] = useState(null);
-  const [emailStatus, setEmailStatus] = useState(null);
-  const [schoolIdStatus, setSchoolIdStatus] = useState(null);
-  const [checkingRfid, setCheckingRfid] = useState(false);
-  const [checkingEmail, setCheckingEmail] = useState(false);
-  const [checkingSchoolId, setCheckingSchoolId] = useState(false);
-  const rfidTimer = useRef(null);
-  const emailTimer = useRef(null);
-  const schoolIdTimer = useRef(null);
-
-  const normalizeRfidHex = (input) => {
-    if (!input) return '';
-    let cleaned = input.replace(/[\s:-]/g, '').toUpperCase();
-    if (/^[0-9A-F]{8}$/.test(cleaned)) return cleaned;
-    if (/^[0-9A-F]+$/.test(cleaned)) {
-      if (cleaned.length % 2 !== 0) cleaned = '0' + cleaned;
-      const bytes = cleaned.match(/.{2}/g) || [];
-      return bytes.reverse().join('');
-    }
-    if (/^\d+$/.test(cleaned)) {
-      const decimal = BigInt(cleaned);
-      let hex = decimal.toString(16).toUpperCase();
-      if (hex.length % 2 !== 0) hex = '0' + hex;
-      while (hex.length < 8) hex = '0' + hex;
-      const bytes = hex.match(/.{2}/g) || [];
-      return bytes.reverse().join('');
-    }
-    return cleaned;
-  };
-
-  const handleRfidChange = (e) => {
-    const value = e.target.value.toUpperCase();
-    setFormData({ ...formData, rfidUId: value });
-    setRfidStatus(null);
-    if (!value.trim()) return;
-    if (rfidTimer.current) clearTimeout(rfidTimer.current);
-    rfidTimer.current = setTimeout(async () => {
-      const normalized = normalizeRfidHex(value.trim());
-      if (normalized.length >= 8) {
-        setCheckingRfid(true);
-        try {
-          const res = await api.get(`/admin/sysad/users/check-rfid?rfidUId=${normalized}`);
-          setRfidStatus(res.available ? 'available' : 'taken');
-        } catch { setRfidStatus(null); }
-        finally { setCheckingRfid(false); }
-      }
-    }, 300);
-  };
-
-  const handleEmailChange = (e) => {
-    const value = e.target.value;
-    setFormData({ ...formData, email: value });
-    setEmailStatus(null);
-    if (!value.trim()) return;
-    if (emailTimer.current) clearTimeout(emailTimer.current);
-    emailTimer.current = setTimeout(async () => {
-      if (value.includes('@')) {
-        setCheckingEmail(true);
-        try {
-          const res = await api.get(`/admin/sysad/users/check-email?email=${encodeURIComponent(value.trim())}`);
-          setEmailStatus(res.available ? 'available' : 'taken');
-        } catch { setEmailStatus(null); }
-        finally { setCheckingEmail(false); }
-      }
-    }, 300);
-  };
-
-  const handleSchoolIdChange = (e) => {
-    const value = e.target.value;
-    setFormData({ ...formData, schoolUId: value });
-    setSchoolIdStatus(null);
-    if (!value.trim()) return;
-    if (schoolIdTimer.current) clearTimeout(schoolIdTimer.current);
-    schoolIdTimer.current = setTimeout(async () => {
-      if (value.length >= 6) {
-        setCheckingSchoolId(true);
-        try {
-          const res = await api.get(`/admin/sysad/users/check-schoolid?schoolUId=${encodeURIComponent(value.trim())}`);
-          setSchoolIdStatus(res.available ? 'available' : 'taken');
-        } catch { setSchoolIdStatus(null); }
-        finally { setCheckingSchoolId(false); }
-      }
-    }, 300);
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setValidationError(null);
-    const isAdmin = formData.role === 'admin';
-    if (!isAdmin && !formData.rfidUId.trim()) { setValidationError('RFID is required for student/employee'); return; }
-    if (!isAdmin && rfidStatus === 'taken') { setValidationError('RFID already registered'); return; }
-    if (!formData.firstName || !formData.lastName || !formData.email || !formData.schoolUId) { setValidationError('Fill in all required fields'); return; }
-    if (emailStatus === 'taken') { setValidationError('Email already registered'); return; }
-    if (schoolIdStatus === 'taken') { setValidationError('School ID already registered'); return; }
-    if (isAdmin && !formData.adminRole) { setValidationError('Select an admin type'); return; }
-
-    setSubmitting(true);
-    try {
-      const pin = Math.floor(100000 + Math.random() * 900000).toString();
-      const payload = {
-        ...formData,
-        rfidUId: isAdmin ? undefined : normalizeRfidHex(formData.rfidUId.trim()),
-        pin,
-        role: isAdmin ? formData.adminRole : formData.role
-      };
-      delete payload.adminRole;
-      await api.post('/admin/sysad/users', payload);
-      onSuccess();
-    } catch (error) {
-      setValidationError(error.response?.data?.message || error.message || 'Failed to create user');
-    } finally { setSubmitting(false); }
-  };
-
-  const fieldStyle = { background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary };
-
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-      <div style={{ background: isDarkMode ? '#1E2347' : '#FFFFFF', borderColor: theme.border.primary }}
-           className="relative rounded-2xl shadow-2xl border w-full max-w-lg overflow-hidden" onClick={e => e.stopPropagation()}>
-        <div style={{ background: isDarkMode ? 'linear-gradient(135deg, rgba(255,212,28,0.3) 0%, rgba(255,212,28,0.1) 100%)' : 'linear-gradient(135deg, rgba(59,130,246,0.3) 0%, rgba(59,130,246,0.1) 100%)' }} className="px-6 py-5 flex items-center justify-between">
-          <h3 style={{ color: theme.accent.primary }} className="text-xl font-bold flex items-center gap-2"><Plus className="w-5 h-5" /> Add New User</h3>
-          <button onClick={onClose} style={{ color: theme.text.secondary }} className="hover:opacity-70"><X className="w-6 h-6" /></button>
-        </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-          {validationError && (
-            <div style={{ background: 'rgba(239,68,68,0.15)', borderColor: 'rgba(239,68,68,0.3)' }} className="p-3 rounded-xl border flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" /><p className="text-red-500 text-sm">{validationError}</p>
-            </div>
-          )}
-          {formData.role !== 'admin' && (
-            <div>
-              <label style={{ color: theme.text.secondary }} className="block text-xs font-semibold uppercase mb-2">RFID Tag <span className="text-red-500">*</span></label>
-              <div className="relative">
-                <CreditCard style={{ color: theme.text.tertiary }} className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5" />
-                <input type="text" value={formData.rfidUId} onChange={handleRfidChange} placeholder="Scan or enter RFID..."
-                  style={{ ...fieldStyle, borderColor: rfidStatus === 'taken' ? '#EF4444' : rfidStatus === 'available' ? '#10B981' : theme.border.primary }}
-                  className="w-full pl-10 pr-10 py-2.5 rounded-xl border text-sm focus:outline-none font-mono" />
-                {checkingRfid && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 animate-spin text-blue-500" />}
-                {rfidStatus === 'available' && !checkingRfid && <Check className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />}
-                {rfidStatus === 'taken' && !checkingRfid && <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-red-500" />}
-              </div>
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-4">
-            <div><label style={{ color: theme.text.secondary }} className="block text-xs font-semibold uppercase mb-2">First Name *</label>
-              <input type="text" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} style={fieldStyle} className="w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none" required /></div>
-            <div><label style={{ color: theme.text.secondary }} className="block text-xs font-semibold uppercase mb-2">Middle Name</label>
-              <input type="text" value={formData.middleName} onChange={e => setFormData({...formData, middleName: e.target.value})} style={fieldStyle} className="w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none" /></div>
-          </div>
-          <div><label style={{ color: theme.text.secondary }} className="block text-xs font-semibold uppercase mb-2">Last Name *</label>
-            <input type="text" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} style={fieldStyle} className="w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none" required /></div>
-          <div><label style={{ color: theme.text.secondary }} className="block text-xs font-semibold uppercase mb-2">Email *</label>
-            <div className="relative">
-              <input type="email" value={formData.email} onChange={handleEmailChange}
-                style={{ ...fieldStyle, borderColor: emailStatus === 'taken' ? '#EF4444' : emailStatus === 'available' ? '#10B981' : theme.border.primary }}
-                className="w-full px-4 pr-10 py-2.5 rounded-xl border text-sm focus:outline-none" required />
-              {checkingEmail && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 animate-spin text-blue-500" />}
-              {emailStatus === 'available' && !checkingEmail && <Check className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />}
-              {emailStatus === 'taken' && !checkingEmail && <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-red-500" />}
-            </div></div>
-          <div><label style={{ color: theme.text.secondary }} className="block text-xs font-semibold uppercase mb-2">School ID *</label>
-            <div className="relative">
-              <input type="text" value={formData.schoolUId} onChange={handleSchoolIdChange}
-                style={{ ...fieldStyle, borderColor: schoolIdStatus === 'taken' ? '#EF4444' : schoolIdStatus === 'available' ? '#10B981' : theme.border.primary }}
-                className="w-full px-4 pr-10 py-2.5 rounded-xl border text-sm focus:outline-none" required />
-              {checkingSchoolId && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 animate-spin text-blue-500" />}
-              {schoolIdStatus === 'available' && !checkingSchoolId && <Check className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />}
-              {schoolIdStatus === 'taken' && !checkingSchoolId && <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-red-500" />}
-            </div></div>
-          <div><label style={{ color: theme.text.secondary }} className="block text-xs font-semibold uppercase mb-2">User Role *</label>
-            <div className="grid grid-cols-3 gap-2">
-              {[{value:'student',label:'Student',icon:'🎓'},{value:'employee',label:'Employee',icon:'👔'},{value:'admin',label:'Admin',icon:'🛡️'}].map(o => (
-                <button key={o.value} type="button" onClick={() => setFormData({...formData, role: o.value, adminRole: ''})}
-                  style={{ background: formData.role === o.value ? theme.accent.primary : isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB',
-                    color: formData.role === o.value ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.primary,
-                    borderColor: formData.role === o.value ? theme.accent.primary : theme.border.primary }}
-                  className="py-3 rounded-xl border font-semibold text-sm transition-all hover:opacity-90 flex items-center justify-center gap-2">
-                  <span>{o.icon}</span> {o.label}
-                </button>
-              ))}
-            </div></div>
-          {formData.role === 'admin' && (
-            <div><label style={{ color: theme.text.secondary }} className="block text-xs font-semibold uppercase mb-2">Admin Type <span className="text-red-500">*</span></label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {[{value:'sysad',label:'System Admin',color:'#8B5CF6'},{value:'treasury',label:'Treasury',color:'#10B981'},{value:'accounting',label:'Accounting',color:'#A855F7'},{value:'motorpool',label:'Motorpool',color:'#F59E0B'},{value:'merchant',label:'Merchant',color:'#EC4899'}].map(o => (
-                  <button key={o.value} type="button" onClick={() => setFormData({...formData, adminRole: o.value})}
-                    style={{ background: formData.adminRole === o.value ? o.color : isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB',
-                      color: formData.adminRole === o.value ? '#FFFFFF' : theme.text.primary,
-                      borderColor: formData.adminRole === o.value ? o.color : theme.border.primary }}
-                    className="py-2.5 rounded-xl border font-semibold text-xs transition-all hover:opacity-90">{o.label}</button>
-                ))}
-              </div></div>
-          )}
-          <div className="flex gap-3 pt-4">
-            <button type="button" onClick={onClose} style={{ background: isDarkMode ? 'rgba(71,85,105,0.5)' : '#E5E7EB', color: theme.text.primary }}
-              className="flex-1 py-3 rounded-xl font-semibold transition hover:opacity-80">Cancel</button>
-            <button type="submit" disabled={submitting || rfidStatus === 'taken'}
-              style={{ background: theme.accent.primary, color: isDarkMode ? '#181D40' : '#FFFFFF' }}
-              className="flex-1 py-3 rounded-xl font-semibold transition hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2">
-              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-              {submitting ? 'Creating...' : 'Create User'}
-            </button>
-          </div>
-        </form>
-      </div>
     </div>
   );
 }
@@ -642,6 +489,27 @@ function DashboardTransferModal({ theme, isDarkMode, onClose }) {
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Status tile — one cell of the system-status strip
+function StatusTile({ icon, label, value, detail, ok, warn, onClick, theme }) {
+  const color = warn ? '#F59E0B' : ok ? '#10B981' : '#EF4444';
+  return (
+    <div
+      onClick={onClick}
+      style={{ background: theme.bg.card, borderColor: `${color}45` }}
+      className={`p-4 rounded-xl border-2 flex items-center gap-3 transition-all ${onClick ? 'cursor-pointer hover:shadow-lg hover:scale-[1.01]' : ''}`}
+    >
+      <div style={{ background: `${color}20`, color }} className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0">
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <p style={{ color: theme.text.secondary }} className="text-[10px] font-bold uppercase tracking-wide truncate m-0">{label}</p>
+        <p style={{ color }} className="font-black text-base m-0 leading-tight">{value}</p>
+        <p style={{ color: theme.text.tertiary }} className="text-[11px] m-0 truncate">{detail}</p>
       </div>
     </div>
   );

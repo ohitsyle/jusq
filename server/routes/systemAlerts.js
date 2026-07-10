@@ -9,7 +9,10 @@ const router = express.Router();
 // GET /api/system-alerts/active  -> active alerts for end-users (newest first)
 router.get('/active', async (req, res) => {
   try {
-    const alerts = await SystemAlert.find({ active: true }).sort({ createdAt: -1 }).lean();
+    const alerts = await SystemAlert.find({
+      active: true,
+      $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }]
+    }).sort({ createdAt: -1 }).lean();
     res.json(alerts);
   } catch (error) {
     console.error('Error fetching active alerts:', error);
@@ -31,13 +34,14 @@ router.get('/', async (req, res) => {
 // POST /api/system-alerts  -> create
 router.post('/', async (req, res) => {
   try {
-    const { title, message, severity, active } = req.body;
+    const { title, message, severity, active, expiresAt } = req.body;
     if (!title || !message) return res.status(400).json({ error: 'Title and message are required' });
     const alert = await SystemAlert.create({
       title,
       message,
       severity: severity || 'info',
       active: active !== undefined ? active : true,
+      expiresAt: expiresAt ? new Date(expiresAt) : null,
       createdBy: req.adminName || 'System Administrator'
     });
     res.status(201).json(alert);
