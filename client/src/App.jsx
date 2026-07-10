@@ -2,8 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import { AppProvider } from './context/AppContext';
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { ToastContainer } from 'react-toastify'; // aliased to NotifyHost (themed pop-ups)
 import { useMaintenanceMode } from './hooks/useMaintenanceMode.js';
 
 import UnifiedLogin from './pages/account/UnifiedLogin';
