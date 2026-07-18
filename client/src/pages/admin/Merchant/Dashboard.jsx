@@ -7,6 +7,7 @@ import { Home, Smartphone, Store } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { ThemedSelect } from '../../../components/shared/ThemedControls';
+import ModalShell from '../../../components/shared/ModalShell';
 
 export default function Dashboard() {
   const { theme, isDarkMode } = useTheme();
@@ -311,36 +312,7 @@ function DashboardAddMerchantModal({ theme, isDarkMode, onClose, onSuccess }) {
   };
 
   return (
-    <div
-      onClick={onClose}
-      className="fixed inset-0 flex items-center justify-center z-[9999]"
-      style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: isDarkMode
-            ? 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)'
-            : theme.bg.card,
-          borderColor: theme.border.primary
-        }}
-        className="rounded-2xl border w-[90%] max-w-[600px] max-h-[90vh] overflow-auto shadow-2xl"
-      >
-        {/* Modal Header */}
-        <div style={{ borderColor: theme.border.primary }} className="p-6 border-b flex justify-between items-center">
-          <h3 style={{ color: theme.accent.primary }} className="text-xl font-bold m-0 flex items-center gap-2">
-            <Store className="w-5 h-5" /> Add New Merchant
-          </h3>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer text-lg border-none"
-            style={{ background: 'rgba(239,68,68,0.2)', color: '#EF4444' }}
-          >
-            ×
-          </button>
-        </div>
-
-        {/* Modal Body */}
+    <ModalShell title="Add New Merchant" icon={Store} onClose={onClose} maxWidth="max-w-[600px]" bodyClassName="max-h-[75vh] overflow-y-auto">
         <form onSubmit={handleSubmit} className="p-6">
           {/* Alert */}
           {alert && (
@@ -449,8 +421,7 @@ function DashboardAddMerchantModal({ theme, isDarkMode, onClose, onSuccess }) {
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </ModalShell>
   );
 }
 
@@ -541,36 +512,7 @@ function DashboardAddPhoneModal({ theme, isDarkMode, onClose, onSuccess }) {
   };
 
   return (
-    <div
-      onClick={onClose}
-      className="fixed inset-0 flex items-center justify-center z-[9999]"
-      style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: isDarkMode
-            ? 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)'
-            : theme.bg.card,
-          borderColor: theme.border.primary
-        }}
-        className="rounded-2xl border-2 max-w-[600px] w-[90%] max-h-[85vh] overflow-auto shadow-2xl"
-      >
-        {/* Modal Header */}
-        <div style={{ borderColor: theme.border.primary }} className="p-6 border-b-2 flex justify-between items-center">
-          <h3 style={{ color: theme.accent.primary }} className="text-xl font-bold m-0 flex items-center gap-2">
-            <Smartphone className="w-5 h-5" /> Add New Phone
-          </h3>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer text-lg border-none"
-            style={{ background: 'rgba(239,68,68,0.2)', color: '#EF4444' }}
-          >
-            ×
-          </button>
-        </div>
-
-        {/* Modal Body */}
+    <ModalShell title="Add New Phone" icon={Smartphone} onClose={onClose} maxWidth="max-w-[600px]" bodyClassName="max-h-[75vh] overflow-y-auto">
         <form onSubmit={handleSubmit} className="p-6">
           {/* Alert */}
           {alert && (
@@ -692,8 +634,7 @@ function DashboardAddPhoneModal({ theme, isDarkMode, onClose, onSuccess }) {
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </ModalShell>
   );
 }
 

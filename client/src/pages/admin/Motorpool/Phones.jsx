@@ -9,6 +9,7 @@ import { exportToCSV, prepareDataForExport } from '../../../utils/csvExport';
 import { useTheme } from '../../../context/ThemeContext';
 import { ThemedSelect } from '../../../components/shared/ThemedControls';
 import { confirmDialog } from '../../../components/shared/ConfirmDialogHost';
+import ModalShell from '../../../components/shared/ModalShell';
 
 export default function PhonesList() {
   const { theme, isDarkMode } = useTheme();
@@ -456,60 +457,15 @@ export default function PhonesList() {
         )}
       </div>
 
-      {/* ANIMATED MODAL */}
+      {/* ADD / EDIT MODAL (shared ModalShell chrome) */}
       {showModal && (
-        <div onClick={() => setShowModal(false)} style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          background: 'rgba(15,18,39,0.9)',
-          backdropFilter: 'blur(8px)',
-          zIndex: 9999,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          animation: 'fadeIn 0.2s ease'
-        }}>
-          <div onClick={(e) => e.stopPropagation()} style={{
-            background: isDarkMode ? 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)' : '#FFFFFF',
-            borderRadius: '16px',
-            maxWidth: '600px',
-            width: '90%',
-            maxHeight: '85vh',
-            overflow: 'auto',
-            border: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}`,
-            boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
-            animation: 'slideIn 0.3s ease'
-          }}>
-            {/* Modal Header */}
-            <div style={{
-              padding: '24px',
-              borderBottom: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.2)' : 'rgba(59,130,246,0.2)'}`,
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}>
-              <h2 style={{ fontSize: '22px', fontWeight: 700, color: theme.accent.primary, margin: 0 }}>
-                {editingPhone ? 'Edit Phone' : 'Add New Phone'}
-              </h2>
-              <button onClick={() => setShowModal(false)} style={{
-                background: 'rgba(239,68,68,0.2)',
-                border: 'none',
-                color: '#EF4444',
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                cursor: 'pointer',
-                fontSize: '18px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>×</button>
-            </div>
-
-            {/* Modal Body */}
+        <ModalShell
+          title={editingPhone ? 'Edit Phone' : 'Add New Phone'}
+          icon={Smartphone}
+          onClose={() => setShowModal(false)}
+          maxWidth="max-w-[600px]"
+          bodyClassName="max-h-[75vh] overflow-y-auto"
+        >
             <form onSubmit={handleSubmit} style={{ padding: '24px' }}>
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', fontWeight: 700, color: theme.accent.primary, textTransform: 'uppercase' }}>
@@ -667,8 +623,7 @@ export default function PhonesList() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </ModalShell>
       )}
 
       {/* CSS Animations */}

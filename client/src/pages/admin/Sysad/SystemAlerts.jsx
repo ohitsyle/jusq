@@ -6,6 +6,7 @@ import api from '../../../utils/api';
 import { toast } from 'react-toastify';
 import { Bell, Plus, Trash2, X, Loader2, Eye, EyeOff, Info, AlertTriangle, AlertOctagon, CheckCircle2, Clock } from 'lucide-react';
 import { confirmDialog } from '../../../components/shared/ConfirmDialogHost';
+import ModalShell from '../../../components/shared/ModalShell';
 
 const SEVERITIES = [
   { value: 'info', label: 'Info', color: '#3B82F6', Icon: Info },
@@ -153,13 +154,7 @@ export default function SystemAlerts() {
       </div>{/* end scrollable list */}
 
       {showModal && (
-        <div onClick={() => !saving && setShowModal(false)} className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: isDarkMode ? 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)' : theme.bg.card, border: `2px solid ${accent}` }} className="w-full max-w-lg rounded-2xl p-6 shadow-2xl">
-            <div className="flex items-center justify-between mb-4">
-              <h3 style={{ color: theme.text.primary }} className="text-xl font-bold">New System Alert</h3>
-              <button onClick={() => setShowModal(false)} style={{ color: theme.text.secondary }}><X className="w-5 h-5" /></button>
-            </div>
-
+        <ModalShell title="New System Alert" icon={Bell} onClose={() => !saving && setShowModal(false)}>
             <label style={{ color: theme.text.tertiary }} className="block text-xs font-bold uppercase mb-1">Title</label>
             <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} style={{ background: isDarkMode ? 'rgba(15,18,39,0.6)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }} className="w-full p-3 rounded-xl border text-sm mb-4 outline-none" placeholder="e.g. Scheduled maintenance" />
 
@@ -203,8 +198,7 @@ export default function SystemAlerts() {
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />} Post Alert
               </button>
             </div>
-          </div>
-        </div>
+        </ModalShell>
       )}
     </div>
   );

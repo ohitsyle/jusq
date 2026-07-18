@@ -95,13 +95,26 @@ import MaintenanceMode from './pages/MaintenanceMode';
 import TermsAndConditions from './pages/legal/TermsAndConditions';
 import PrivacyPolicy from './pages/legal/PrivacyPolicy';
 
-// Shown while a lazy route chunk downloads
-const PageLoader = () => (
-  <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-    <div style={{ width: 36, height: 36, border: '4px solid rgba(59,130,246,0.25)', borderTopColor: '#3B82F6', borderRadius: '50%', animation: 'pageLoaderSpin 0.8s linear infinite' }} />
-    <style>{'@keyframes pageLoaderSpin { to { transform: rotate(360deg); } }'}</style>
-  </div>
-);
+// Shown while a lazy route chunk downloads. Fixed-position so it is dead
+// center on every page (incl. the kiosk), with the app's themed background
+// so it matches the pre-React boot screen in index.html.
+const PageLoader = () => {
+  const dark = document.documentElement.dataset.theme !== 'light';
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: dark ? 'linear-gradient(135deg, #0F1227 0%, #181D40 100%)' : 'linear-gradient(135deg, #E8F1FF 0%, #F0F7FF 100%)'
+    }}>
+      <div style={{
+        width: 36, height: 36, borderRadius: '50%',
+        border: dark ? '4px solid rgba(255,212,28,0.25)' : '4px solid rgba(59,130,246,0.25)',
+        borderTopColor: dark ? '#FFD41C' : '#3B82F6',
+        animation: 'pageLoaderSpin 0.8s linear infinite'
+      }} />
+      <style>{'@keyframes pageLoaderSpin { to { transform: rotate(360deg); } }'}</style>
+    </div>
+  );
+};
 
 // Protected Route wrapper for Motorpool Admin
 const MotorpoolProtectedRoute = ({ children }) => {

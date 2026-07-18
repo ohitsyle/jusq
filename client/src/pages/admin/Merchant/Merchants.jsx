@@ -7,6 +7,7 @@ import { Mail, Plus, User } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { confirmDialog } from '../../../components/shared/ConfirmDialogHost';
+import ModalShell from '../../../components/shared/ModalShell';
 
 export default function MerchantsList() {
   const { theme, isDarkMode } = useTheme();
@@ -295,25 +296,12 @@ export default function MerchantsList() {
 
       {/* Add/Edit Modal */}
       {isModalOpen && (
-        <div
-          onClick={() => setIsModalOpen(false)}
-          className="fixed inset-0 flex items-center justify-center z-[9999]"
-          style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
+        <ModalShell
+          title={editingMerchant ? 'Edit Merchant' : 'Add New Merchant'}
+          icon={User}
+          onClose={() => setIsModalOpen(false)}
+          maxWidth="max-w-[600px]"
         >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: isDarkMode
-                ? 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)'
-                : theme.bg.card,
-              borderColor: theme.border.primary
-            }}
-            className="rounded-2xl border p-8 w-[90%] max-w-[600px] max-h-[90vh] overflow-auto shadow-2xl"
-          >
-            <h3 style={{ color: theme.text.primary }} className="text-xl font-bold m-0 mb-6">
-              {editingMerchant ? 'Edit Merchant' : 'Add New Merchant'}
-            </h3>
-
             <form onSubmit={handleSubmit}>
               <div className="grid gap-4">
                 {editingMerchant && editingMerchant.merchantId && (
@@ -407,11 +395,8 @@ export default function MerchantsList() {
                 </div>
               </div>
             </form>
-          </div>
-        </div>
+        </ModalShell>
       )}
-
-      {/* Confirmation Dialog */}
     </div>
   );
 }

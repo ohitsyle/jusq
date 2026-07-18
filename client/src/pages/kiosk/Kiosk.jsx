@@ -320,7 +320,7 @@ export default function Kiosk() {
       {stage === 'checking' && (
         <Screen width={430}>
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
-            <Loader2 style={{ width: 54, height: 54, color: YELLOW, animation: 'kioskSpin 0.9s linear infinite' }} />
+            <Loader2 style={{ width: 54, height: 54, color: YELLOW, animation: 'kioskSpin 0.9s linear infinite', display: 'block', margin: '0 auto' }} />
             <p style={{ color: TEXT, fontSize: 20, fontWeight: 700, marginTop: 18 }}>Reading your card…</p>
             <p style={{ color: MUTED, fontSize: 14 }}>{maskCard(card)}</p>
           </div>
@@ -450,7 +450,7 @@ export default function Kiosk() {
       {stage === 'submitting' && (
         <Screen width={430}>
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
-            <Loader2 style={{ width: 54, height: 54, color: YELLOW, animation: 'kioskSpin 0.9s linear infinite' }} />
+            <Loader2 style={{ width: 54, height: 54, color: YELLOW, animation: 'kioskSpin 0.9s linear infinite', display: 'block', margin: '0 auto' }} />
             <p style={{ color: TEXT, fontSize: 20, fontWeight: 700, marginTop: 18 }}>Creating your account…</p>
           </div>
         </Screen>

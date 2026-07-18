@@ -8,6 +8,7 @@ import { toast } from 'react-toastify';
 import { Plus, Megaphone, Power, Loader2, Gift, Repeat, Send, Bus } from 'lucide-react';
 import { ThemedSelect } from '../../../components/shared/ThemedControls';
 import { confirmDialog } from '../../../components/shared/ConfirmDialogHost';
+import ModalShell from '../../../components/shared/ModalShell';
 
 const REWARD_TYPES = [
   { value: 'free_ride', label: 'Free Ride' },
@@ -261,23 +262,14 @@ export default function Promos() {
         )}
       </div>
 
-      {/* Create Modal (system admin modal pattern) */}
+      {/* Create / Edit Modal (shared ModalShell chrome) */}
       {isModalOpen && (
-        <div
-          onClick={() => !saving && closeModal()}
-          className="fixed inset-0 flex items-center justify-center z-[9999]"
-          style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
+        <ModalShell
+          title={editTarget ? 'Edit Campaign' : 'New Campaign'}
+          icon={Gift}
+          onClose={() => !saving && closeModal()}
+          maxWidth="max-w-[600px]"
         >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: isDarkMode ? 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)' : theme.bg.card,
-              borderColor: theme.border.primary
-            }}
-            className="rounded-2xl border p-8 w-[90%] max-w-[600px] max-h-[90vh] overflow-auto shadow-2xl"
-          >
-            <h3 style={{ color: theme.text.primary }} className="text-xl font-bold m-0 mb-6">{editTarget ? 'Edit Campaign' : 'New Campaign'}</h3>
-
             <div className="grid gap-4">
               <Field label="Title" required theme={theme}>
                 <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g., Frequent Rider Reward"
@@ -358,15 +350,17 @@ export default function Promos() {
                 {saving ? 'Saving...' : editTarget ? 'Save Changes' : 'Create Campaign'}
               </button>
             </div>
-          </div>
-        </div>
+        </ModalShell>
       )}
 
-      {/* Send Rewards Modal (system admin modal pattern) */}
+      {/* Send Rewards Modal (shared ModalShell chrome) */}
       {rewardTarget && (
-        <div onClick={() => !sendingRewards && setRewardTarget(null)} className="fixed inset-0 flex items-center justify-center z-[9999]" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: isDarkMode ? 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)' : theme.bg.card, borderColor: theme.border.primary }} className="rounded-2xl border p-8 w-[90%] max-w-[560px] max-h-[90vh] overflow-auto shadow-2xl">
-            <h3 style={{ color: theme.text.primary }} className="text-xl font-bold m-0 mb-1">Send Rewards</h3>
+        <ModalShell
+          title="Send Rewards"
+          icon={Send}
+          onClose={() => !sendingRewards && setRewardTarget(null)}
+          maxWidth="max-w-[560px]"
+        >
             <p style={{ color: theme.text.secondary }} className="text-sm m-0 mb-5">
               Campaign: <span style={{ color: accent }} className="font-bold">{rewardTarget.title}</span> • minimum {rewardTarget.minimumRides} ride{rewardTarget.minimumRides !== 1 ? 's' : ''} {periodLabel(rewardTarget.frequency)}
             </p>
@@ -431,8 +425,7 @@ export default function Promos() {
                 {sendingRewards ? 'Sending…' : `Send to ${eligible?.filter((u) => !u.alreadyRewarded).length ?? 0} rider${(eligible?.filter((u) => !u.alreadyRewarded).length ?? 0) !== 1 ? 's' : ''}`}
               </button>
             </div>
-          </div>
-        </div>
+        </ModalShell>
       )}
     </div>
   );

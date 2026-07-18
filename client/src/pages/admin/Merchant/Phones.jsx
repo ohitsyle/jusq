@@ -11,6 +11,7 @@ import ExportButton from '../../../components/shared/ExportButton';
 import { exportToCSV, prepareDataForExport } from '../../../utils/csvExport';
 import { ThemedSelect } from '../../../components/shared/ThemedControls';
 import { confirmDialog } from '../../../components/shared/ConfirmDialogHost';
+import ModalShell from '../../../components/shared/ModalShell';
 
 export default function MerchantPhonesList() {
   const { theme, isDarkMode } = useTheme();
@@ -407,34 +408,13 @@ export default function MerchantPhonesList() {
 
       {/* Add/Edit Modal */}
       {showModal && (
-        <div
-          onClick={() => setShowModal(false)}
-          className="fixed inset-0 flex items-center justify-center z-[9999]"
-          style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
+        <ModalShell
+          title={editingPhone ? 'Edit Phone' : 'Add New Phone'}
+          icon={Smartphone}
+          onClose={() => setShowModal(false)}
+          maxWidth="max-w-[600px]"
+          bodyClassName="max-h-[75vh] overflow-y-auto"
         >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: isDarkMode
-                ? 'linear-gradient(135deg, #1a1f3a 0%, #0f1227 100%)'
-                : theme.bg.card,
-              borderColor: theme.border.primary
-            }}
-            className="rounded-2xl max-w-[600px] w-[90%] max-h-[85vh] overflow-auto border-2 shadow-2xl"
-          >
-            {/* Modal Header */}
-            <div style={{ borderColor: theme.border.primary }} className="p-6 border-b-2 flex justify-between items-center">
-              <h2 style={{ color: theme.accent.primary }} className="text-[22px] font-bold m-0">
-                {editingPhone ? 'Edit Phone' : 'Add New Phone'}
-              </h2>
-              <button
-                onClick={() => setShowModal(false)}
-                className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer text-lg border-none"
-                style={{ background: 'rgba(239,68,68,0.2)', color: '#EF4444' }}
-              >×</button>
-            </div>
-
-            {/* Modal Body */}
             <form onSubmit={handleSubmit} className="p-6">
               <ModalField label="Phone ID" disabled value={editingPhone ? formData.phoneId : getNextPhoneId()} theme={theme} isDarkMode={isDarkMode} hint={!editingPhone ? '(Auto-generated)' : undefined} />
               <ModalField label="Phone Model *" value={formData.phoneModel} onChange={(v) => setFormData({...formData, phoneModel: v})} required placeholder="e.g., Samsung Galaxy A14" theme={theme} isDarkMode={isDarkMode} />
@@ -544,8 +524,7 @@ export default function MerchantPhonesList() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </ModalShell>
       )}
     </div>
   );
