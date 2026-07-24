@@ -604,7 +604,7 @@ router.get('/scheduled-exports', async (req, res) => {
  */
 router.post('/manual-export-motorpool', async (req, res) => {
   try {
-    const { exportTypes } = req.body;
+    const { exportTypes, dateRange } = req.body;
 
     if (!exportTypes || !Array.isArray(exportTypes) || exportTypes.length === 0) {
       return res.status(400).json({ error: 'Export types array is required' });
@@ -675,7 +675,7 @@ router.post('/manual-export-motorpool', async (req, res) => {
  */
 router.post('/manual-export-merchant', async (req, res) => {
   try {
-    const { exportTypes } = req.body;
+    const { exportTypes, dateRange } = req.body;
 
     if (!exportTypes || !Array.isArray(exportTypes) || exportTypes.length === 0) {
       return res.status(400).json({ error: 'Export types array is required' });
