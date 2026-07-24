@@ -3,9 +3,10 @@ import { toast } from 'react-toastify';
 // Merchant account management - Theme-aware, uses api utility
 
 import React, { useState, useEffect } from 'react';
-import { Mail, Plus, User } from 'lucide-react';
+import { Mail, Plus, User, Download } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
+import { downloadServerExport } from '../../../utils/csvExport';
 import { confirmDialog } from '../../../components/shared/ConfirmDialogHost';
 import ModalShell from '../../../components/shared/ModalShell';
 
@@ -195,14 +196,24 @@ export default function MerchantsList() {
             {filteredMerchants.length} merchant{filteredMerchants.length !== 1 ? 's' : ''} registered (Page {currentPage} of {totalPages || 1})
           </p>
         </div>
-        <button
-          onClick={handleAdd}
-          style={{ background: theme.accent.primary, color: isDarkMode ? '#181D40' : '#FFF' }}
-          className="py-3 px-6 rounded-xl text-sm font-bold cursor-pointer flex items-center gap-2 shadow-lg border-none"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Add Merchant</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => downloadServerExport('merchants', 'Merchants')}
+            style={{ background: 'rgba(16,185,129,0.15)', color: '#10B981', borderColor: 'rgba(16,185,129,0.3)' }}
+            className="py-3 px-5 rounded-xl text-sm font-semibold cursor-pointer flex items-center gap-2 border hover:opacity-80 transition"
+          >
+            <Download className="w-4 h-4" />
+            <span>Export CSV</span>
+          </button>
+          <button
+            onClick={handleAdd}
+            style={{ background: theme.accent.primary, color: isDarkMode ? '#181D40' : '#FFF' }}
+            className="py-3 px-6 rounded-xl text-sm font-bold cursor-pointer flex items-center gap-2 shadow-lg border-none"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Add Merchant</span>
+          </button>
+        </div>
       </div>
 
       {/* Alert */}

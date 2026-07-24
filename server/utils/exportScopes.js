@@ -7,8 +7,8 @@
 export const ROLE_EXPORT_TYPES = {
   motorpool: ['Drivers', 'Routes', 'Trips', 'Shuttles', 'Phones', 'Logs', 'Concerns'],
   merchant: ['Merchants', 'Phones', 'Logs', 'Concerns'],
-  treasury: ['Transactions', 'Cash-Ins', 'Logs', 'Concerns'],
-  accounting: ['Transactions', 'Cash-Ins', 'Balances', 'Logs'],
+  treasury: ['Transactions', 'Cash-Ins', 'Merchants', 'Logs', 'Concerns'],
+  accounting: ['Transactions', 'Cash-Ins', 'Balances', 'Merchants', 'Logs'],
   sysad: ['Transactions', 'Users', 'Merchants', 'Admins', 'Logs', 'Concerns'],
   marketing: ['Campaigns', 'Logs'],
 };

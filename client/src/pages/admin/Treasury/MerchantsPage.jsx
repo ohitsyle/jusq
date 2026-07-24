@@ -3,7 +3,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { toast } from 'react-toastify';
-import { Search, X, Store, TrendingUp, Calendar, Clock, DollarSign, Users, Truck, RefreshCw } from 'lucide-react';
+import { Search, X, Store, TrendingUp, Calendar, Clock, DollarSign, Users, Truck, RefreshCw, Download } from 'lucide-react';
+import { downloadServerExport } from '../../../utils/csvExport';
 
 export default function MerchantsPage() {
   const { theme, isDarkMode } = useTheme();
@@ -74,13 +75,23 @@ export default function MerchantsPage() {
   return (
     <div className="min-h-[calc(100vh-220px)] flex flex-col">
       {/* Header */}
-      <div style={{ borderColor: theme.border.primary }} className="mb-6 border-b-2 pb-5">
-        <h2 style={{ color: theme.accent.primary }} className="text-2xl font-bold m-0 mb-2 flex items-center gap-[10px]">
-          <Store className="w-5 h-5" /> Merchants
-        </h2>
-        <p style={{ color: theme.text.secondary }} className="text-[13px] m-0">
-          View merchant accounts and transaction metrics
-        </p>
+      <div style={{ borderColor: theme.border.primary }} className="mb-6 border-b-2 pb-5 flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h2 style={{ color: theme.accent.primary }} className="text-2xl font-bold m-0 mb-2 flex items-center gap-[10px]">
+            <Store className="w-5 h-5" /> Merchants
+          </h2>
+          <p style={{ color: theme.text.secondary }} className="text-[13px] m-0">
+            View merchant accounts and transaction metrics
+          </p>
+        </div>
+        <button
+          onClick={() => downloadServerExport('merchants', 'Merchants')}
+          style={{ background: 'rgba(16,185,129,0.15)', color: '#10B981', borderColor: 'rgba(16,185,129,0.3)' }}
+          className="py-2.5 px-5 rounded-xl text-sm font-semibold cursor-pointer flex items-center gap-2 border hover:opacity-80 transition"
+        >
+          <Download className="w-4 h-4" />
+          <span>Export CSV</span>
+        </button>
       </div>
 
       {/* Stats Cards */}

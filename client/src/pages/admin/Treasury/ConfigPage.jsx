@@ -33,6 +33,7 @@ export default function ConfigPage() {
   const TREASURY_EXPORT_TYPES = [
     { value: 'Transactions', icon: '💳', label: 'Transactions' },
     { value: 'Cash-Ins', icon: '💵', label: 'Cash-Ins' },
+    { value: 'Merchants', icon: '🏪', label: 'Merchants' },
     { value: 'Logs', icon: '📋', label: 'Treasury Logs' },
     { value: 'Concerns', icon: '💬', label: 'Treasury Concerns' }
   ];

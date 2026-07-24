@@ -34,6 +34,7 @@ export default function ConfigPage() {
     { value: 'Transactions', icon: '💳', label: 'Transactions' },
     { value: 'Cash-Ins', icon: '💵', label: 'Cash-Ins' },
     { value: 'Balances', icon: '💰', label: 'Balance Summary' },
+    { value: 'Merchants', icon: '🏪', label: 'Merchants' },
     { value: 'Logs', icon: '📋', label: 'Accounting Logs' },
   ];
 

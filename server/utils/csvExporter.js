@@ -272,19 +272,56 @@ export async function exportConcerns(dateFilter = {}, role = null) {
   return { title: 'Concerns Report', headers, rows };
 }
 
-export async function exportMerchants(dateFilter = {}) {
+export async function exportMerchants(dateFilter = {}, role = null) {
   const merchants = await Merchant.find(withDateFilter({}, dateFilter)).select('-pin -password').sort({ merchantId: 1 }).lean();
-  const headers = ['Merchant ID', 'Business Name', 'Contact Person', 'Email', 'License Number', 'License Expiry', 'Active', 'Created'];
-  const rows = merchants.map((m) => ({
-    'Merchant ID': m.merchantId || '',
-    'Business Name': m.businessName || '',
-    'Contact Person': `${m.firstName || ''} ${m.lastName || ''}`.trim(),
-    'Email': m.email || '',
-    'License Number': m.licenseNumber || '',
-    'License Expiry': fmtDate(m.licenseExpiry),
-    'Active': yesNo(m.isActive),
-    'Created': fmtDate(m.createdAt),
-  }));
+
+  // Merchant Management administers the accounts and must NOT see the money
+  // side. Treasury/Accounting (and sysad) oversee collections, so their export
+  // adds per-merchant transaction totals — mirroring what they already see in
+  // the Merchants tab.
+  const withFinancials = role === 'treasury' || role === 'accounting' || role === 'sysad' || !role;
+
+  const baseHeaders = ['Merchant ID', 'Business Name', 'Contact Person', 'Email', 'License Number', 'License Expiry', 'Active', 'Created'];
+  const finHeaders = ['Total Collections', 'Total Transactions', 'Last Transaction'];
+  const headers = withFinancials ? [...baseHeaders, ...finHeaders] : baseHeaders;
+
+  // Aggregate collections/counts once for all merchants (completed debits only).
+  let totalsById = {};
+  if (withFinancials && merchants.length) {
+    const ids = merchants.map((m) => m.merchantId).filter(Boolean);
+    const agg = await Transaction.aggregate([
+      { $match: { merchantId: { $in: ids }, transactionType: 'debit' } },
+      { $group: {
+        _id: '$merchantId',
+        collections: { $sum: { $cond: [{ $eq: ['$status', 'Completed'] }, '$amount', 0] } },
+        count: { $sum: 1 },
+        last: { $max: '$createdAt' },
+      } },
+    ]);
+    totalsById = Object.fromEntries(agg.map((a) => [a._id, a]));
+  }
+
+  const rows = merchants.map((m) => {
+    const base = {
+      'Merchant ID': m.merchantId || '',
+      'Business Name': m.businessName || '',
+      'Contact Person': `${m.firstName || ''} ${m.lastName || ''}`.trim(),
+      'Email': m.email || '',
+      'License Number': m.licenseNumber || '',
+      'License Expiry': fmtDate(m.licenseExpiry),
+      'Active': yesNo(m.isActive),
+      'Created': fmtDate(m.createdAt),
+    };
+    if (!withFinancials) return base;
+    const t = totalsById[m.merchantId] || {};
+    return {
+      ...base,
+      'Total Collections': t.collections || 0,
+      'Total Transactions': t.count || 0,
+      'Last Transaction': fmtDate(t.last),
+    };
+  });
+
   return { title: 'Merchants Report', headers, rows };
 }
 
@@ -361,7 +398,7 @@ export async function exportByType(exportType, dateFilter = {}, role = null, met
     case 'logs': result = await exportLogs(dateFilter, role); break;
     case 'users': result = await exportUsers(dateFilter); break;
     case 'concerns': result = await exportConcerns(dateFilter, role); break;
-    case 'merchants': result = await exportMerchants(dateFilter); break;
+    case 'merchants': result = await exportMerchants(dateFilter, role); break;
     case 'cash-ins':
     case 'cashins': result = await exportCashIns(dateFilter); break;
     case 'balances': result = await exportBalances(dateFilter); break;
