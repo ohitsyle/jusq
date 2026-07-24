@@ -118,16 +118,22 @@ export async function exportShuttles(dateFilter = {}) {
 
 export async function exportRoutes(dateFilter = {}) {
   const routes = await Route.find(withDateFilter({}, dateFilter)).sort({ order: 1, routeId: 1 }).lean();
-  const headers = ['Route ID', 'Route Name', 'From', 'To', 'Fare', 'Active', 'Order', 'Created'];
+  const headers = ['Route ID', 'Route Name', 'From', 'From Latitude', 'From Longitude', 'To', 'To Latitude', 'To Longitude', 'Fare', 'Active', 'Created By', 'Updated By', 'Created', 'Updated'];
   const rows = routes.map((r) => ({
     'Route ID': r.routeId,
     'Route Name': r.routeName,
     'From': r.fromName || '',
+    'From Latitude': r.fromLatitude ?? '',
+    'From Longitude': r.fromLongitude ?? '',
     'To': r.toName || '',
+    'To Latitude': r.toLatitude ?? '',
+    'To Longitude': r.toLongitude ?? '',
     'Fare': r.fare ?? 0,
     'Active': yesNo(r.isActive),
-    'Order': r.order ?? '',
-    'Created': fmtDate(r.createdAt),
+    'Created By': r.createdBy || '',
+    'Updated By': r.updatedBy || '',
+    'Created': fmtDateTime(r.createdAt),
+    'Updated': fmtDateTime(r.updatedAt),
   }));
   return { title: 'Routes Report', headers, rows };
 }

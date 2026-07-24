@@ -654,7 +654,9 @@ router.get('/routes/:id', async (req, res) => {
 
 router.post('/routes', broadcastChanges('route'), async (req, res) => {
   try {
-    const route = new Route(req.body);
+    // Record who created the route (falls back to the schema default 'System').
+    const creator = req.adminInfo?.adminName || req.authAdmin?.role;
+    const route = new Route({ ...req.body, ...(creator ? { createdBy: creator } : {}) });
     await route.save();
 
     // Log route creation
@@ -681,7 +683,12 @@ router.post('/routes', broadcastChanges('route'), async (req, res) => {
 router.put('/routes/:id', broadcastChanges('route'), async (req, res) => {
   try {
     const oldRoute = await Route.findById(req.params.id).lean();
-    const route = await Route.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    // findByIdAndUpdate skips the pre('save') hook, so stamp updatedAt and
+    // updatedBy explicitly — otherwise "who/when" stays blank in the record
+    // (and the export) even though the change is logged.
+    const editor = req.adminInfo?.adminName || req.authAdmin?.role || 'Unknown Admin';
+    const updates = { ...req.body, updatedBy: editor, updatedAt: new Date() };
+    const route = await Route.findByIdAndUpdate(req.params.id, updates, { new: true, runValidators: true });
     if (!route) return res.status(404).json({ error: 'Route not found' });
 
     // Log route update
