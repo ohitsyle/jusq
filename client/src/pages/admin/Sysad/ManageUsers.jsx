@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { Search, Download, Plus, Edit, Trash2, Users, UserCheck, UserX, Shield, GraduationCap, Briefcase, X, Check, Loader2, CreditCard, AlertCircle, CheckCircle, XCircle, AlertTriangle, Info } from 'lucide-react';
-import { exportToCSV } from '../../../utils/csvExport';
+import { exportToCSV, downloadServerExport } from '../../../utils/csvExport';
 import { convertToHexLittleEndian } from '../../../utils/rfidConverter';
 import { toast } from 'react-toastify';
 import AddUserModal from './AddUserModal';
@@ -149,26 +149,7 @@ export default function ManageUsers() {
     };
   }, []);
 
-  const handleExportCSV = () => {
-  const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
-  const exportMeta = {
-    adminName: adminData.firstName ? `${adminData.firstName} ${adminData.lastName || ''}`.trim() : 'Admin',
-    department: adminData.role ? adminData.role.charAt(0).toUpperCase() + adminData.role.slice(1) : undefined,
-  };
-    const exportData = users.map(user => ({
-      'ID Number': user.schoolUId || user.adminId || 'N/A',
-      'RFID': user.rfidUId || 'N/A',
-      'Name': `${user.firstName || ''} ${user.lastName || ''}`.trim(),
-      'Email': user.email || 'N/A',
-      'Role': user.role || 'user',
-      'Status': user.isActive ? 'Active' : 'Inactive',
-      'Deactivated': user.isDeactivated ? 'Yes' : 'No',
-      'Balance': user.balance || 0,
-      'Created': new Date(user.createdAt).toLocaleDateString()
-    }));
-    exportToCSV(exportData, `users-export-${sortBy}`, { ...exportMeta, title: 'User Management Report' });
-    api.post('/admin/log-tab-export', { tabName: 'Manage Users', recordCount: users.length, fileName: `users-export-${sortBy}.csv` }).catch(() => {});
-  };
+  const handleExportCSV = () => downloadServerExport('users', 'Users');
 
   const handleDeleteUser = async (userId) => {
     showConfirm(

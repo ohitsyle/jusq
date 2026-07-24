@@ -6,7 +6,7 @@ import api from '../../../utils/api';
 import SearchBar from '../../../components/shared/SearchBar';
 import ExportButton from '../../../components/shared/ExportButton';
 import StatusFilter from '../../../components/shared/StatusFilter';
-import { exportToCSV, prepareDataForExport } from '../../../utils/csvExport';
+import { exportToCSV, prepareDataForExport, downloadServerExport } from '../../../utils/csvExport';
 import { useTheme } from '../../../context/ThemeContext';
 import { ThemedSelect } from '../../../components/shared/ThemedControls';
 import { confirmDialog } from '../../../components/shared/ConfirmDialogHost';
@@ -126,11 +126,7 @@ export default function ShuttlesList() {
     setFormData({ shuttleId: '', vehicleType: '', vehicleModel: '', plateNumber: '', capacity: 15 });
   };
 
-  const handleExport = () => {
-    const dataToExport = prepareDataForExport(filteredShuttles);
-    exportToCSV(dataToExport, 'shuttles');
-    api.post('/admin/log-tab-export', { tabName: 'Shuttles', recordCount: filteredShuttles.length, fileName: 'shuttles.csv' }).catch(() => {});
-  };
+  const handleExport = () => downloadServerExport('shuttles', 'Shuttles');
 
   const filteredShuttles = shuttles.filter(shuttle => {
     // Search filter

@@ -45,7 +45,9 @@ async function processAutoExport(role) {
     console.log(`[Auto-Export] Exporting types for ${role}:`, exportTypes);
 
     // Load csvExporter only when we actually run an export (avoids touching User model during "check" only)
-    const { exportByType } = await import('../utils/csvExporter.js');
+    const { exportByType, roleDepartmentLabel } = await import('../utils/csvExporter.js');
+    // Branded-header identity for automated runs.
+    const meta = { adminName: 'System (Automated)', department: roleDepartmentLabel(role), dateRange: 'All Time' };
 
     const AdmZip = (await import('adm-zip')).default;
     const zip = new AdmZip();
@@ -58,7 +60,7 @@ async function processAutoExport(role) {
         const normalizedType = type.toLowerCase().replace(/\s+/g, '-');
         console.log(`[Auto-Export] Processing type: ${type} (normalized: ${normalizedType})`);
 
-        const { csv, count } = await exportByType(normalizedType, {}, role);
+        const { csv, count } = await exportByType(normalizedType, {}, role, meta);
         const fileName = `${normalizedType.replace(/-/g, '_')}_export_${new Date().toISOString().split('T')[0]}.csv`;
         zip.addFile(fileName, Buffer.from(csv, 'utf8'));
         totalRecords += count;

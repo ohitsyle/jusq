@@ -8,7 +8,7 @@ import api from '../../../utils/api';
 import SearchBar from '../../../components/shared/SearchBar';
 import ExportButton from '../../../components/shared/ExportButton';
 import Alert from '../../../components/shared/Alert';
-import { exportToCSV, prepareDataForExport } from '../../../utils/csvExport';
+import { exportToCSV, prepareDataForExport, downloadServerExport } from '../../../utils/csvExport';
 import { ThemedSelect } from '../../../components/shared/ThemedControls';
 import { confirmDialog } from '../../../components/shared/ConfirmDialogHost';
 
@@ -529,18 +529,7 @@ export default function RoutesList() {
     }
   };
 
-  const handleExport = () => {
-    const exportData = prepareDataForExport(routes, [
-      'routeId', 'routeName', 'fromName', 'toName', 'fare', 'isActive'
-    ]);
-    const fileName = `routes_${new Date().toISOString().split('T')[0]}.csv`;
-    const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
-
-    const exportMeta = { adminName: adminData.firstName ? `${adminData.firstName} ${adminData.lastName || ''}`.trim() : 'Admin', department: adminData.role ? adminData.role.charAt(0).toUpperCase() + adminData.role.slice(1) : undefined };
-
-    exportToCSV(exportData, fileName, { ...exportMeta, title: 'Routes Report' });
-    api.post('/admin/log-tab-export', { tabName: 'Routes', recordCount: routes.length, fileName }).catch(() => {});
-  };
+  const handleExport = () => downloadServerExport('routes', 'Routes');
 
   const filteredRoutes = routes.filter(route =>
     route.routeName?.toLowerCase().includes(searchQuery.toLowerCase()) ||

@@ -6,7 +6,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { toast } from 'react-toastify';
-import { exportToCSV } from '../../../utils/csvExport';
+import { exportToCSV, downloadServerExport } from '../../../utils/csvExport';
 import { X, Loader2, Send, CheckCircle, MessageCircle, FileText, Clock, AlertCircle, Search, Download, MessageSquare } from 'lucide-react';
 import { ThemedDateInput } from '../../../components/shared/ThemedControls';
 
@@ -167,23 +167,7 @@ export default function SysadConcernsPage() {
     }
   };
 
-  const handleExport = () => {
-    const dataToExport = filteredConcerns.map(c => ({
-      ID: c._id?.slice(-8) || '',
-      Type: c.submissionType || 'assistance',
-      User: c.user?.firstName ? `${c.user.firstName} ${c.user.lastName || ''}` : c.userName || '',
-      Subject: c.subject || '',
-      Status: c.status || 'pending',
-      Priority: c.priority || 'medium',
-      Rating: c.rating || '',
-      Date: c.createdAt ? new Date(c.createdAt).toLocaleDateString() : ''
-    }));
-    const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
-
-    const exportMeta = { adminName: adminData.firstName ? `${adminData.firstName} ${adminData.lastName || ''}`.trim() : 'Admin', department: adminData.role ? adminData.role.charAt(0).toUpperCase() + adminData.role.slice(1) : undefined };
-
-    exportToCSV(dataToExport, 'sysad_concerns', { ...exportMeta, title: 'All Concerns & Feedback Report' });
-  };
+  const handleExport = () => downloadServerExport('concerns', 'Concerns');
 
   // Filter concerns
   const filteredConcerns = concerns.filter(concern => {

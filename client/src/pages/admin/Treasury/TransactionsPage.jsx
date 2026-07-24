@@ -5,7 +5,7 @@ import api from '../../../utils/api';
 import { toast } from 'react-toastify';
 import { Search, Download, ClipboardList } from 'lucide-react';
 import TransactionTable from '../../../components/TreasuryDashboard/TransactionTable';
-import { exportToCSV } from '../../../utils/csvExport';
+import { exportToCSV, downloadServerExport } from '../../../utils/csvExport';
 import { ThemedDateInput } from '../../../components/shared/ThemedControls';
 
 export default function TransactionsPage() {
@@ -62,27 +62,7 @@ export default function TransactionsPage() {
     setCurrentPage(1);
   }, [filterType, searchQuery, startDate, endDate]);
 
-  const handleExport = () => {
-  const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
-  const exportMeta = {
-    adminName: adminData.firstName ? `${adminData.firstName} ${adminData.lastName || ''}`.trim() : 'Admin',
-    department: adminData.role ? adminData.role.charAt(0).toUpperCase() + adminData.role.slice(1) : undefined,
-  };
-    const dataToExport = filteredTransactions.map(tx => ({
-      Date: tx.createdAt ? new Date(tx.createdAt).toLocaleDateString() : tx.date || '',
-      Time: tx.createdAt ? new Date(tx.createdAt).toLocaleTimeString() : tx.time || '',
-      'ID Number': tx.idNumber || tx.schoolUId || '',
-      Name: tx.userName || '',
-      Email: tx.email || '',
-      Type: tx.transactionType === 'credit' ? 'Cash-In' : 'Payment',
-      Status: tx.status || 'Completed',  
-      Amount: tx.amount,
-      'Processed By': tx.transactionType === 'credit' ? (tx.adminName || tx.processedBy || 'Treasury') : '—',
-      'Transaction ID': tx.transactionId || tx._id || ''
-    }));
-    exportToCSV(dataToExport, 'transactions', { ...exportMeta, title: 'Transactions Report' });
-    api.post('/admin/log-tab-export', { tabName: 'Treasury Transactions', recordCount: filteredTransactions.length, fileName: 'transactions.csv' }).catch(() => {});
-  };
+  const handleExport = () => downloadServerExport('transactions', 'Transactions');
 
   // Filter transactions locally for search
   const filteredTransactions = transactions.filter(tx => {

@@ -5,7 +5,7 @@ import { Users, UserCheck, UserX, BadgeAlert } from 'lucide-react';
 import api from '../../../utils/api';
 import SearchBar from '../../../components/shared/SearchBar';
 import ExportButton from '../../../components/shared/ExportButton';
-import { exportToCSV, prepareDataForExport } from '../../../utils/csvExport';
+import { exportToCSV, prepareDataForExport, downloadServerExport } from '../../../utils/csvExport';
 import { useTheme } from '../../../context/ThemeContext';
 import { ThemedDateInput, ThemedSelect } from '../../../components/shared/ThemedControls';
 import { confirmDialog } from '../../../components/shared/ConfirmDialogHost';
@@ -247,11 +247,7 @@ export default function DriversList() {
     }
   };
 
-  const handleExport = () => {
-    const dataToExport = prepareDataForExport(filteredDrivers);
-    exportToCSV(dataToExport, 'drivers');
-    api.post('/admin/log-tab-export', { tabName: 'Drivers', recordCount: filteredDrivers.length, fileName: 'drivers.csv' }).catch(() => {});
-  };
+  const handleExport = () => downloadServerExport('drivers', 'Drivers');
 
   // Filter drivers based on search query
   const filteredDrivers = drivers.filter(driver => {

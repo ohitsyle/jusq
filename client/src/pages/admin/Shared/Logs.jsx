@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { Search, Download, ClipboardList } from 'lucide-react';
-import { exportToCSV, prepareDataForExport } from '../../../utils/csvExport';
+import { exportToCSV, prepareDataForExport, downloadServerExport } from '../../../utils/csvExport';
 import LogDetailModal from '../../../components/modals/LogDetailModal';
 import { ThemedDateInput } from '../../../components/shared/ThemedControls';
 
@@ -44,24 +44,7 @@ export default function LogsList() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleExport = () => {
-    const exportData = filteredLogs.map(log => ({
-      Timestamp: new Date(log.timestamp).toLocaleString(),
-      Action: log.title || log.eventType || 'N/A',
-      Admin: log.adminName || log.driverName || log.userId || 'System',
-      'ID Number': log.adminId || log.driverId || log.userId || '-',
-      Description: log.description || log.message || '-'
-    }));
-    const fileName = `${adminData?.role || 'system'}-logs`;
-
-    const exportMeta = {
-      adminName: adminData?.firstName ? `${adminData.firstName} ${adminData.lastName || ''}`.trim() : 'Admin',
-      department: adminData?.role ? adminData.role.charAt(0).toUpperCase() + adminData.role.slice(1) : undefined
-    };
-
-    exportToCSV(exportData, fileName, { ...exportMeta, title: 'Activity Logs Report' });
-    api.post('/admin/log-tab-export', { tabName: 'Logs', recordCount: filteredLogs.length, fileName: `${fileName}.csv` }).catch(() => {});
-  };
+  const handleExport = () => downloadServerExport('logs', 'Activity Logs');
 
   // Filter logs based on admin department
   // Each department ONLY sees their own logs - strictly isolated

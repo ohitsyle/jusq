@@ -7,7 +7,7 @@ import ExportButton from '../../../components/shared/ExportButton';
 import StatusFilter from '../../../components/shared/StatusFilter';
 import DateRangeFilter from '../../../components/shared/DateRangeFilter';
 import TripDetailModal from '../../../components/modals/TripDetailModal';
-import { exportToCSV, prepareDataForExport } from '../../../utils/csvExport';
+import { exportToCSV, prepareDataForExport, downloadServerExport } from '../../../utils/csvExport';
 import { useTheme } from '../../../context/ThemeContext';
 
 export default function TripsList() {
@@ -39,14 +39,7 @@ export default function TripsList() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleExport = () => {
-    const dataToExport = prepareDataForExport(filteredTrips);
-    const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
-
-    const exportMeta = { adminName: adminData.firstName ? `${adminData.firstName} ${adminData.lastName || ''}`.trim() : 'Admin', department: adminData.role ? adminData.role.charAt(0).toUpperCase() + adminData.role.slice(1) : undefined };
-
-    exportToCSV(dataToExport, 'trips', { ...exportMeta, title: 'Trips Report' });
-  };
+  const handleExport = () => downloadServerExport('trips', 'Trips');
 
   const filteredTrips = trips.filter(trip => {
     // Search filter

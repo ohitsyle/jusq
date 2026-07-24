@@ -10,7 +10,7 @@ import ExportButton from '../../../components/shared/ExportButton';
 import StatusFilter from '../../../components/shared/StatusFilter';
 import DateRangeFilter from '../../../components/shared/DateRangeFilter';
 import ConcernDetailModal from '../../../components/modals/ConcernDetailModal';
-import { exportToCSV, prepareDataForExport } from '../../../utils/csvExport';
+import { exportToCSV, prepareDataForExport, downloadServerExport } from '../../../utils/csvExport';
 import { ThemedSelect } from '../../../components/shared/ThemedControls';
 
 export default function ConcernsList() {
@@ -120,14 +120,7 @@ export default function ConcernsList() {
     }
   };
 
-  const handleExport = () => {
-    const dataToExport = prepareDataForExport(filteredConcerns);
-    const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
-
-    const exportMeta = { adminName: adminData.firstName ? `${adminData.firstName} ${adminData.lastName || ''}`.trim() : 'Admin', department: adminData.role ? adminData.role.charAt(0).toUpperCase() + adminData.role.slice(1) : undefined };
-
-    exportToCSV(dataToExport, 'concerns', { ...exportMeta, title: 'Concerns & Feedback Report' });
-  };
+  const handleExport = () => downloadServerExport('concerns', 'Concerns');
 
   const filteredConcerns = concerns.filter(concern => {
     // Tab filter - filter by submissionType

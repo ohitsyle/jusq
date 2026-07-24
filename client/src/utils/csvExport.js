@@ -1,5 +1,62 @@
 // src/admin/utils/csvExport.js
 // Utility functions for CSV export with document-style headers
+import api from './api';
+
+/**
+ * Download an export straight from the server so a tab "Export CSV" button
+ * produces the EXACT same file (columns, contents, branded header) as the
+ * Settings manual/auto export of the same type. The server scopes shared
+ * collections (logs/concerns/phones) to the caller's role automatically.
+ *
+ * @param {string} type   export type: routes, drivers, shuttles, trips,
+ *                        phones, transactions, users, logs, concerns,
+ *                        merchants, campaigns, cash-ins, balances, admins
+ * @param {string} label  human title for the completion pop-up (optional)
+ */
+export async function downloadServerExport(type, label) {
+  try {
+    // api baseURL already includes /api; interceptor adds auth + admin headers
+    const base = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace(/\/$/, '');
+    const token = localStorage.getItem('adminToken') || '';
+    const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+    const adminName = [adminData.firstName, adminData.lastName].filter(Boolean).join(' ') || adminData.email || 'Admin';
+
+    const res = await fetch(`${base}/admin/configurations/export/${encodeURIComponent(type)}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'X-Admin-Id': String(adminData.adminId || adminData.schoolUId || ''),
+        'X-Admin-Name': adminName,
+        'X-Admin-Role': adminData.role || '',
+        'X-Admin-Department': adminData.role || '',
+      },
+    });
+    if (!res.ok) throw new Error(`Export failed (${res.status})`);
+
+    const blob = await res.blob();
+    const cd = res.headers.get('Content-Disposition') || '';
+    const fname = (cd.match(/filename="?([^"]+)"?/) || [])[1] || `${type}_export.csv`;
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fname;
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    window.dispatchEvent(new CustomEvent('nucash:export-complete', {
+      detail: { message: `${label || type} exported to CSV successfully.` }
+    }));
+    return true;
+  } catch (e) {
+    window.dispatchEvent(new CustomEvent('nucash:export-complete', {
+      detail: { message: `Export failed: ${e.message}`, error: true }
+    }));
+    return false;
+  }
+}
 
 /**
  * Export data to a CSV file with a branded document header.

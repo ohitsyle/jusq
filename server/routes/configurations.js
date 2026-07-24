@@ -8,7 +8,7 @@ import ExcuseSlip from '../models/ExcuseSlip.js';
 import ExportHistory from '../models/ExportHistory.js';
 import User from '../models/User.js';
 import Driver from '../models/Driver.js';
-import { exportByType } from '../utils/csvExporter.js';
+import { exportByType, roleDepartmentLabel } from '../utils/csvExporter.js';
 import { filterTypesForRole } from '../utils/exportScopes.js';
 import { sendEmail } from '../services/emailService.js';
 import { logAdminAction } from '../utils/logger.js';
@@ -321,6 +321,21 @@ router.put('/tab-visibility', async (req, res) => {
 // CSV EXPORT ENDPOINTS
 // ============================================================
 
+// Branded-header metadata for an export, derived from the requesting admin.
+// role: the department the export belongs to; dateRange: human period label.
+const metaFromReq = (req, role, dateRange) => ({
+  adminName: req.adminName || req.adminInfo?.adminName || 'Admin',
+  department: roleDepartmentLabel(role || req.adminRole || req.adminInfo?.adminRole),
+  dateRange: dateRange || undefined,
+});
+
+// Automated exports carry a fixed byline instead of an admin name.
+const autoMeta = (role, dateRange) => ({
+  adminName: 'System (Automated)',
+  department: roleDepartmentLabel(role),
+  dateRange: dateRange || undefined,
+});
+
 /**
  * POST /admin/configurations/manual-export
  * Manually trigger export
@@ -333,7 +348,8 @@ router.post('/manual-export', async (req, res) => {
       return res.status(400).json({ error: 'Export type is required' });
     }
 
-    const { csv, count } = await exportByType(exportType);
+    const role = req.authAdmin?.role || req.adminRole;
+    const { csv, count } = await exportByType(exportType, {}, role, metaFromReq(req, role));
     const fileName = `${exportType}_export_${new Date().toISOString().split('T')[0]}.csv`;
 
     // Log export history
@@ -404,11 +420,13 @@ router.post('/manual-export-all', async (req, res) => {
 
     const exportTypes = ['drivers', 'trips', 'transactions', 'users', 'shuttles', 'routes', 'logs', 'phones', 'concerns', 'merchants'];
     let totalRecords = 0;
+    const role = req.authAdmin?.role || req.adminRole;
+    const meta = metaFromReq(req, role, dateRange);
 
     // Export each type and add to ZIP with date filtering
     for (const type of exportTypes) {
       try {
-        const { csv, count } = await exportByType(type, dateFilter);
+        const { csv, count } = await exportByType(type, dateFilter, role, meta);
         const fileName = `${type}_export_${new Date().toISOString().split('T')[0]}.csv`;
         zip.addFile(fileName, Buffer.from(csv, 'utf8'));
         totalRecords += count;
@@ -479,7 +497,12 @@ router.post('/manual-export-all', async (req, res) => {
 router.get('/export/:type', async (req, res) => {
   try {
     const { type } = req.params;
-    const { csv, count } = await exportByType(type);
+    // Scope shared collections (logs/concerns/phones) to the caller's verified
+    // department, and stamp the branded header with their identity. This is the
+    // single endpoint every tab "Export CSV" button uses, so a tab download and
+    // a Settings single-type download are byte-identical.
+    const role = req.authAdmin?.role || req.adminRole;
+    const { csv, count } = await exportByType(type, {}, role, metaFromReq(req, role));
 
     const fileName = `${type}_export_${new Date().toISOString().split('T')[0]}.csv`;
 
@@ -492,7 +515,21 @@ router.get('/export/:type', async (req, res) => {
       status: 'success'
     }).save();
 
-    res.setHeader('Content-Type', 'text/csv');
+    logAdminAction({
+      adminId: req.adminId || 'system',
+      adminName: req.adminName || 'Admin',
+      adminRole: role || 'unknown',
+      department: role || 'system',
+      action: 'Tab Export',
+      description: `exported ${type} (${count} records)`,
+      targetEntity: 'config',
+      targetId: `export-${type}`,
+      crudOperation: 'export_manual',
+      changes: { exportType: type, recordCount: count },
+      ipAddress: req.ip
+    }).catch(() => {});
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     res.send(csv);
   } catch (error) {
@@ -580,7 +617,7 @@ router.post('/manual-export-motorpool', async (req, res) => {
     // Export each selected type and add to ZIP
     for (const type of filterTypesForRole(exportTypes, 'motorpool')) {
       try {
-        const { csv, count } = await exportByType(type, {}, 'motorpool');
+        const { csv, count } = await exportByType(type, {}, 'motorpool', metaFromReq(req, 'motorpool', dateRange));
         const fileName = `${type.toLowerCase()}_export_${new Date().toISOString().split('T')[0]}.csv`;
         zip.addFile(fileName, Buffer.from(csv, 'utf8'));
         totalRecords += count;
@@ -651,7 +688,7 @@ router.post('/manual-export-merchant', async (req, res) => {
     // Export each selected type and add to ZIP
     for (const type of filterTypesForRole(exportTypes, 'merchant')) {
       try {
-        const { csv, count } = await exportByType(type, {}, 'merchant');
+        const { csv, count } = await exportByType(type, {}, 'merchant', metaFromReq(req, 'merchant', dateRange));
         const fileName = `${type.toLowerCase()}_export_${new Date().toISOString().split('T')[0]}.csv`;
         zip.addFile(fileName, Buffer.from(csv, 'utf8'));
         totalRecords += count;
@@ -752,7 +789,7 @@ router.post('/manual-export-treasury', async (req, res) => {
     for (const type of filterTypesForRole(exportTypes, 'treasury')) {
       try {
         const actualType = typeMapping[type] || type.toLowerCase();
-        const { csv, count } = await exportByType(actualType, dateFilter, 'treasury');
+        const { csv, count } = await exportByType(actualType, dateFilter, 'treasury', metaFromReq(req, 'treasury', dateRange));
         const fileName = `${actualType}_export_${new Date().toISOString().split('T')[0]}.csv`;
         zip.addFile(fileName, Buffer.from(csv, 'utf8'));
         totalRecords += count;
@@ -853,7 +890,7 @@ router.post('/manual-export-sysad', async (req, res) => {
     for (const type of filterTypesForRole(exportTypes, 'sysad')) {
       try {
         const actualType = typeMapping[type] || type.toLowerCase();
-        const { csv, count } = await exportByType(actualType, dateFilter, 'sysad');
+        const { csv, count } = await exportByType(actualType, dateFilter, 'sysad', metaFromReq(req, 'sysad', dateRange));
         const fileName = `${actualType}_export_${new Date().toISOString().split('T')[0]}.csv`;
         zip.addFile(fileName, Buffer.from(csv, 'utf8'));
         totalRecords += count;
@@ -955,7 +992,7 @@ router.post('/manual-export-accounting', async (req, res) => {
     for (const type of filterTypesForRole(exportTypes, 'accounting')) {
       try {
         const actualType = typeMapping[type] || type.toLowerCase();
-        const { csv, count } = await exportByType(actualType, dateFilter, 'accounting');
+        const { csv, count } = await exportByType(actualType, dateFilter, 'accounting', metaFromReq(req, 'accounting', dateRange));
         const fileName = `${actualType}_export_${new Date().toISOString().split('T')[0]}.csv`;
         zip.addFile(fileName, Buffer.from(csv, 'utf8'));
         totalRecords += count;
@@ -1046,7 +1083,7 @@ router.post('/manual-export-marketing', async (req, res) => {
     for (const type of filterTypesForRole(exportTypes, 'marketing')) {
       try {
         const actualType = typeMapping[type] || type.toLowerCase();
-        const { csv, count } = await exportByType(actualType, dateFilter, 'marketing');
+        const { csv, count } = await exportByType(actualType, dateFilter, 'marketing', metaFromReq(req, 'marketing', dateRange));
         const fileName = `${actualType}_export_${new Date().toISOString().split('T')[0]}.csv`;
         zip.addFile(fileName, Buffer.from(csv, 'utf8'));
         totalRecords += count;

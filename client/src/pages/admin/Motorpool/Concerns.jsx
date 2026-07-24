@@ -8,7 +8,7 @@ import SearchBar from '../../../components/shared/SearchBar';
 import StatusFilter from '../../../components/shared/StatusFilter';
 import DateRangeFilter from '../../../components/shared/DateRangeFilter';
 import ExportButton from '../../../components/shared/ExportButton';
-import { exportToCSV } from '../../../utils/csvExport';
+import { exportToCSV, downloadServerExport } from '../../../utils/csvExport';
 import { Clock, Loader2, CheckCircle, Bus } from 'lucide-react';
 
 export default function MotorpoolConcerns() {
@@ -194,23 +194,7 @@ export default function MotorpoolConcerns() {
     }
   };
 
-  const handleExport = () => {
-    const dataToExport = filteredConcerns.map(c => ({
-      ID: c.concernId || c._id?.slice(-8) || '',
-      Type: c.submissionType || 'assistance',
-      User: c.userName || '',
-      Subject: c.subject || '',
-      Status: c.status || 'pending',
-      Priority: c.priority || 'medium',
-      Rating: c.rating || '',
-      Date: c.submittedAt || c.createdAt ? new Date(c.submittedAt || c.createdAt).toLocaleDateString() : ''
-    }));
-    const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
-
-    const exportMeta = { adminName: adminData.firstName ? `${adminData.firstName} ${adminData.lastName || ''}`.trim() : 'Admin', department: adminData.role ? adminData.role.charAt(0).toUpperCase() + adminData.role.slice(1) : undefined };
-
-    exportToCSV(dataToExport, 'motorpool_concerns', { ...exportMeta, title: 'Concerns & Feedback Report' });
-  };
+  const handleExport = () => downloadServerExport('concerns', 'Concerns');
 
   // Filter concerns
   const filteredConcerns = concerns.filter(concern => {

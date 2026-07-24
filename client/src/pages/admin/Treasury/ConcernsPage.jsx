@@ -5,7 +5,7 @@ import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { toast } from 'react-toastify';
 import { Search, Download, MessageSquare, Clock, Loader2, CheckCircle } from 'lucide-react';
-import { exportToCSV } from '../../../utils/csvExport';
+import { exportToCSV, downloadServerExport } from '../../../utils/csvExport';
 import { ThemedDateInput } from '../../../components/shared/ThemedControls';
 
 export default function ConcernsPage() {
@@ -139,23 +139,7 @@ export default function ConcernsPage() {
     }
   };
 
-  const handleExport = () => {
-    const dataToExport = filteredConcerns.map(c => ({
-      ID: c._id?.slice(-8) || '',
-      Type: c.submissionType || 'assistance',
-      User: c.user?.firstName ? `${c.user.firstName} ${c.user.lastName || ''}` : c.userName || '',
-      Subject: c.subject || '',
-      Status: c.status || 'pending',
-      Priority: c.priority || 'medium',
-      Rating: c.rating || '',
-      Date: c.createdAt ? new Date(c.createdAt).toLocaleDateString() : ''
-    }));
-    const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
-
-    const exportMeta = { adminName: adminData.firstName ? `${adminData.firstName} ${adminData.lastName || ''}`.trim() : 'Admin', department: adminData.role ? adminData.role.charAt(0).toUpperCase() + adminData.role.slice(1) : undefined };
-
-    exportToCSV(dataToExport, 'treasury_concerns', { ...exportMeta, title: 'Concerns & Feedback Report' });
-  };
+  const handleExport = () => downloadServerExport('concerns', 'Concerns');
 
   const filteredConcerns = concerns.filter(concern => {
     if (activeTab === 'assistance' && concern.submissionType !== 'assistance') return false;

@@ -8,7 +8,7 @@ import SearchBar from '../../../components/shared/SearchBar';
 import StatusFilter from '../../../components/shared/StatusFilter';
 import DateRangeFilter from '../../../components/shared/DateRangeFilter';
 import ExportButton from '../../../components/shared/ExportButton';
-import { exportToCSV } from '../../../utils/csvExport';
+import { exportToCSV, downloadServerExport } from '../../../utils/csvExport';
 import { Clock, Loader2, CheckCircle, Store } from 'lucide-react';
 
 export default function MerchantConcerns() {
@@ -194,17 +194,7 @@ export default function MerchantConcerns() {
     }
   };
 
-  const handleExport = () => {
-    const dataToExport = filteredConcerns.map(c => ({
-      ID: c.concernId || c._id?.slice(-8) || '',
-      Type: c.submissionType || 'assistance',
-      User: c.userName || '',
-      Subject: c.subject || '',
-      Status: c.status || 'pending',
-      Date: c.createdAt || c.submittedAt ? new Date(c.createdAt || c.submittedAt).toLocaleDateString() : ''
-    }));
-    exportToCSV(dataToExport, 'merchant_concerns');
-  };
+  const handleExport = () => downloadServerExport('concerns', 'Concerns');
 
   // Filter concerns
   const filteredConcerns = (concerns || []).filter(concern => {
