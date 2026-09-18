@@ -784,17 +784,19 @@ export default function UnifiedLogin() {
           <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#FFD41C] mb-3">
             Designed &amp; Developed by
           </p>
-          <div className="space-y-1">
-            <p className="text-sm font-semibold text-[rgba(251,251,251,0.92)] leading-snug">
-              Jose Anjelo Abued
-            </p>
-            <p className="text-sm font-semibold text-[rgba(251,251,251,0.92)] leading-snug">
-              Ashley Gwyneth Cuevas
-            </p>
-            <p className="text-sm font-semibold text-[rgba(251,251,251,0.92)] leading-snug">
-              Jhustine Brylle Logronio
-            </p>
-          </div>
+          {/* One line on laptop/desktop (borrows some of the card's side padding so
+              three full names fit); on narrow phones it wraps, but only between
+              names — never mid-name. */}
+          <p className="text-[11px] font-semibold text-[rgba(251,251,251,0.92)] leading-relaxed sm:-mx-8 sm:whitespace-nowrap">
+            <span className="whitespace-nowrap">Jose Anjelo Abued</span>
+            {' | '}
+            <span className="whitespace-nowrap">Ashley Gwyneth Cuevas</span>
+            {' | '}
+            <span className="whitespace-nowrap">Jhustine Brylle Logronio</span>
+          </p>
+          <p className="mt-1 text-xs font-medium text-[rgba(251,251,251,0.7)]">
+            School of Computer Studies
+          </p>
           <p className="mt-4 text-[11px] text-[rgba(251,251,251,0.4)]">
             © 2026 National University Laguna
           </p>
