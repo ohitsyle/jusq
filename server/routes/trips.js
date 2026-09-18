@@ -30,7 +30,8 @@ router.post('/start', async (req, res) => {
     try {
       const driver = await Driver.findOne({ driverId });
       if (driver) {
-        driverName = driver.name || '';
+        // Driver has firstName/lastName (+ fullName virtual), not "name"
+        driverName = driver.fullName || `${driver.firstName || ''} ${driver.lastName || ''}`.trim();
       }
     } catch (err) {
       console.warn('⚠️ Could not fetch driver name:', err.message);
