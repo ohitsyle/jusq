@@ -84,3 +84,8 @@ server/public/merchant-dist/
 .cache/
 client/admin/.cache/
 client/merchant/.cache/
+
+# Secrets — never commit. Share real .env files privately (not via git).
+.env
+.env.*
+!.env.example

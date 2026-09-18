@@ -11,7 +11,7 @@ export function AppProvider({ children }) {
   const [loadingUserData, setLoadingUserData] = useState(true);
 
   // Backend URL for API calls
-  const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+  const backendUrl = import.meta.env.VITE_BACKEND_URL ?? '';
 
   // Check for existing auth on mount
   useEffect(() => {

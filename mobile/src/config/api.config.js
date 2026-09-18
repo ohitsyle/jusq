@@ -13,7 +13,7 @@ const DEFAULT_PORT = 3000;
 
 // Default server (AWS) - used when no custom IP is configured.
 // This is the live production server the web app also points to.
-const DEFAULT_SERVER_URL = 'http://54.251.11.39:3000/api';
+const DEFAULT_SERVER_URL = 'http://18.143.27.105:3000/api';
 
 // Development/Production API URLs — all point to AWS by default
 const API_URLS = {

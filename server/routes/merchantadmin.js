@@ -9,7 +9,6 @@ import { extractAdminInfo } from '../middlewares/extractAdminInfo.js';
 router.use(extractAdminInfo);
 
 const JWT_SECRET = process.env.JWT_SECRET || 'nucash-secret-key';
-console.log('🔑 Merchant admin JWT_SECRET:', JWT_SECRET);
 
 // Middleware to verify merchant admin token (accepts both merchant tokens and admin tokens with merchant role)
 const verifyMerchantToken = async (req, res, next) => {

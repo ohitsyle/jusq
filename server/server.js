@@ -1,6 +1,11 @@
 // nucash-server/server.js
 // FIXED: Using dynamic imports and index.js aggregator
 
+// Load .env FIRST. ES imports are hoisted and evaluated before this file's
+// body runs, and several route modules read process.env.JWT_SECRET at module
+// level — without this they'd see undefined and silently sign tokens with a
+// hardcoded fallback string.
+import 'dotenv/config';
 import dotenv from 'dotenv';
 import express from 'express';
 import mongoose from 'mongoose';
@@ -19,7 +24,20 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
+// Refuse to start without a real JWT secret — otherwise routes fall back to
+// hardcoded strings that are visible in the source, and anyone could forge
+// admin tokens.
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+  console.error('❌ JWT_SECRET is missing or too short (need 32+ chars). Refusing to start.');
+  process.exit(1);
+}
+
 const app = express();
+
+// nginx on the same box proxies :80/:443 -> :3000. Trust X-Forwarded-For only
+// from loopback so req.ip is the real client (rate limiters key on it) while
+// direct :3000 callers can't spoof their address.
+app.set('trust proxy', 'loopback');
 
 // CORS Configuration - Allow credentials from frontend
 const corsOptions = {
