@@ -407,7 +407,7 @@ export default function MerchantConcerns() {
             <p>No concerns found</p>
           </div>
         ) : (
-          <div style={{ background: theme.bg.card, borderColor: theme.border.primary }} className="rounded-2xl border overflow-hidden">
+          <div style={{ background: theme.bg.card, borderColor: theme.border.primary }} className="rounded-2xl border overflow-x-auto">
             <table className="w-full border-collapse text-[13px]">
               <thead>
                 <tr style={{ background: isDarkMode ? 'rgba(255,212,28,0.1)' : 'rgba(59,130,246,0.1)' }}>

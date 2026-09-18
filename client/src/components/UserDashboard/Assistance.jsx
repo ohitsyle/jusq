@@ -171,7 +171,7 @@ export default function Assistance() {
 
       {/* MODAL */}
       {showPopup && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[9999] p-4">
           <div className="bg-[#1E2347] rounded-xl w-full max-w-2xl overflow-hidden shadow-2xl">
             <div className="sticky top-0 bg-yellow-50/10 border-b-2 border-yellow-400 flex justify-between items-center px-6 py-2 z-10">
               <h3 className="text-yellow-400 font-extrabold text-s tracking-wide">

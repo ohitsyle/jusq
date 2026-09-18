@@ -7,6 +7,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { ClipboardList, Home, MessageSquare, Settings, Store } from 'lucide-react';
 import TreasuryHeader from './TreasuryHeader';
 import Footer from './Footer';
+import TabStrip from './TabStrip';
 import api from '../../utils/api';
 
 export default function TreasuryLayout({ children }) {
@@ -65,7 +66,7 @@ export default function TreasuryLayout({ children }) {
           borderColor: theme.border.primary,
           boxShadow: isDarkMode ? '0 4px 20px rgba(0, 0, 0, 0.3)' : '0 4px 20px rgba(59, 130, 246, 0.08)'
         }}
-        className="mx-8 rounded-lg px-6 py-3 border backdrop-blur-sm transition-all duration-300"
+        className="mx-4 md:mx-8 rounded-lg px-3 md:px-6 py-3 border backdrop-blur-sm transition-all duration-300"
         onMouseEnter={(e) => {
           e.currentTarget.style.borderColor = theme.border.hover;
           e.currentTarget.style.boxShadow = isDarkMode ? '0 8px 30px rgba(0, 0, 0, 0.4)' : '0 8px 30px rgba(59, 130, 246, 0.15)';
@@ -75,13 +76,14 @@ export default function TreasuryLayout({ children }) {
           e.currentTarget.style.boxShadow = isDarkMode ? '0 4px 20px rgba(0, 0, 0, 0.3)' : '0 4px 20px rgba(59, 130, 246, 0.08)';
         }}
       >
-        <div className="flex items-center gap-2">
+        <TabStrip>
           {/* Treasury Tabs */}
           {treasuryTabs.map((tab) => {
             const isActive = location.pathname === tab.path;
             return (
               <button
                 key={tab.path}
+                data-active={isActive}
                 onClick={() => navigate(tab.path)}
                 style={{
                   background: isActive ? theme.accent.primary : 'transparent',
@@ -120,6 +122,7 @@ export default function TreasuryLayout({ children }) {
             return (
               <button
                 key={tab.path}
+                data-active={isActive}
                 onClick={() => navigate(tab.path)}
                 style={{
                   background: isActive ? theme.accent.primary : 'transparent',
@@ -148,11 +151,11 @@ export default function TreasuryLayout({ children }) {
               </button>
             );
           })}
-        </div>
+        </TabStrip>
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 p-8 overflow-auto animate-fadeIn">
+      <main className="nu-admin-main flex-1 p-4 md:p-8 overflow-auto animate-fadeIn">
         {children}
       </main>
 

@@ -181,3 +181,9 @@ select option {
 input[type="date"], input[type="time"], select {
   cursor: pointer;
 }
+
+/* Admin data tables: on narrow windows keep a readable width and scroll
+   sideways inside their box, instead of squeezing every column. */
+.nu-admin-main :is(.overflow-x-auto, .overflow-auto) > table {
+  min-width: 760px;
+}

@@ -155,7 +155,7 @@ export default function TransactionTable({
           <div>No transactions found</div>
         </div>
       ) : (
-        <div
+        <div className="overflow-auto"
           style={{
             flex: 1,
             overflow: 'auto'

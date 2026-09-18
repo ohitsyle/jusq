@@ -7,6 +7,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { Home, Gift, ClipboardList, Settings } from 'lucide-react';
 import MarketingHeader from './MarketingHeader';
 import Footer from './Footer';
+import TabStrip from './TabStrip';
 import api from '../../utils/api';
 
 export default function MarketingLayout({ children }) {
@@ -48,16 +49,17 @@ export default function MarketingLayout({ children }) {
           borderColor: theme.border.primary,
           boxShadow: isDarkMode ? '0 4px 20px rgba(0, 0, 0, 0.3)' : '0 4px 20px rgba(59, 130, 246, 0.08)'
         }}
-        className="mx-8 rounded-lg px-6 py-3 border backdrop-blur-sm transition-all duration-300"
+        className="mx-4 md:mx-8 rounded-lg px-3 md:px-6 py-3 border backdrop-blur-sm transition-all duration-300"
         onMouseEnter={(e) => { e.currentTarget.style.borderColor = theme.border.hover; e.currentTarget.style.boxShadow = isDarkMode ? '0 8px 30px rgba(0, 0, 0, 0.4)' : '0 8px 30px rgba(59, 130, 246, 0.15)'; }}
         onMouseLeave={(e) => { e.currentTarget.style.borderColor = theme.border.primary; e.currentTarget.style.boxShadow = isDarkMode ? '0 4px 20px rgba(0, 0, 0, 0.3)' : '0 4px 20px rgba(59, 130, 246, 0.08)'; }}
       >
-        <div className="flex items-center gap-2">
+        <TabStrip>
           {marketingTabs.map((tab) => {
             const isActive = location.pathname === tab.path;
             return (
               <button
                 key={tab.path}
+                data-active={isActive}
                 onClick={() => navigate(tab.path)}
                 style={{ background: isActive ? theme.accent.primary : 'transparent', color: isActive ? theme.accent.secondary : theme.text.secondary }}
                 className={`flex items-center gap-2 px-5 py-2.5 rounded-md font-semibold text-sm transition-all duration-300 ease-out ${isActive ? 'shadow-lg scale-105' : 'hover:scale-102 hover:shadow-md'}`}
@@ -77,6 +79,7 @@ export default function MarketingLayout({ children }) {
             return (
               <button
                 key={tab.path}
+                data-active={isActive}
                 onClick={() => navigate(tab.path)}
                 style={{ background: isActive ? theme.accent.primary : 'transparent', color: isActive ? theme.accent.secondary : theme.text.tertiary }}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-md font-semibold text-xs transition-all duration-300 ease-out ${isActive ? 'shadow-lg scale-105' : 'hover:scale-102 hover:shadow-md'}`}
@@ -88,10 +91,10 @@ export default function MarketingLayout({ children }) {
               </button>
             );
           })}
-        </div>
+        </TabStrip>
       </div>
 
-      <main className="flex-1 p-8 overflow-auto animate-fadeIn">{children}</main>
+      <main className="nu-admin-main flex-1 p-4 md:p-8 overflow-auto animate-fadeIn">{children}</main>
 
       <style>{`
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }

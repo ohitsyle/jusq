@@ -32,7 +32,7 @@ export default function ConcernsDetailModal({ concern, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50"
+      className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-[9999]"
       onClick={onClose}
     >
       <div

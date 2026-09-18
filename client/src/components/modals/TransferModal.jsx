@@ -290,11 +290,11 @@ export default function TransferModal({ onClose, theme, isDarkMode, balance: bal
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
                     <label htmlFor="nu-send-id" style={{ color: muted }} className="text-xs font-bold uppercase tracking-wide">Recipient's school ID</label>
                     <div className="flex rounded-lg p-0.5" style={{ background: fieldBg }}>
                       {Object.entries(ID_FORMATS).map(([k, f]) => (
-                        <button key={k} onClick={() => switchFmt(k)} className="px-2 py-0.5 rounded-md text-[11px] font-bold transition"
+                        <button key={k} onClick={() => switchFmt(k)} className="px-2 py-0.5 rounded-md text-[11px] font-bold whitespace-nowrap transition"
                           style={{ background: idFmt === k ? accent : 'transparent', color: idFmt === k ? onAccent : muted }}>
                           {f.example}
                         </button>

@@ -278,7 +278,7 @@ export default function Dashboard() {
       </div>
 
       {/* Stats Grid - Only 4 cards */}
-      <div className="grid grid-cols-4 gap-5 mb-[30px]">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5 mb-[30px]">
         <StatCard
           icon="🚐"
           label="TODAY'S RIDES"

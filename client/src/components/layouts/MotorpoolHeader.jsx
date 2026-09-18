@@ -35,9 +35,10 @@ export default function Header({ adminData, onLogout, onOpenProfile }) {
   };
 
   return (
-    <header style={{
+    <header className="px-4 md:px-10" style={{
       background: isDarkMode ? 'linear-gradient(135deg, #181D40 0%, #0f1227 100%)' : 'linear-gradient(135deg, #FFFFFF 0%, #FFFFFF 100%)',
-      padding: '20px 40px',
+      paddingTop: '20px',
+      paddingBottom: '20px',
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'center',
@@ -70,8 +71,7 @@ export default function Header({ adminData, onLogout, onOpenProfile }) {
         </div>
         
         <div>
-          <h1 style={{
-            fontSize: '24px',
+          <h1 className="text-lg md:text-2xl whitespace-nowrap" style={{
             fontWeight: 700,
             color: theme.text.primary,
             letterSpacing: '0.5px',
@@ -79,7 +79,7 @@ export default function Header({ adminData, onLogout, onOpenProfile }) {
           }}>
             NUCash System
           </h1>
-          <p style={{
+          <p className="hidden sm:block" style={{
             fontSize: '12px',
             color: theme.accent.primary,
             fontWeight: 600,

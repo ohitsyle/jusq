@@ -438,7 +438,7 @@ export default function TransactionHistory() {
       {/* Request Transaction History Modal */}
       {showRequestModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
           style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}
           onClick={() => !requesting && setShowRequestModal(false)}
         >
