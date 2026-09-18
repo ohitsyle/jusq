@@ -6,10 +6,22 @@ import User from '../models/User.js';
 import Merchant from '../models/Merchant.js';
 import Transaction from '../models/Transaction.js';
 import { sendReceipt } from '../services/emailService.js';
+import { requireDeviceAuth } from '../middlewares/requireDeviceAuth.js';
 
-router.post('/pay', async (req, res) => {
+// Wrong-PIN lockout per card: card numbers can't be treated as secret, so the
+// student's 6-digit PIN must not be guessable through this endpoint.
+const PIN_WINDOW_MS = 15 * 60 * 1000;
+const PIN_MAX_FAILS = 5;
+const pinFails = new Map(); // userId -> { count, first }
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of pinFails) if (now - v.first > PIN_WINDOW_MS) pinFails.delete(k);
+}, PIN_WINDOW_MS).unref();
+
+router.post('/pay', requireDeviceAuth(['merchant']), async (req, res) => {
   try {
-    const { rfidUId, amount, deviceId, merchantId, pin } = req.body;
+    const { rfidUId, amount, deviceId, pin } = req.body;
+    const merchantId = req.device.merchantId; // from the signed-in merchant, not the request body
 
     // NOTE: never log PINs (plaintext or hashed) — these lines end up in pm2 logs.
     console.log('💳 Merchant payment request:', { merchantId, amount });
@@ -25,10 +37,20 @@ router.post('/pay', async (req, res) => {
       return res.status(400).json({ error: 'PIN is required for merchant payments' });
     }
 
+    const key = String(user._id);
+    const fails = pinFails.get(key);
+    if (fails && Date.now() - fails.first <= PIN_WINDOW_MS && fails.count >= PIN_MAX_FAILS) {
+      const mins = Math.ceil((fails.first + PIN_WINDOW_MS - Date.now()) / 60000);
+      return res.status(429).json({ error: `Too many wrong PINs for this card. Try again in ${mins} minute${mins !== 1 ? 's' : ''}.` });
+    }
     const isPinValid = await bcrypt.compare(pin, user.pin);
     if (!isPinValid) {
-      return res.status(401).json({ error: 'Incorrect PIN. Please try again.' });
+      if (fails && Date.now() - fails.first <= PIN_WINDOW_MS) fails.count += 1;
+      else pinFails.set(key, { count: 1, first: Date.now() });
+      // 403, not 401: the app treats 401 as "merchant logged out" and deletes its login
+      return res.status(403).json({ error: 'Incorrect PIN. Please try again.' });
     }
+    pinFails.delete(key);
 
     // Validate amount
     const fareAmount = parseFloat(amount);

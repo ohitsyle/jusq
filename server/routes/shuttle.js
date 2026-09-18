@@ -1,6 +1,6 @@
 // server/routes/shuttle.js
 // FIXED: 
-// 1. Uses fareAmount from request body, or fetches from Route model
+// 1. Fare is always set by the server from the Route model (device amount ignored)
 // 2. Proper shuttle release on end-route
 // 3. Refund emails working
 
@@ -14,6 +14,28 @@ import Setting from '../models/Setting.js';
 import Shuttle from '../models/Shuttle.js';
 import Driver from '../models/Driver.js';
 import Route from '../models/Route.js';
+import { requireDeviceAuth } from '../middlewares/requireDeviceAuth.js';
+
+// Every endpoint here moves money or shuttle state, so it needs a signed-in
+// driver phone (the card list is also used by merchant phones).
+const driverOnly = requireDeviceAuth(['driver']);
+const driverOrMerchant = requireDeviceAuth(['driver', 'merchant']);
+
+// The server decides the fare: route fare, else the system fare, else ₱15.
+// Never trust an amount sent by the device.
+async function resolveFare(routeId) {
+  const routeDoc = routeId ? await Route.findOne({ routeId }).select('fare').lean() : null;
+  if (routeDoc?.fare > 0) return routeDoc.fare;
+  const setting = await Setting.findOne().select('currentFare').lean();
+  return setting?.currentFare > 0 ? setting.currentFare : 15;
+}
+
+// A queued offline tap must carry the time it happened, and that time can't be in the future.
+const isRealOfflineTap = (body) => {
+  if (body.offlineMode !== true || !body.deviceTimestamp) return false;
+  const t = Date.parse(body.deviceTimestamp);
+  return Number.isFinite(t) && t <= Date.now() + 5 * 60 * 1000;
+};
 
 // Import email service
 let sendReceipt = null;
@@ -38,7 +60,7 @@ import('../services/emailService.js')
  * Process shuttle payment
  * FIXED: Now uses fareAmount from request or fetches from Route model
  */
-router.post('/pay', async (req, res) => {
+router.post('/pay', driverOnly, async (req, res) => {
   try {
     const { rfidUId, driverId, shuttleId, routeId, tripId, fareAmount, deviceTimestamp, offlineMode } = req.body;
 
@@ -99,11 +121,6 @@ router.post('/pay', async (req, res) => {
       req.body.tripId = tempTripId;
     }
 
-    if (!fareAmount || fareAmount <= 0) {
-      console.log('❌ Invalid fareAmount:', fareAmount);
-      return res.status(400).json({ error: 'Valid fare amount is required' });
-    }
-
     // Find user by rfidUId
     const user = await User.findOne({ rfidUId });
     if (!user) {
@@ -115,42 +132,20 @@ router.post('/pay', async (req, res) => {
       return res.status(403).json({ error: 'Account is inactive' });
     }
 
-    // FIXED: Determine fare amount
-    // Priority: 1) Request body fareAmount, 2) Route's fare, 3) Setting's currentFare, 4) Default 15
-    let fare = 15; // Default fallback
-
-    if (fareAmount && fareAmount > 0) {
-      // Use fare from request (sent by mobile app)
-      fare = fareAmount;
-      console.log('💰 Using fare from request:', fare);
-    } else if (routeId) {
-      // Try to get fare from Route model
-      try {
-        const routeDoc = await Route.findOne({ routeId: routeId });
-        if (routeDoc && routeDoc.fare) {
-          fare = routeDoc.fare;
-          console.log('💰 Using fare from route:', fare);
-        }
-      } catch (routeErr) {
-        console.warn('⚠️ Could not fetch route fare:', routeErr.message);
-      }
-    }
-
-    // If still default, check settings
-    if (fare === 15) {
-      const setting = await Setting.findOne();
-      if (setting?.currentFare) {
-        fare = setting.currentFare;
-        console.log('💰 Using fare from settings:', fare);
-      }
+    // Fare is set by the server from the route — the device's fareAmount is ignored
+    const fare = await resolveFare(routeId);
+    if (fareAmount && Number(fareAmount) !== fare) {
+      console.warn(`⚠️ Device sent fare ₱${fareAmount}, charging route fare ₱${fare}`);
     }
 
     const negativeLimit = (await Setting.findOne())?.negativeLimit || -14;
 
     // Atomic debit: the balance guard lives in the query itself, so two
     // concurrent taps can never race past the negative limit or lose an
-    // update. Offline syncs were validated on-device and apply unconditionally.
-    const isOfflineMode = req.body.offlineMode === true;
+    // update. A real queued offline tap (signed-in driver, past timestamp) was
+    // accepted on the phone while offline, so it applies even below the limit
+    // — but only ever for one server-set fare.
+    const isOfflineMode = isRealOfflineTap(req.body);
     const debitQuery = isOfflineMode
       ? { _id: user._id }
       : { _id: user._id, balance: { $gte: negativeLimit + fare } };
@@ -247,7 +242,7 @@ router.post('/pay', async (req, res) => {
  * POST /shuttle/refund
  * Refund shuttle payments
  */
-router.post('/refund', async (req, res) => {
+router.post('/refund', driverOnly, async (req, res) => {
   try {
     const { transactionIds, reason, rfidUId, driverId, shuttleId, routeId, tripId, fareAmount, deviceTimestamp, offlineMode } = req.body;
 
@@ -259,10 +254,12 @@ router.post('/refund', async (req, res) => {
       reason 
     });
 
-    // Handle direct refunds by RFID (from mobile app or offline mode)
-    if (rfidUId && fareAmount) {
-      console.log('💸 Processing direct refund for:', rfidUId, 'Amount:', fareAmount);
-      
+    // Handle direct refunds by RFID (from mobile app or offline mode).
+    // Refunds exactly one real fare: the latest un-refunded shuttle payment on
+    // this card from the last 24h. The device's fareAmount is ignored.
+    if (rfidUId) {
+      console.log('💸 Processing direct refund for:', rfidUId);
+
       // Find user by RFID
       const user = await User.findOne({ rfidUId });
       if (!user) {
@@ -272,6 +269,28 @@ router.post('/refund', async (req, res) => {
       if (!user.isActive) {
         return res.status(403).json({ error: 'Account is inactive' });
       }
+
+      // A queued offline refund may be retried after a lost response — don't pay it twice
+      if (deviceTimestamp) {
+        const already = await Transaction.findOne({ userId: user._id, transactionType: 'credit', status: 'Refunded', deviceTimestamp });
+        if (already) {
+          return res.json({ success: true, duplicate: true, studentName: user.fullName, refundAmount: already.amount,
+            previousBalance: already.balance - already.amount, newBalance: already.balance, rfidUId: user.rfidUId,
+            transactionId: already.transactionId, reason: reason || 'Refund processed' });
+        }
+      }
+
+      // Claim the original fare atomically so it can only be refunded once
+      const original = await Transaction.findOneAndUpdate(
+        { userId: user._id, transactionType: 'debit', status: 'Completed', shuttleId: { $ne: null },
+          createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
+        { $set: { status: 'Refunded' } },
+        { sort: { createdAt: -1 }, new: true }
+      );
+      if (!original) {
+        return res.status(400).json({ error: 'No recent shuttle fare on this card to refund' });
+      }
+      const fareAmount = original.amount;
 
       // Atomic credit — refunds can race with taps on the same card
       const credited = await User.findByIdAndUpdate(user._id, { $inc: { balance: fareAmount } }, { new: true });
@@ -289,9 +308,9 @@ router.post('/refund', async (req, res) => {
         transactionType: 'credit',
         status: 'Refunded',
         balance: balanceAfter,
-        driverId,
-        shuttleId,
-        routeId,
+        driverId: driverId || req.device.driverId,
+        shuttleId: shuttleId || original.shuttleId,
+        routeId: routeId || original.routeId,
         deviceTimestamp: deviceTimestamp || new Date().toISOString(),
         viewFor: 'treasury'
       });
@@ -372,7 +391,18 @@ router.post('/refund', async (req, res) => {
           continue;
         }
 
-        if (transaction.status === 'Refunded') {
+        if (transaction.transactionType !== 'debit' || !transaction.shuttleId) {
+          errors.push({ transactionId: txId, error: 'Only shuttle fares can be refunded here' });
+          continue;
+        }
+
+        // Claim it atomically so two requests can't both refund it
+        const claimed = await Transaction.findOneAndUpdate(
+          { _id: transaction._id, status: 'Completed' },
+          { $set: { status: 'Refunded' } },
+          { new: true }
+        );
+        if (!claimed) {
           errors.push({ transactionId: txId, error: 'Already refunded' });
           continue;
         }
@@ -390,10 +420,6 @@ router.post('/refund', async (req, res) => {
         const credited = await User.findByIdAndUpdate(user._id, { $inc: { balance: refundAmount } }, { new: true });
         const balanceAfter = credited.balance;
         const balanceBefore = balanceAfter - refundAmount;
-
-        // Update transaction status
-        transaction.status = 'Refunded';
-        await transaction.save();
 
         // Generate refund transaction ID
         const refundTxId = Transaction.generateTransactionId().replace('TXN', 'RFD');
@@ -481,7 +507,7 @@ router.post('/refund', async (req, res) => {
  * POST /shuttle/end-route
  * End a route and release the shuttle
  */
-router.post('/end-route', async (req, res) => {
+router.post('/end-route', driverOnly, async (req, res) => {
   try {
     const { shuttleId, driverId, tripId, summary } = req.body;
 
@@ -561,7 +587,7 @@ router.post('/end-route', async (req, res) => {
  * POST /shuttle/sync
  * Sync offline transactions
  */
-router.post('/sync', async (req, res) => {
+router.post('/sync', driverOnly, async (req, res) => {
   try {
     const { deviceId, transactions } = req.body;
 
@@ -606,8 +632,8 @@ router.post('/sync', async (req, res) => {
           continue;
         }
 
-        // Use fare from transaction, or default
-        const fare = tx.fareAmount || 15;
+        // Fare is set by the server from the route, never by the device
+        const fare = await resolveFare(tx.routeId);
 
         // Atomic debit with the negative-limit guard in the query itself
         const setting = await Setting.findOne();
@@ -677,7 +703,7 @@ router.post('/sync', async (req, res) => {
  * POST /shuttle/updateLocation
  * Update shuttle GPS location
  */
-router.post('/updateLocation', async (req, res) => {
+router.post('/updateLocation', driverOnly, async (req, res) => {
   try {
     const { shuttleId, latitude, longitude, timestamp } = req.body;
 
@@ -720,7 +746,7 @@ router.post('/updateLocation', async (req, res) => {
  * POST /shuttle/geofenceEvent
  * Handle geofence entry/exit events
  */
-router.post('/geofenceEvent', async (req, res) => {
+router.post('/geofenceEvent', driverOnly, async (req, res) => {
   try {
     const { shuttleId, geofenceId, timestamp } = req.body;
 
@@ -737,7 +763,7 @@ router.post('/geofenceEvent', async (req, res) => {
  * Download all active user cards for offline caching
  * Returns minimal data: rfidUId, fullName, balance, isActive
  */
-router.get('/cards', async (req, res) => {
+router.get('/cards', driverOrMerchant, async (req, res) => {
   try {
     console.log('📥 Downloading card data for offline cache...');
 
@@ -747,23 +773,15 @@ router.get('/cards', async (req, res) => {
         rfidUId: { $exists: true, $ne: null, $ne: '' },
         isActive: true
       },
-      {
-        rfidUId: 1,
-        firstName: 1,
-        lastName: 1,
-        middleName: 1,
-        schoolUId: 1,
-        userType: 1,
-        balance: 1,
-        isActive: 1,
-        _id: 0
-      }
+      { rfidUId: 1, firstName: 1, lastName: 1, middleName: 1, balance: 1, isActive: 1, _id: 0 }
     ).lean();
 
-    // Construct fullName for each user (virtual fields not included in lean queries)
+    // Only what the phone uses to accept taps offline: card, name, balance, active
     const usersWithFullName = users.map(user => ({
-      ...user,
-      fullName: `${user.firstName} ${user.middleName ? user.middleName + ' ' : ''}${user.lastName}`.trim()
+      rfidUId: user.rfidUId,
+      fullName: `${user.firstName} ${user.middleName ? user.middleName + ' ' : ''}${user.lastName}`.trim(),
+      balance: user.balance,
+      isActive: user.isActive
     }));
 
     console.log(`✅ Sending ${users.length} card records for offline cache`);
@@ -785,7 +803,7 @@ router.get('/cards', async (req, res) => {
  * GET /shuttle/cards/updated
  * Get cards updated since a given timestamp (for incremental sync)
  */
-router.get('/cards/updated', async (req, res) => {
+router.get('/cards/updated', driverOrMerchant, async (req, res) => {
   try {
     const { since } = req.query;
     const sinceDate = since ? new Date(since) : new Date(0);
@@ -798,14 +816,7 @@ router.get('/cards/updated', async (req, res) => {
         isActive: true,
         updatedAt: { $gte: sinceDate }
       },
-      {
-        rfidUId: 1,
-        fullName: 1,
-        balance: 1,
-        schoolUId: 1,
-        userType: 1,
-        _id: 0
-      }
+      { rfidUId: 1, firstName: 1, lastName: 1, middleName: 1, balance: 1, isActive: 1, _id: 0 }
     ).lean();
 
     console.log(`✅ Sending ${users.length} updated card records`);
@@ -813,7 +824,12 @@ router.get('/cards/updated', async (req, res) => {
     res.json({
       success: true,
       count: users.length,
-      cards: users,
+      cards: users.map(user => ({
+        rfidUId: user.rfidUId,
+        fullName: `${user.firstName} ${user.middleName ? user.middleName + ' ' : ''}${user.lastName}`.trim(),
+        balance: user.balance,
+        isActive: user.isActive
+      })),
       timestamp: new Date().toISOString()
     });
 

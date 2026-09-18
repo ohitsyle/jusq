@@ -6,12 +6,16 @@ const router = express.Router();
 import Trip from '../models/Trip.js';
 import Driver from '../models/Driver.js';
 import { logTripStart, logTripEnd, logError } from '../utils/logger.js';
+import { requireDeviceAuth } from '../middlewares/requireDeviceAuth.js';
+
+// Changing shuttle/trip state needs a signed-in driver phone; read-only lookups stay open.
+const driverOnly = requireDeviceAuth(['driver']);
 
 /**
  * POST /trips/start
  * Start a new trip
  */
-router.post('/start', async (req, res) => {
+router.post('/start', driverOnly, async (req, res) => {
   try {
     const {
       shuttleId,
@@ -69,13 +73,16 @@ router.post('/start', async (req, res) => {
  * PUT /trips/:tripId/end
  * End a trip
  */
-router.put('/:tripId/end', async (req, res) => {
+router.put('/:tripId/end', driverOnly, async (req, res) => {
   try {
     const { passengerCount, totalCollections, distanceTraveledKm } = req.body;
 
     const trip = await Trip.findById(req.params.tripId);
     if (!trip) {
       return res.status(404).json({ error: 'Trip not found' });
+    }
+    if (trip.driverId && trip.driverId !== req.device.driverId) {
+      return res.status(403).json({ error: 'Only the driver who started this trip can end it' });
     }
 
     trip.arrivalTime = new Date();

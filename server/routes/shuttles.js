@@ -5,6 +5,10 @@ import express from 'express';
 const router = express.Router();
 import Shuttle from '../models/Shuttle.js';
 import Driver from '../models/Driver.js';
+import { requireDeviceAuth } from '../middlewares/requireDeviceAuth.js';
+
+// Changing shuttle/trip state needs a signed-in driver phone; read-only lookups stay open.
+const driverOnly = requireDeviceAuth(['driver']);
 
 /**
  * GET /api/shuttles/available
@@ -27,7 +31,7 @@ router.get('/available', async (req, res) => {
  * Reserve a shuttle for a driver (marks shuttle as 'reserved', not 'taken')
  * Status will change to 'taken' when driver clicks "Begin Route"
  */
-router.post('/assign', async (req, res) => {
+router.post('/assign', driverOnly, async (req, res) => {
   try {
     const { shuttleId, driverId } = req.body;
 
@@ -102,7 +106,7 @@ router.post('/assign', async (req, res) => {
  * POST /api/shuttles/start-route
  * Mark shuttle as 'taken' when driver clicks "Begin Route"
  */
-router.post('/start-route', async (req, res) => {
+router.post('/start-route', driverOnly, async (req, res) => {
   try {
     const { shuttleId, driverId } = req.body;
 
@@ -145,7 +149,7 @@ router.post('/start-route', async (req, res) => {
  * Release a shuttle (marks shuttle as 'available')
  * Called when driver ends route or logs out
  */
-router.post('/release', async (req, res) => {
+router.post('/release', driverOnly, async (req, res) => {
   try {
     const { shuttleId, driverId } = req.body;
 
@@ -204,7 +208,7 @@ router.post('/release', async (req, res) => {
  * Release any shuttle assigned to a specific driver
  * Useful for logout scenarios
  */
-router.post('/release-by-driver', async (req, res) => {
+router.post('/release-by-driver', driverOnly, async (req, res) => {
   try {
     const { driverId } = req.body;
 
