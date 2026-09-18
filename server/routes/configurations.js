@@ -502,6 +502,11 @@ router.get('/export/:type', async (req, res) => {
     // single endpoint every tab "Export CSV" button uses, so a tab download and
     // a Settings single-type download are byte-identical.
     const role = req.authAdmin?.role || req.adminRole;
+    // Same allow-list as the Settings/auto exports, so e.g. the merchant admin
+    // can't pull transactions or balances by calling this URL directly.
+    if (!filterTypesForRole([type], role).length) {
+      return res.status(403).json({ error: `Your role cannot export ${type}` });
+    }
     const { csv, count } = await exportByType(type, {}, role, metaFromReq(req, role));
 
     const fileName = `${type}_export_${new Date().toISOString().split('T')[0]}.csv`;
