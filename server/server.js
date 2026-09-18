@@ -116,7 +116,7 @@ app.use('/api/admin/auth/login', loginRateLimit);
 app.use('/api/shuttle/pay', shuttlePayLimit);
 app.use('/api/shuttle/sync', shuttlePayLimit);
 app.use('/api/merchant/pay', merchantPayLimit);
-app.use('/api/user/transfer', transferLimit);
+app.post('/api/user/transfer', transferLimit); // only the money move — not overview/favorites
 
 // Mount all API routes at /api
 // NOTE: More specific routes MUST come before more general routes

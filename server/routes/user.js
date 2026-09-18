@@ -2,8 +2,12 @@
 import express from 'express';
 const router = express.Router();
 import User from '../models/User.js';
+import { requireDeviceAuth } from '../middlewares/requireDeviceAuth.js';
 
-router.get('/balance/:rfidUId', async (req, res) => {
+// Card-status lookup used by driver/merchant phones when a card is tapped —
+// needs a signed-in phone (card numbers aren't secret).
+
+router.get('/balance/:rfidUId', requireDeviceAuth(['driver', 'merchant']), async (req, res) => {
   try {
     const u = await User.findOne({ rfidUId: req.params.rfidUId });
     if (!u) {
@@ -11,7 +15,7 @@ router.get('/balance/:rfidUId', async (req, res) => {
     }
     res.json({
       balance: u.balance,
-      name: u.name,
+      name: u.fullName,
       isActive: u.isActive
     });
   } catch (err) {

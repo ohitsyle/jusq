@@ -106,6 +106,14 @@ const UserSchema = new mongoose.Schema({
     type: Date
   },
 
+  // Send money (see routes/userdashboard.js /transfer)
+  transferFavorites: { type: [String], default: [] },   // recipient schoolUIds
+  transferDay: { type: String, default: null },         // 'YYYY-MM-DD' in Asia/Manila
+  transferSentToday: { type: Number, default: 0 },      // counts toward the daily cap
+  transferPinFails: { type: Number, default: 0 },       // consecutive wrong PINs
+  transferLockedUntil: { type: Date, default: null },   // set after 3 wrong PINs
+  sessionsValidAfter: { type: Date, default: null },    // logins issued before this are rejected
+
   // OTP Reset System
   resetOtp: {
     type: String,

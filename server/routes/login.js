@@ -287,11 +287,17 @@ router.post('/', async (req, res) => {
       email: { $regex: exactCI(normalizedEmail) }
     });
 
-    // Debug: List all users in database
-    const allUsers = await User.find({}).select('email isActive');
-    console.log(`📋 All users in database (${allUsers.length}):`, allUsers.map(u => `${u.email} (active: ${u.isActive})`));
-
     if (user) {
+      // Locked after 3 wrong PINs in Send Money — refuse before checking the PIN
+      if (user.transferLockedUntil && user.transferLockedUntil > new Date()) {
+        const until = user.transferLockedUntil.toLocaleString('en-PH', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' });
+        return res.status(423).json({
+          locked: true,
+          lockedUntil: user.transferLockedUntil,
+          error: `Your account is locked until ${until} because of 3 wrong PIN attempts while sending money. If this wasn't you, please report it to ITSO.`
+        });
+      }
+
       // Use bcrypt.compare() for hashed PINs
       let isValidPin = false;
 

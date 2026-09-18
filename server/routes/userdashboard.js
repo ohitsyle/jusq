@@ -144,6 +144,13 @@ const verifyUserToken = async (req, res, next) => {
       });
     }
 
+    // Logins issued before a security sign-out (e.g. transfer PIN lockout) are dead,
+    // and nobody can use the account while it's locked.
+    if ((user.sessionsValidAfter && (decoded.iat || 0) * 1000 < user.sessionsValidAfter.getTime())
+        || (user.transferLockedUntil && user.transferLockedUntil > new Date())) {
+      return res.status(401).json({ error: 'You were signed out for security. Please sign in again.' });
+    }
+
     req.user = user;
     next();
   } catch (error) {
@@ -477,11 +484,168 @@ router.get('/lookup/:schoolId', verifyUserToken, async (req, res) => {
   }
 });
 
+// ============================================================================
+// SEND MONEY (student-to-student)
+// ============================================================================
+const TRANSFER_DAILY_LIMIT = 5000;          // ₱ per sender per day (Asia/Manila)
+const TRANSFER_MAX_PIN_FAILS = 3;           // wrong PINs in a row before the account locks
+const TRANSFER_LOCK_MINUTES = 30;
+const MAX_FAVORITES = 20;
+
+const manilaDay = (d = new Date()) => d.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }); // YYYY-MM-DD
+const round2 = (n) => Math.round(n * 100) / 100;
+const peso = (n) => `₱${Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const manilaTime = (d) => d.toLocaleString('en-PH', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' });
+const fullNameOf = (u) => `${u.firstName || ''} ${u.lastName || ''}`.trim();
+const escapeHtml = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const formatSchoolId = (id) => {
+  const d = String(id || '');
+  return d.length === 10 ? `${d.slice(0, 4)}-${d.slice(4)}` : d.length === 8 ? `${d.slice(0, 2)}-${d.slice(2)}` : d;
+};
+
+// Human-readable device for the lockout email. The app may send X-Device-Name.
+function describeDevice(req) {
+  const hint = String(req.headers['x-device-name'] || '').replace(/[^\w .()-]/g, '').slice(0, 60).trim();
+  if (hint) return `${hint} (NUCash app)`;
+  const ua = String(req.headers['user-agent'] || '');
+  if (/okhttp/i.test(ua)) return 'an Android phone (NUCash app)';
+  if (/CFNetwork|Darwin/i.test(ua) && !/Mozilla/i.test(ua)) return 'an iPhone (NUCash app)';
+  const browser = /Edg\//.test(ua) ? 'Edge' : /OPR\//.test(ua) ? 'Opera' : /Chrome\//.test(ua) ? 'Chrome'
+    : /Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : 'a web browser';
+  const os = /Android/.test(ua) ? 'Android' : /iPhone|iPad/.test(ua) ? 'iPhone' : /Windows/.test(ua) ? 'Windows'
+    : /Mac OS X/.test(ua) ? 'Mac' : /Linux/.test(ua) ? 'Linux' : 'an unknown device';
+  return `${browser} on ${os}`;
+}
+
+// Today's total already sent, from the transaction history (source of truth).
+async function sentTodayFromHistory(userId) {
+  const since = new Date(`${manilaDay()}T00:00:00+08:00`);
+  const [row] = await Transaction.aggregate([
+    { $match: { userId: new mongoose.Types.ObjectId(String(userId)), transactionType: 'debit',
+      transferPeerSchoolId: { $ne: null }, status: 'Completed', createdAt: { $gte: since } } },
+    { $group: { _id: null, total: { $sum: '$amount' } } }
+  ]);
+  return round2(row?.total || 0);
+}
+
+// Make sure the sender's daily counter is for today (resets at midnight Manila time).
+async function syncDailyCounter(user) {
+  const today = manilaDay();
+  if (user.transferDay !== today) {
+    const sent = await sentTodayFromHistory(user._id);
+    await User.updateOne({ _id: user._id, transferDay: { $ne: today } }, { $set: { transferDay: today, transferSentToday: sent } });
+  }
+  const fresh = await User.findById(user._id).select('transferSentToday balance');
+  return { today, sentToday: round2(fresh.transferSentToday || 0), balance: round2(fresh.balance || 0) };
+}
+
+const peerSummary = (u) => ({
+  schoolUId: u.schoolUId,
+  displayId: formatSchoolId(u.schoolUId),
+  fullName: fullNameOf(u),
+  firstName: u.firstName,
+  lastName: u.lastName,
+  accountType: u.role
+});
+
+function sendTransferEmail(to, subject, heading, color, rows, footer) {
+  (async () => {
+    try {
+      const { sendEmail } = await import('../services/emailService.js');
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; border: 1px solid #eee; border-radius: 12px; overflow: hidden;">
+          <div style="background: #181D40; padding: 22px 28px;">
+            <div style="color: #FFD41C; font-size: 13px; font-weight: 700; letter-spacing: 1px;">NUCASH SYSTEM</div>
+            <div style="color: #FFFFFF; font-size: 20px; font-weight: 800; margin-top: 4px;">${escapeHtml(heading)}</div>
+          </div>
+          <div style="padding: 24px 28px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 14px; color: #333;">
+              ${rows.map(([k, v]) => `<tr><td style="padding: 8px 0; color: #777;">${escapeHtml(k)}</td><td style="padding: 8px 0; text-align: right; font-weight: 600; color: ${k === 'Amount' ? color : '#181D40'};">${escapeHtml(v)}</td></tr>`).join('')}
+            </table>
+            <p style="color: #999; font-size: 12px; margin-top: 20px; border-top: 1px solid #eee; padding-top: 16px;">${escapeHtml(footer)}</p>
+          </div>
+        </div>`;
+      await sendEmail({ to, subject, html });
+    } catch (mailErr) {
+      console.error('Transfer email failed:', mailErr.message);
+    }
+  })();
+}
+
+/**
+ * GET /api/user/transfer/overview
+ * Everything the Send Money screen needs: balance, daily allowance, favorites, recents.
+ */
+router.get('/transfer/overview', verifyUserToken, async (req, res) => {
+  try {
+    const me = req.user;
+    const { sentToday, balance } = await syncDailyCounter(me);
+
+    const favIds = (me.transferFavorites || []).slice(0, MAX_FAVORITES);
+    const recentTx = await Transaction.find({ userId: me._id, transactionType: 'debit', transferPeerSchoolId: { $ne: null }, status: 'Completed' })
+      .sort({ createdAt: -1 }).limit(50).select('transferPeerSchoolId amount createdAt').lean();
+    const recentMap = new Map();
+    for (const t of recentTx) if (!recentMap.has(t.transferPeerSchoolId)) recentMap.set(t.transferPeerSchoolId, t);
+    const recentIds = [...recentMap.keys()].slice(0, 5);
+
+    const peers = await User.find({ schoolUId: { $in: [...new Set([...favIds, ...recentIds])] }, isActive: true, isDeactivated: { $ne: true } })
+      .select('schoolUId firstName lastName role').lean();
+    const byId = new Map(peers.filter((p) => String(p._id) !== String(me._id)).map((p) => [p.schoolUId, p]));
+
+    res.json({
+      me: { fullName: fullNameOf(me), schoolUId: me.schoolUId, displayId: formatSchoolId(me.schoolUId) },
+      balance,
+      dailyLimit: TRANSFER_DAILY_LIMIT,
+      sentToday,
+      remainingToday: round2(Math.max(0, TRANSFER_DAILY_LIMIT - sentToday)),
+      attemptsLeft: Math.max(0, TRANSFER_MAX_PIN_FAILS - (me.transferPinFails || 0)),
+      favorites: favIds.filter((id) => byId.has(id)).map((id) => peerSummary(byId.get(id))),
+      recents: recentIds.filter((id) => byId.has(id)).map((id) => ({
+        ...peerSummary(byId.get(id)),
+        isFavorite: favIds.includes(id),
+        lastAmount: recentMap.get(id).amount,
+        lastAt: recentMap.get(id).createdAt
+      }))
+    });
+  } catch (error) {
+    console.error('Transfer overview error:', error);
+    res.status(500).json({ error: 'Could not load Send Money' });
+  }
+});
+
+/** POST /api/user/transfer/favorites  { schoolUId } — add a favorite recipient */
+router.post('/transfer/favorites', verifyUserToken, async (req, res) => {
+  try {
+    const digits = String(req.body.schoolUId || '').replace(/\D/g, '');
+    const peer = digits && await User.findOne({ schoolUId: digits }).select('_id schoolUId').lean();
+    if (!peer || String(peer._id) === String(req.user._id)) return res.status(404).json({ error: 'Recipient not found' });
+    const favs = (req.user.transferFavorites || []).filter((id) => id !== digits);
+    if (favs.length >= MAX_FAVORITES) return res.status(409).json({ error: `You can keep up to ${MAX_FAVORITES} favorites` });
+    await User.updateOne({ _id: req.user._id }, { $set: { transferFavorites: [digits, ...favs] } });
+    res.json({ success: true, isFavorite: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Could not save favorite' });
+  }
+});
+
+/** DELETE /api/user/transfer/favorites/:schoolUId — remove a favorite */
+router.delete('/transfer/favorites/:schoolUId', verifyUserToken, async (req, res) => {
+  try {
+    const digits = String(req.params.schoolUId || '').replace(/\D/g, '');
+    await User.updateOne({ _id: req.user._id }, { $pull: { transferFavorites: digits } });
+    res.json({ success: true, isFavorite: false });
+  } catch (error) {
+    res.status(500).json({ error: 'Could not remove favorite' });
+  }
+});
+
 /**
  * POST /api/user/transfer
- * Student-to-student balance transfer. Body: { recipientSchoolId, amount, pin }.
- * Uses atomic $inc with a balance guard so a sender can never overspend or
- * double-spend under concurrency. Defined BEFORE /:userId to avoid shadowing.
+ * Body: { recipientSchoolId, amount, pin }.
+ * - ₱5,000 per sender per day (Asia/Manila), enforced atomically with the balance check.
+ * - 3 wrong PINs in a row lock the account for 30 min, sign it out everywhere and
+ *   email the student. Wrong PIN = 422 and lock = 423 (never 401: clients log out on 401).
+ * Defined BEFORE /:userId to avoid shadowing.
  */
 router.post('/transfer', verifyUserToken, async (req, res) => {
   try {
@@ -490,7 +654,7 @@ router.post('/transfer', verifyUserToken, async (req, res) => {
 
     // Validate inputs
     const digits = String(recipientSchoolId || '').replace(/\D/g, '');
-    const amt = Math.round((parseFloat(amount) || 0) * 100) / 100;
+    const amt = round2(parseFloat(amount) || 0);
     if (!digits) return res.status(400).json({ error: 'Recipient school ID is required' });
     if (!amt || amt <= 0) return res.status(400).json({ error: 'Enter a valid amount' });
     if (!pin) return res.status(400).json({ error: 'PIN is required' });
@@ -500,24 +664,89 @@ router.post('/transfer', verifyUserToken, async (req, res) => {
       return res.status(403).json({ error: 'Your account cannot send transfers right now' });
     }
 
-    // Verify sender PIN. NOTE: use 422 (not 401) — the web client force-logs-out
-    // on any 401, and a wrong PIN here must not log the user out.
-    const pinValid = sender.pin && (sender.pin.startsWith('$2') ? await bcrypt.compare(String(pin), sender.pin) : sender.pin === String(pin));
-    if (!pinValid) return res.status(422).json({ error: 'Incorrect PIN. Please try again.' });
-
-    // Find recipient
+    // Find recipient (before the PIN, so a lockout email can say who it was for)
     const recipient = await User.findOne({ schoolUId: digits });
     if (!recipient) return res.status(404).json({ error: 'Recipient not found' });
     if (String(recipient._id) === String(sender._id)) return res.status(400).json({ error: 'You cannot transfer to yourself' });
     if (!recipient.isActive || recipient.isDeactivated) return res.status(409).json({ error: 'Recipient account is not active' });
+    const recipientName = fullNameOf(recipient);
+    const senderName = fullNameOf(sender);
 
-    // Atomic debit with balance guard (prevents overspend / double-spend)
+    // Verify sender PIN
+    const pinValid = sender.pin && (sender.pin.startsWith('$2') ? await bcrypt.compare(String(pin), sender.pin) : sender.pin === String(pin));
+    if (!pinValid) {
+      const after = await User.findByIdAndUpdate(sender._id, { $inc: { transferPinFails: 1 } }, { new: true });
+      const fails = after.transferPinFails || 0;
+      if (fails < TRANSFER_MAX_PIN_FAILS) {
+        const left = TRANSFER_MAX_PIN_FAILS - fails;
+        return res.status(422).json({
+          error: `Incorrect PIN. ${left} attempt${left === 1 ? '' : 's'} left before your account is locked.`,
+          attemptsLeft: left
+        });
+      }
+
+      // Third strike: lock, sign out everywhere, tell the student, leave a trail for ITSO
+      const now = new Date();
+      const lockedUntil = new Date(now.getTime() + TRANSFER_LOCK_MINUTES * 60 * 1000);
+      await User.updateOne({ _id: sender._id }, { $set: { transferLockedUntil: lockedUntil, sessionsValidAfter: now, transferPinFails: 0 } });
+      const device = describeDevice(req);
+      const who = `${recipientName} (${formatSchoolId(recipient.schoolUId)})`;
+
+      sendTransferEmail(
+        sender.email,
+        'Your NUCash account was locked',
+        'Account locked for your security',
+        '#EF4444',
+        [
+          ['What happened', `3 wrong PINs while sending ${peso(amt)} to ${who}`],
+          ['Device', device],
+          ['IP address', req.ip || 'unknown'],
+          ['When', manilaTime(now)],
+          ['Locked until', manilaTime(lockedUntil)]
+        ],
+        `We locked you out of ${device} because of 3 failed attempts at trying to send ${peso(amt)} to ${who}. ` +
+        `You have been signed out on all devices and can sign in again after ${manilaTime(lockedUntil)}. ` +
+        'No money was sent. If this transaction wasn\'t you, please report it to ITSO and change your PIN.'
+      );
+      import('../utils/logger.js').then(({ logSecurity }) => logSecurity({
+        title: 'Send Money Locked',
+        description: `${senderName} (${formatSchoolId(sender.schoolUId)}) locked for ${TRANSFER_LOCK_MINUTES} min after 3 wrong PINs sending ${peso(amt)} to ${who} from ${device}`,
+        severity: 'warning',
+        userId: String(sender._id),
+        ipAddress: req.ip,
+        action: 'transfer_pin_lockout',
+        reason: '3 consecutive wrong PINs',
+        blocked: true,
+        attempts: TRANSFER_MAX_PIN_FAILS
+      })).catch(() => {});
+
+      return res.status(423).json({
+        locked: true,
+        lockedUntil,
+        error: `Too many wrong PINs. For your security your account is locked until ${manilaTime(lockedUntil)} and you've been signed out. We've emailed you the details.`
+      });
+    }
+    if (sender.transferPinFails) await User.updateOne({ _id: sender._id }, { $set: { transferPinFails: 0 } });
+
+    // Daily allowance + balance, checked and applied in ONE atomic update so two
+    // transfers at the same moment can't overspend either limit.
+    const { today } = await syncDailyCounter(sender);
     const debited = await User.findOneAndUpdate(
-      { _id: sender._id, balance: { $gte: amt } },
-      { $inc: { balance: -amt } },
+      { _id: sender._id, balance: { $gte: amt }, transferDay: today, transferSentToday: { $lte: round2(TRANSFER_DAILY_LIMIT - amt) } },
+      { $inc: { balance: -amt, transferSentToday: amt } },
       { new: true }
     );
-    if (!debited) return res.status(409).json({ error: 'Insufficient balance' });
+    if (!debited) {
+      const now = await User.findById(sender._id).select('balance transferSentToday').lean();
+      const remaining = round2(Math.max(0, TRANSFER_DAILY_LIMIT - (now.transferSentToday || 0)));
+      if ((now.balance || 0) < amt) return res.status(409).json({ error: 'Insufficient balance', balance: now.balance });
+      return res.status(409).json({
+        error: remaining > 0
+          ? `That's over your daily limit. You can send ${peso(remaining)} more today (${peso(TRANSFER_DAILY_LIMIT)} per day).`
+          : `You've reached today's ${peso(TRANSFER_DAILY_LIMIT)} sending limit. Try again tomorrow.`,
+        remainingToday: remaining
+      });
+    }
 
     // Atomic credit; compensate the sender if the credit somehow fails
     let credited;
@@ -525,22 +754,20 @@ router.post('/transfer', verifyUserToken, async (req, res) => {
       credited = await User.findByIdAndUpdate(recipient._id, { $inc: { balance: amt } }, { new: true });
       if (!credited) throw new Error('Recipient update returned null');
     } catch (creditErr) {
-      await User.findByIdAndUpdate(sender._id, { $inc: { balance: amt } }); // refund
+      await User.findByIdAndUpdate(sender._id, { $inc: { balance: amt, transferSentToday: -amt } }); // refund
       console.error('Transfer credit failed, refunded sender:', creditErr.message);
       return res.status(500).json({ error: 'Transfer failed. Your balance was not affected.' });
     }
 
-    // Round stored balances to 2 decimals
-    const senderBal = Math.round(debited.balance * 100) / 100;
-    const recipientBal = Math.round(credited.balance * 100) / 100;
+    const senderBal = round2(debited.balance);
+    const recipientBal = round2(credited.balance);
+    const sentAt = new Date();
+    const referenceNo = Transaction.generateTransactionId();
 
-    const recipientName = `${recipient.firstName || ''} ${recipient.lastName || ''}`.trim();
-    const senderName = `${sender.firstName || ''} ${sender.lastName || ''}`.trim();
-
-    // Transaction records for both parties
+    // Transaction records for both parties (the sender's ID is the reference no.)
     await Transaction.create([
       {
-        transactionId: Transaction.generateTransactionId(),
+        transactionId: referenceNo,
         transactionType: 'debit',
         amount: amt,
         balance: senderBal,
@@ -567,59 +794,30 @@ router.post('/transfer', verifyUserToken, async (req, res) => {
       }
     ]);
 
-    // Email both parties (fire-and-forget — never block or fail the transfer on email).
-    (async () => {
-      try {
-        const { sendEmail } = await import('../services/emailService.js');
-        const when = new Date().toLocaleString('en-PH', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' });
-        const money = (n) => `₱${Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
-        const shell = (heading, color, rows) => `
-          <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; border: 1px solid #eee; border-radius: 12px; overflow: hidden;">
-            <div style="background: #181D40; padding: 22px 28px;">
-              <div style="color: #FFD41C; font-size: 13px; font-weight: 700; letter-spacing: 1px;">NUCASH SYSTEM</div>
-              <div style="color: #FFFFFF; font-size: 20px; font-weight: 800; margin-top: 4px;">${heading}</div>
-            </div>
-            <div style="padding: 24px 28px;">
-              <table style="width: 100%; border-collapse: collapse; font-size: 14px; color: #333;">
-                ${rows.map(([k, v]) => `<tr><td style="padding: 8px 0; color: #777;">${k}</td><td style="padding: 8px 0; text-align: right; font-weight: 600; color: ${k === 'Amount' ? color : '#181D40'};">${v}</td></tr>`).join('')}
-              </table>
-              <p style="color: #999; font-size: 12px; margin-top: 20px; border-top: 1px solid #eee; padding-top: 16px;">This is an automated receipt. If you didn't make this transfer, please contact the Treasury Office / ITSO immediately.</p>
-            </div>
-          </div>`;
-
-        await Promise.all([
-          sendEmail({
-            to: sender.email,
-            subject: `You sent ${money(amt)} • NUCash`,
-            html: shell('Money Sent', '#EF4444', [
-              ['Amount', `- ${money(amt)}`],
-              ['To', `${recipientName} (${recipient.schoolUId})`],
-              ['New balance', money(senderBal)],
-              ['Date', when]
-            ])
-          }),
-          sendEmail({
-            to: recipient.email,
-            subject: `You received ${money(amt)} • NUCash`,
-            html: shell('Money Received', '#10B981', [
-              ['Amount', `+ ${money(amt)}`],
-              ['From', `${senderName} (${sender.schoolUId})`],
-              ['New balance', money(recipientBal)],
-              ['Date', when]
-            ])
-          })
-        ]);
-        console.log(`📧 Transfer receipts sent to ${sender.email} and ${recipient.email}`);
-      } catch (mailErr) {
-        console.error('Transfer email failed (transfer already completed):', mailErr.message);
-      }
-    })();
+    // Notify both parties (fire-and-forget — never block or fail the transfer on email)
+    const when = manilaTime(sentAt);
+    const footer = 'This is an automated receipt. If you didn\'t make this transfer, please contact the Treasury Office / ITSO immediately.';
+    sendTransferEmail(sender.email, `You sent ${peso(amt)} • NUCash`, 'Money Sent', '#EF4444', [
+      ['Amount', `- ${peso(amt)}`], ['To', `${recipientName} (${formatSchoolId(recipient.schoolUId)})`],
+      ['Reference no.', referenceNo], ['New balance', peso(senderBal)], ['Date', when]
+    ], footer);
+    sendTransferEmail(recipient.email, `You received ${peso(amt)} • NUCash`, 'Money Received', '#10B981', [
+      ['Amount', `+ ${peso(amt)}`], ['From', `${senderName} (${formatSchoolId(sender.schoolUId)})`],
+      ['Reference no.', referenceNo], ['New balance', peso(recipientBal)], ['Date', when]
+    ], footer);
 
     return res.json({
       success: true,
-      message: `₱${amt.toFixed(2)} sent to ${recipientName}`,
+      message: `${peso(amt)} sent to ${recipientName}`,
       newBalance: senderBal,
-      recipientName
+      recipientName,
+      amount: amt,
+      referenceNo,
+      sentAt,
+      to: peerSummary(recipient),
+      from: { fullName: senderName, schoolUId: sender.schoolUId, displayId: formatSchoolId(sender.schoolUId) },
+      isFavorite: (sender.transferFavorites || []).includes(recipient.schoolUId),
+      remainingToday: round2(Math.max(0, TRANSFER_DAILY_LIMIT - (debited.transferSentToday || 0)))
     });
   } catch (error) {
     console.error('Error processing transfer:', error);

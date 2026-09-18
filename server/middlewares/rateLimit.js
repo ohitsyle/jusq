@@ -5,8 +5,8 @@
 //
 // In-memory state resets on restart — acceptable for a single-instance deploy.
 
-export function makeRateLimit({ windowMs, max, message }) {
-  const hits = new Map(); // ip -> { count, windowStart }
+export function makeRateLimit({ windowMs, max, message, keyFn }) {
+  const hits = new Map(); // key (default: ip) -> { count, windowStart }
 
   setInterval(() => {
     const now = Date.now();
@@ -16,7 +16,7 @@ export function makeRateLimit({ windowMs, max, message }) {
   }, windowMs).unref();
 
   return (req, res, next) => {
-    const key = req.ip || req.connection?.remoteAddress || 'unknown';
+    const key = keyFn ? keyFn(req) : (req.ip || req.connection?.remoteAddress || 'unknown');
     const now = Date.now();
     const entry = hits.get(key);
 
@@ -44,8 +44,19 @@ export const merchantPayLimit = makeRateLimit({
   message: 'Too many payment requests. Please wait a moment.'
 });
 
+// Students on campus Wi-Fi share one public IP, so count per account (on that
+// IP) rather than per IP alone. The account id is read from the bearer token
+// without verifying it — the route itself rejects bad tokens.
+const accountKey = (req) => {
+  const token = (req.headers.authorization || '').replace(/^Bearer /, '');
+  let id = '';
+  try { id = JSON.parse(Buffer.from(token.split('.')[1] || '', 'base64url').toString()).id || ''; } catch { /* no/odd token */ }
+  return `${req.ip || 'unknown'}|${id}`;
+};
+
 export const transferLimit = makeRateLimit({
   windowMs: 60 * 1000,
   max: 15,
+  keyFn: accountKey,
   message: 'Too many transfer attempts. Please wait a minute.'
 });

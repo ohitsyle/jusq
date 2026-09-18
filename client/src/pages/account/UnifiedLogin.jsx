@@ -12,6 +12,19 @@ export default function UnifiedLogin() {
   const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  // Set by Send Money when 3 wrong PINs lock the account (it signs the browser out)
+  const [lockNotice, setLockNotice] = useState(() => {
+    try {
+      const n = JSON.parse(sessionStorage.getItem('nucash_lock_notice') || 'null');
+      if (n && new Date(n.until) > new Date()) return n;
+      sessionStorage.removeItem('nucash_lock_notice');
+    } catch { /* ignore */ }
+    return null;
+  });
+  const dismissLockNotice = () => {
+    try { sessionStorage.removeItem('nucash_lock_notice'); } catch { /* ignore */ }
+    setLockNotice(null);
+  };
   const [detectedRole, setDetectedRole] = useState(null); // 'admin', 'merchant', 'user'
   const [pendingRedirect, setPendingRedirect] = useState(null);
   const loginAttemptRef = useRef(false);
@@ -439,6 +452,19 @@ export default function UnifiedLogin() {
             Sign in to access your account
           </p>
         </div>
+
+        {/* Account locked after 3 wrong PINs in Send Money */}
+        {lockNotice && (
+          <div role="alert" className="mb-6 p-4 bg-[rgba(239,68,68,0.12)] border-2 border-[rgba(239,68,68,0.45)] rounded-xl relative">
+            <button onClick={dismissLockNotice} aria-label="Dismiss" className="absolute top-2 right-3 text-[rgba(251,251,251,0.5)] hover:text-white text-lg leading-none">×</button>
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="text-lg">🔒</span>
+              <span className="text-[#F87171] font-bold">Account locked</span>
+            </div>
+            <p className="text-[rgba(251,251,251,0.8)] text-xs leading-relaxed">{lockNotice.message}</p>
+            <p className="text-[rgba(251,251,251,0.55)] text-xs mt-2">No money was sent. If this wasn't you, report it to ITSO.</p>
+          </div>
+        )}
 
         {/* Maintenance Mode Banner */}
         {maintenanceMode && (
