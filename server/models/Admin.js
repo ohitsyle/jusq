@@ -74,6 +74,17 @@ const AdminSchema = new mongoose.Schema({
     default: false
   },
 
+  // Deactivated by a system admin: can't sign in or re-activate until undone.
+  // (Separate from isActive, which only means "still needs activation".)
+  isDeactivated: {
+    type: Boolean,
+    default: false
+  },
+  deactivatedAt: {
+    type: Date,
+    default: null
+  },
+
   // Password Reset
   resetOtp: {
     type: String,

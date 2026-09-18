@@ -23,18 +23,23 @@ const verifyMerchantToken = async (req, res, next) => {
     const jwt = await import('jsonwebtoken');
     const decoded = jwt.default.verify(token, JWT_SECRET);
 
-    console.log('🔐 Token decoded:', { role: decoded.role, id: decoded.id, merchantId: decoded.merchantId, adminId: decoded.adminId });
-
-    // Accept either merchant tokens or admin tokens with merchant role
-    if (decoded.role === 'merchant' || decoded.merchantId) {
-      req.merchantId = decoded.merchantId || decoded.id;
-      req.isAdmin = decoded.role === 'merchant' && decoded.adminId; // true if it's a merchant admin
-      console.log('✅ Merchant admin authenticated:', { merchantId: req.merchantId, isAdmin: req.isAdmin });
-      next();
-    } else {
-      console.log('❌ Token does not have merchant access');
-      return res.status(403).json({ error: 'Forbidden: Merchant access required' });
+    // Only merchant ADMIN accounts. Store (merchant business) logins from the
+    // phone app also carry role 'merchant', so check the Admin record itself —
+    // which also shuts out deactivated admins and ones sent back to activation.
+    if (decoded.role !== 'merchant') {
+      return res.status(403).json({ error: 'Forbidden: Merchant admin access required' });
     }
+    const { default: Admin } = await import('../models/Admin.js');
+    const admin = await Admin.findById(decoded.id).select('role isActive isDeactivated').lean();
+    if (!admin || admin.role !== 'merchant') {
+      return res.status(403).json({ error: 'Forbidden: Merchant admin access required' });
+    }
+    if (admin.isDeactivated || admin.isActive === false) {
+      return res.status(401).json({ error: 'Account no longer active. Please log in again.' });
+    }
+    req.merchantId = decoded.merchantId || decoded.id;
+    req.isAdmin = true;
+    next();
   } catch (error) {
     console.error('❌ Token verification error:', error);
     res.status(401).json({ error: 'Invalid token' });

@@ -447,7 +447,9 @@ export const sendActivationOTP = async (email, otp, fullName) => {
 /**
  * Send temporary PIN email for new user registration
  */
-export const sendTemporaryPIN = async (email, pin, fullName, schoolUId) => {
+// options.isReset: wording for a sysad PIN reset instead of a new account.
+// options.idLabel: label for the ID row ('School ID' for students, 'Admin ID' for admins).
+export const sendTemporaryPIN = async (email, pin, fullName, schoolUId, { isReset = false, idLabel = 'School ID' } = {}) => {
   if (!email) {
     console.log('⚠️ No email provided, skipping PIN email');
     return false;
@@ -483,17 +485,17 @@ export const sendTemporaryPIN = async (email, pin, fullName, schoolUId) => {
 <body>
   <div class="container">
     <div class="header">
-      <h1>🎓 Welcome to NUCash!</h1>
+      <h1>${isReset ? '🔑 Your NUCash PIN was reset' : '🎓 Welcome to NUCash!'}</h1>
       <p>Your Digital Campus Wallet</p>
     </div>
 
     <div class="welcome-box">
       <h2>Hello, ${fullName}!</h2>
-      <p>Your NUCash account has been created successfully.</p>
+      <p>${isReset ? 'A system administrator reset your NUCash PIN. Your old PIN no longer works, and you have been signed out.' : 'Your NUCash account has been created successfully.'}</p>
     </div>
 
     <div class="info-row">
-      <span class="label">School ID:</span>
+      <span class="label">${idLabel}:</span>
       <span class="value">${schoolUId}</span>
     </div>
 
@@ -523,14 +525,14 @@ export const sendTemporaryPIN = async (email, pin, fullName, schoolUId) => {
     <div class="warning-box">
       <strong>⚠️ Important Security Notice:</strong>
       <ul style="margin: 10px 0 0 0; padding-left: 20px;">
-        <li>This temporary PIN is for <strong>first-time login only</strong></li>
+        <li>This temporary PIN is for <strong>${isReset ? 'one sign-in to set a new PIN' : 'first-time login only'}</strong></li>
         <li>You <strong>must change your PIN</strong> after your first login</li>
         <li>Never share your PIN with anyone</li>
         <li>NUCash staff will never ask for your PIN</li>
       </ul>
     </div>
 
-    <p>If you did not request a NUCash account, please contact us immediately at <a href="mailto:nucashsystem@gmail.com" style="color: #FFD41C; text-decoration: none; font-weight: 600;">nucashsystem@gmail.com</a></p>
+    <p>${isReset ? 'If you did not ask for a PIN reset, report it to ITSO right away. You can also' : 'If you did not request a NUCash account, please'} contact us immediately at <a href="mailto:nucashsystem@gmail.com" style="color: #FFD41C; text-decoration: none; font-weight: 600;">nucashsystem@gmail.com</a></p>
 
     <div class="footer">
       <p><strong style="color: #181D40;">NUCash System</strong></p>
@@ -545,9 +547,11 @@ export const sendTemporaryPIN = async (email, pin, fullName, schoolUId) => {
   const mailOptions = {
     from: `"NUCash System" <${process.env.EMAIL_USER}>`,
     to: email,
-    subject: '🎓 Welcome to NUCash - Your Temporary PIN',
+    subject: isReset ? '🔑 Your NUCash PIN was reset - Temporary PIN' : '🎓 Welcome to NUCash - Your Temporary PIN',
     html: emailContent,
-    text: `Welcome to NUCash, ${fullName}! Your temporary PIN is: ${pin}. Please change it after your first login.`
+    text: isReset
+      ? `Hi ${fullName}, a system administrator reset your NUCash PIN. Your temporary PIN is: ${pin}. Sign in with it to set a new PIN. If you didn't ask for this, report it to ITSO.`
+      : `Welcome to NUCash, ${fullName}! Your temporary PIN is: ${pin}. Please change it after your first login.`
   };
 
   try {

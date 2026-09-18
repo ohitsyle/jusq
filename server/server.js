@@ -100,7 +100,7 @@ import { initializeAutoExportCron } from './jobs/autoExportCron.js';
 import { initializeStudentDeactivationCron } from './jobs/studentDeactivationCron.js';
 import { initializeDeactivationCron } from './jobs/deactivationCron.js';
 import { checkMaintenanceMode } from './middlewares/maintenanceMode.js';
-import { requireAdminAuth, requireAdminAuthExcept } from './middlewares/requireAdminAuth.js';
+import { requireAdminAuth, requireAdminAuthExcept, requireRoles } from './middlewares/requireAdminAuth.js';
 import { loginRateLimit } from './middlewares/loginRateLimit.js';
 import { shuttlePayLimit, merchantPayLimit, transferLimit } from './middlewares/rateLimit.js';
 import websocketService from './services/websocketService.js';
@@ -124,16 +124,19 @@ app.post('/api/user/transfer', transferLimit); // only the money move — not ov
 // Exceptions: /api/admin/auth (login itself) and sysad /maintenance-status
 // (read by the login page pre-auth).
 app.use('/api/admin/auth', adminAuthRoutes);
-app.use('/api/admin/treasury', requireAdminAuth, treasuryRoutes);
-app.use('/api/admin/accounting', requireAdminAuth, accountingRoutes);
-app.use('/api/admin/sysad', requireAdminAuthExcept(['/maintenance-status']), sysadRoutes);
+// Each admin area only for its own role(s) — the web pages already enforce this, the API didn't.
+// Accounting reads Treasury's transaction/merchant data; only Treasury changes it (cash-in etc).
+const treasuryAccess = requireRoles(['treasury', 'accounting'], { writeRoles: ['treasury'] });
+app.use('/api/admin/treasury', requireAdminAuth, treasuryAccess, treasuryRoutes);
+app.use('/api/admin/accounting', requireAdminAuth, requireRoles(['accounting']), accountingRoutes);
+app.use('/api/admin/sysad', requireAdminAuthExcept(['/maintenance-status']), requireRoles(['sysad'], { except: ['/maintenance-status'] }), sysadRoutes);
 app.use('/api/system-alerts', requireAdminAuthExcept(['/active']), systemAlertsRoutes);
 app.use('/api/kiosk', kioskRoutes); // public: self-service registration kiosk (rate-limited inside)
-app.use('/api/admin/promotions', requireAdminAuth, promotionsRoutes);
+app.use('/api/admin/promotions', requireAdminAuth, requireRoles(['marketing']), promotionsRoutes);
 app.use('/api/admin/configurations', requireAdminAuth, configurationsRoutes);
 app.use('/api/admin', requireAdminAuth, adminRoutes); // General admin routes AFTER specific admin/* routes
 app.use('/api/merchant', merchantAdminRoutes);
-app.use('/api/treasury', requireAdminAuth, treasuryRoutes); // Also mount at /api/treasury for client compatibility
+app.use('/api/treasury', requireAdminAuth, treasuryAccess, treasuryRoutes); // Also mount at /api/treasury for client compatibility
 app.use('/api/user', userDashboardRoutes);
 app.use('/api/activation', activationRoutes);
 app.use('/api/websocket', websocketRoutes);

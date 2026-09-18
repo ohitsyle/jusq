@@ -172,9 +172,12 @@ export default function ManageUsers() {
 
   const handleResetPin = (user) => {
     const name = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
+    const isAdmin = user._type === 'admin';
     showConfirm(
-      'Reset PIN',
-      `Issue a new temporary PIN for ${name}? Their current PIN stops working and they must re-activate their account with the emailed PIN.`,
+      isAdmin ? 'Reset Admin PIN' : 'Reset PIN',
+      isAdmin
+        ? `Issue a new temporary PIN for ${name}? Their current PIN stops working and they're signed out right away. A temporary PIN and then an activation code are emailed to ${user.email}. They need that inbox to sign in again.`
+        : `Issue a new temporary PIN for ${name}? Their current PIN stops working and they must re-activate their account with the emailed PIN.`,
       async () => {
         setConfirmModal({ ...confirmModal, isOpen: false });
         try {
@@ -588,7 +591,13 @@ function DeactivatedBadge({ isDeactivated }) {
 }
 
 // Edit User Modal
+// The main system admin account: its PIN can't be reset and it can't be deactivated by others.
+const PROTECTED_SYSAD_EMAIL = 'sysad@nu.edu.ph';
+const currentAdminId = () => { try { return JSON.parse(localStorage.getItem('adminData') || '{}')._id; } catch { return null; } };
+
 function EditUserModal({ theme, isDarkMode, user, onClose, onSuccess, onResetPin, onToggleStatus }) {
+  const isSelf = user._type === 'admin' && String(user._id) === String(currentAdminId());
+  const isProtected = user._type === 'admin' && user.email?.toLowerCase() === PROTECTED_SYSAD_EMAIL;
   const [formData, setFormData] = useState({
     firstName: user.firstName || '',
     middleName: user.middleName || '',
@@ -744,18 +753,23 @@ function EditUserModal({ theme, isDarkMode, user, onClose, onSuccess, onResetPin
                 These take effect immediately — no need to save.
               </p>
               <div className="flex gap-2 flex-wrap">
-                {user._type !== 'admin' && onResetPin && (
+                {isSelf && (
+                  <p style={{ color: theme.text.secondary }} className="text-xs">
+                    This is your own account. To change your PIN, go to Profile → Security Settings.
+                  </p>
+                )}
+                {onResetPin && !isSelf && !isProtected && (
                   <button
                     type="button"
                     onClick={onResetPin}
-                    title="Issue a new temporary PIN and email it; the user re-activates their account"
+                    title="Issue a new temporary PIN and email it; they re-activate their account"
                     style={{ background: 'rgba(245,158,11,0.15)', color: '#F59E0B', borderColor: 'rgba(245,158,11,0.3)' }}
                     className="px-4 py-2 rounded-lg hover:opacity-80 transition-all text-xs font-semibold border"
                   >
                     🔑 Reset PIN
                   </button>
                 )}
-                {onToggleStatus && (
+                {onToggleStatus && !isSelf && !isProtected && (
                   <button
                     type="button"
                     onClick={onToggleStatus}

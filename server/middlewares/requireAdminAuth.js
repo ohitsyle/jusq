@@ -41,7 +41,7 @@ async function verifyAdminRequest(req, res, next) {
   // deactivated admins).
   try {
     const admin = await Admin.findById(decoded.id).select('role isActive isDeactivated').lean();
-    if (!admin || admin.isDeactivated) {
+    if (!admin || admin.isDeactivated || admin.isActive === false) {
       return res.status(401).json({ success: false, message: 'Account no longer active. Please log in again.' });
     }
     req.authAdmin = { id: decoded.id, role: admin.role, adminId: decoded.adminId };
@@ -84,3 +84,18 @@ export function requireAdminAuthForMutations(req, res, next) {
 }
 
 export default requireAdminAuthForMutations;
+
+// Role check for a router, after requireAdminAuth has set req.authAdmin.
+// `roles` may read (GET); `writeRoles` (default: same) may change things.
+// Answers 403, never 401 — the web client signs the user out on any 401.
+export function requireRoles(roles, { writeRoles = roles, except = [] } = {}) {
+  return (req, res, next) => {
+    if (except.some((p) => req.path === p || req.path.startsWith(`${p}/`))) return next();
+    const role = req.authAdmin?.role;
+    const allowed = ['GET', 'HEAD', 'OPTIONS'].includes(req.method) ? roles : writeRoles;
+    if (!role || !allowed.includes(role)) {
+      return res.status(403).json({ success: false, error: 'Your admin role cannot do this', message: 'Your admin role cannot do this' });
+    }
+    next();
+  };
+}

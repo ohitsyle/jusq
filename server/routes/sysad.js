@@ -149,6 +149,7 @@ router.get('/users', async (req, res) => {
       if (status === 'deactivated') {
         // Filter for deactivated users only
         userFilter.isDeactivated = true;
+        adminFilter.isDeactivated = true;
       } else {
         // User model uses isActive (boolean) not status (string)
         userFilter.isActive = status === 'active';
@@ -764,8 +765,11 @@ router.patch('/users/:userId/toggle-status', async (req, res) => {
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
+    if (isAdmin && String(user._id) === String(req.authAdmin?.id)) {
+      return res.status(400).json({ success: false, message: "You can't deactivate your own account" });
+    }
 
-    // Toggle isDeactivated for Users, isActive for Admins
+    // Toggle isDeactivated for Users and Admins
     if (!isAdmin) {
       // For users: toggle isDeactivated
       user.isDeactivated = !user.isDeactivated;
@@ -779,13 +783,16 @@ router.patch('/users/:userId/toggle-status', async (req, res) => {
         user.deactivatedAt = null;
       }
     } else {
-      // For admins: toggle isActive directly (admins don't have isDeactivated)
-      user.isActive = !user.isActive;
+      // Admins: isDeactivated blocks sign-in and re-activation and ends their sessions.
+      // (Toggling isActive used to only send them to activation, which let a
+      // deactivated admin re-activate themselves.)
+      user.isDeactivated = !user.isDeactivated;
+      user.deactivatedAt = user.isDeactivated ? new Date() : null;
     }
 
     await user.save();
 
-    const statusText = (!isAdmin ? user.isDeactivated : !user.isActive) ? 'deactivated' : 'reactivated';
+    const statusText = user.isDeactivated ? 'deactivated' : 'reactivated';
     const userName = user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim();
 
     // Log action
@@ -828,40 +835,67 @@ router.patch('/users/:userId/toggle-status', async (req, res) => {
 
 /**
  * POST /api/admin/sysad/users/:userId/reset-pin
- * PIN rescue for locked-out students/employees. Issues a fresh 6-digit
- * temporary PIN (stored plaintext, same as registration), flips the account
- * back to inactive so the user re-runs the activation flow (set new PIN +
- * email OTP), and emails them the temporary PIN.
+ * PIN rescue for locked-out students, employees and admins. Issues a fresh
+ * 6-digit temporary PIN, flips the account back to "needs activation" so the
+ * person re-runs activation (set new PIN + email OTP), and emails them the
+ * temporary PIN. Admins are signed out at once (requireAdminAuth rejects
+ * accounts pending activation). A sysad can't reset their own PIN here —
+ * that's Profile -> Security.
  */
 router.post('/users/:userId/reset-pin', async (req, res) => {
   try {
-    const user = await User.findById(req.params.userId);
-    if (!user) {
+    let account = await User.findById(req.params.userId);
+    let isAdmin = false;
+    if (!account) {
+      const Admin = (await import('../models/Admin.js')).default;
+      account = await Admin.findById(req.params.userId);
+      isAdmin = !!account;
+    }
+    if (!account) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
-    if (user.isDeactivated) {
+    if (isAdmin && String(account._id) === String(req.authAdmin?.id)) {
+      return res.status(400).json({ success: false, message: 'To change your own PIN, use Profile → Security Settings' });
+    }
+    if (isAdmin) {
+      // The main system admin can't be reset by anyone else (like delete/deactivate).
+      const { PROTECTED_SYSAD_EMAIL } = await import('../models/Admin.js');
+      if (account.email?.toLowerCase() === PROTECTED_SYSAD_EMAIL) {
+        return res.status(403).json({ success: false, message: 'This system administrator account is protected — its PIN can only be changed by its owner' });
+      }
+    }
+    if (account.isDeactivated) {
       return res.status(400).json({ success: false, message: 'Account is deactivated — reactivate it before resetting the PIN' });
     }
 
     const crypto = (await import('crypto')).default;
     const tempPin = crypto.randomInt(100000, 999999).toString();
+    const fullName = `${account.firstName} ${account.lastName}`.trim();
 
-    await User.findByIdAndUpdate(user._id, {
-      $set: { pin: tempPin, isActive: false }
-    });
+    if (isAdmin) {
+      // Admin PINs are stored hashed; the admin login and activation both accept bcrypt.
+      const bcrypt = (await import('bcrypt')).default;
+      const Admin = (await import('../models/Admin.js')).default;
+      await Admin.updateOne({ _id: account._id }, { $set: { pin: await bcrypt.hash(tempPin, 10), isActive: false, resetOtp: '', resetOtpExpireAt: 0 } });
+    } else {
+      await User.findByIdAndUpdate(account._id, { $set: { pin: tempPin, isActive: false } });
+    }
 
-    const fullName = `${user.firstName} ${user.lastName}`.trim();
-    const emailSent = await sendTemporaryPIN(user.email, tempPin, fullName, user.schoolUId);
+    const emailSent = await sendTemporaryPIN(
+      account.email, tempPin, fullName,
+      isAdmin ? `${account.adminId} (${account.role})` : account.schoolUId,
+      { isReset: true, idLabel: isAdmin ? 'Admin ID' : 'School ID' }
+    );
 
     logAdminAction({
       adminId: req.adminId || 'sysad',
       adminName: req.adminName || req.adminInfo?.adminName || 'System Admin',
       adminRole: 'sysad',
       department: 'system',
-      action: 'PIN Reset',
-      description: `reset PIN for ${fullName} (${user.schoolUId || user.email}); account returned to activation`,
-      targetEntity: 'user',
-      targetId: String(user._id),
+      action: isAdmin ? 'Admin PIN Reset' : 'PIN Reset',
+      description: `reset PIN for ${isAdmin ? `admin ${fullName} (${account.role})` : `${fullName} (${account.schoolUId || account.email})`}; account returned to activation`,
+      targetEntity: isAdmin ? 'admin' : 'user',
+      targetId: String(account._id),
       crudOperation: 'crud_update',
       ipAddress: req.ip
     }).catch(() => {});
@@ -872,8 +906,8 @@ router.post('/users/:userId/reset-pin', async (req, res) => {
       // Surfaced in the UI only when the email failed, so the admin can hand it over
       temporaryPin: emailSent ? undefined : tempPin,
       message: emailSent
-        ? `Temporary PIN sent to ${user.email}. The user must re-activate their account.`
-        : `Email failed — temporary PIN is ${tempPin}. The user must re-activate their account.`
+        ? `Temporary PIN sent to ${account.email}. ${isAdmin ? 'They were signed out and' : 'The user'} must re-activate their account.`
+        : `Email failed — temporary PIN is ${tempPin}. ${isAdmin ? 'They were signed out and' : 'The user'} must re-activate their account.`
     });
   } catch (error) {
     console.error('❌ Reset PIN error:', error);

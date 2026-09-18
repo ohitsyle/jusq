@@ -3,6 +3,12 @@
 
 import express from 'express';
 const router = express.Router();
+router.use((req, res, next) => {
+  if (req.method !== 'GET' && MOTORPOOL_DATA.test(req.path) && req.authAdmin?.role !== 'motorpool') {
+    return res.status(403).json({ success: false, error: 'Only the Motorpool admin can change this', message: 'Only the Motorpool admin can change this' });
+  }
+  next();
+});
 import bcrypt from 'bcrypt';
 import Driver from '../models/Driver.js';
 import Shuttle from '../models/Shuttle.js';
@@ -19,6 +25,10 @@ import { extractAdminInfo } from '../middlewares/extractAdminInfo.js';
 import { broadcastChanges, forceMobileRefresh } from '../middlewares/realtimeMiddleware.js';
 import { buildDepartmentLogQuery, buildDepartmentConcernQuery } from '../utils/exportScopes.js';
 import { normalizePhMobile } from '../utils/phone.js';
+
+// Drivers, shuttles, routes, driver phones, trips and the fare are motorpool's:
+// other admins may read them, only motorpool may change them.
+const MOTORPOOL_DATA = /^\/(drivers|shuttles|routes|phones|trips|settings)(\/|$)/;
 
 // Apply admin info extraction middleware to all admin routes
 router.use(extractAdminInfo);
