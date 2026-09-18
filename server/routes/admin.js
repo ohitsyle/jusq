@@ -3,6 +3,7 @@
 
 import express from 'express';
 const router = express.Router();
+import bcrypt from 'bcrypt';
 import Driver from '../models/Driver.js';
 import Shuttle from '../models/Shuttle.js';
 import Phone from '../models/Phone.js';
@@ -17,6 +18,7 @@ import { logAdminAction, logError, logDriverLogin, logDriverLogout, logDriverShu
 import { extractAdminInfo } from '../middlewares/extractAdminInfo.js';
 import { broadcastChanges, forceMobileRefresh } from '../middlewares/realtimeMiddleware.js';
 import { buildDepartmentLogQuery, buildDepartmentConcernQuery } from '../utils/exportScopes.js';
+import { normalizePhMobile } from '../utils/phone.js';
 
 // Apply admin info extraction middleware to all admin routes
 router.use(extractAdminInfo);
@@ -237,9 +239,59 @@ router.get('/shuttle-positions', async (req, res) => {
 // DRIVERS CRUD
 // ============================================================
 
+// Drivers sign in to the mobile app with mobile number + 6-digit PIN. The PIN
+// is set by the motorpool admin, so it must never be sent back to the browser
+// or written to the event log (only its bcrypt hash is stored).
+const withoutPin = (doc) => {
+  if (!doc) return doc;
+  const o = typeof doc.toObject === 'function' ? doc.toObject() : { ...doc };
+  delete o.password;
+  return o;
+};
+
+class DriverInputError extends Error {
+  constructor(status, message) { super(message); this.status = status; }
+}
+
+// Validate/normalize an admin's driver payload. On create a mobile number and
+// PIN are required; on update only the fields present are checked.
+async function prepareDriverPayload(body, isCreate) {
+  const data = { ...body };
+  delete data._id;
+  if (!data.email) delete data.email; // no longer collected; '' would collide in the unique index
+
+  if (isCreate || 'phoneNumber' in data) {
+    const phone = normalizePhMobile(data.phoneNumber);
+    if (!phone) throw new DriverInputError(400, 'Enter a valid Philippine mobile number (+63 9XX XXX XXXX)');
+    data.phoneNumber = phone;
+  }
+
+  if (isCreate || data.password) {
+    if (!/^\d{6}$/.test(String(data.password || ''))) throw new DriverInputError(400, 'PIN must be exactly 6 digits');
+    // Create hashes in the model's pre('save') hook; findByIdAndUpdate skips
+    // that hook, so hash here for updates.
+    if (!isCreate) data.password = await bcrypt.hash(String(data.password), 10);
+  } else {
+    delete data.password;
+  }
+  return data;
+}
+
+function sendDriverError(res, error) {
+  if (error instanceof DriverInputError) return res.status(error.status).json({ error: error.message });
+  if (error?.code === 11000) {
+    const field = Object.keys(error.keyPattern || error.keyValue || {})[0];
+    const msg = field === 'phoneNumber' ? 'That mobile number is already registered to another driver'
+      : field === 'driverId' ? 'That driver ID already exists — reopen the form to get a new one'
+      : 'A driver with those details already exists';
+    return res.status(409).json({ error: msg });
+  }
+  return res.status(400).json({ error: error.message });
+}
+
 router.get('/drivers', async (req, res) => {
   try {
-    const drivers = await Driver.find().sort({ createdAt: -1 });
+    const drivers = await Driver.find().select('-password').sort({ createdAt: -1 });
     res.json(drivers);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -248,7 +300,7 @@ router.get('/drivers', async (req, res) => {
 
 router.get('/drivers/:id', async (req, res) => {
   try {
-    const driver = await Driver.findById(req.params.id);
+    const driver = await Driver.findById(req.params.id).select('-password');
     if (!driver) return res.status(404).json({ error: 'Driver not found' });
     res.json(driver);
   } catch (error) {
@@ -258,7 +310,8 @@ router.get('/drivers/:id', async (req, res) => {
 
 router.post('/drivers', async (req, res) => {
   try {
-    const driver = new Driver(req.body);
+    const data = await prepareDriverPayload(req.body, true);
+    const driver = new Driver(data);
     await driver.save();
 
     // Log admin action
@@ -272,20 +325,21 @@ router.post('/drivers', async (req, res) => {
       targetEntity: 'driver',
       targetId: driver.driverId,
       crudOperation: 'crud_create',
-      changes: req.body,
+      changes: withoutPin(data),
       ipAddress: req.ip
     });
 
-    res.status(201).json(driver);
+    res.status(201).json(withoutPin(driver));
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    sendDriverError(res, error);
   }
 });
 
 router.put('/drivers/:id', async (req, res) => {
   try {
+    const data = await prepareDriverPayload(req.body, false);
     const oldDriver = await Driver.findById(req.params.id);
-    const driver = await Driver.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const driver = await Driver.findByIdAndUpdate(req.params.id, { ...data, updatedAt: new Date() }, { new: true });
     if (!driver) return res.status(404).json({ error: 'Driver not found' });
 
     // Log admin action
@@ -295,17 +349,17 @@ router.put('/drivers/:id', async (req, res) => {
       adminRole: req.adminInfo?.adminRole || 'unknown',
       department: req.adminInfo?.department,
       action: 'Driver Updated',
-      description: `updated driver ${driver.driverId} (${driver.firstName} ${driver.lastName})`,
+      description: `updated driver ${driver.driverId} (${driver.firstName} ${driver.lastName})${req.body.password ? ' — PIN reset' : ''}`,
       targetEntity: 'driver',
       targetId: driver.driverId,
       crudOperation: 'crud_update',
-      changes: { old: oldDriver, new: driver },
+      changes: { old: withoutPin(oldDriver), new: withoutPin(driver) },
       ipAddress: req.ip
     });
 
-    res.json(driver);
+    res.json(withoutPin(driver));
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    sendDriverError(res, error);
   }
 });
 

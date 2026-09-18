@@ -3,7 +3,7 @@
 //   <ThemedSelect>   — drop-in for <select> (parses <option> children)
 //   <ThemedDateInput>— drop-in for <input type="date"> (value "YYYY-MM-DD", honors min/max)
 //   <ThemedTimeInput>— drop-in for <input type="time"> (value "HH:MM" 24h)
-// All fire onChange({ target: { value } }) so existing handlers keep working,
+// All fire onChange({ target: { value } }) (plus `name`, when given) so existing handlers keep working,
 // and apply the caller's style/className to the trigger so each page keeps its look.
 
 import React, { useState, useRef, useEffect, useMemo, Children } from 'react';
@@ -172,7 +172,7 @@ const parseYMD = (s) => {
   return new Date(y, m - 1, d);
 };
 
-export function ThemedDateInput({ value, onChange, min, max, style = {}, className = '', placeholder = 'Select date' }) {
+export function ThemedDateInput({ name, value, onChange, min, max, style = {}, className = '', placeholder = 'Select date' }) {
   const [open, setOpen] = useState(false);
   const selDate = parseYMD(value);
   const [view, setView] = useState(() => selDate || new Date());
@@ -203,7 +203,7 @@ export function ThemedDateInput({ value, onChange, min, max, style = {}, classNa
   const pick = (d) => {
     if (!inRange(d)) return;
     setOpen(false);
-    onChange && onChange({ target: { value: toYMD(d) } });
+    onChange && onChange({ target: { name, value: toYMD(d) } });
   };
 
   return (
@@ -282,7 +282,7 @@ export function ThemedDateInput({ value, onChange, min, max, style = {}, classNa
               Today
             </button>
             <button type="button"
-              onClick={() => { setOpen(false); onChange && onChange({ target: { value: '' } }); }}
+              onClick={() => { setOpen(false); onChange && onChange({ target: { name, value: '' } }); }}
               style={{ fontSize: 11, fontWeight: 800, color: '#EF4444', background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px 6px' }}>
               Clear
             </button>

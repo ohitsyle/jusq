@@ -86,11 +86,11 @@ const driverName = (d) => `${d.firstName || ''}${d.middleInitial ? ' ' + d.middl
 
 export async function exportDrivers(dateFilter = {}) {
   const drivers = await Driver.find(withDateFilter({}, dateFilter)).sort({ driverId: 1 }).lean();
-  const headers = ['Driver ID', 'Name', 'Email', 'Assigned Shuttle', 'License Number', 'License Expiry', 'Active', 'Created'];
+  const headers = ['Driver ID', 'Name', 'Mobile Number', 'Assigned Shuttle', 'License Number', 'License Expiry', 'Active', 'Created'];
   const rows = drivers.map((d) => ({
     'Driver ID': d.driverId,
     'Name': driverName(d),
-    'Email': d.email,
+    'Mobile Number': d.phoneNumber || '',
     'Assigned Shuttle': d.shuttleId || '',
     'License Number': d.licenseNumber || '',
     'License Expiry': fmtDate(d.licenseExpiry),

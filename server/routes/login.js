@@ -11,6 +11,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import nodemailer from 'nodemailer';
 import Driver from '../models/Driver.js';
+import { normalizePhMobile, escapeRegex } from '../utils/phone.js';
 import Merchant from '../models/Merchant.js';
 import User from '../models/User.js';
 import Admin from '../models/Admin.js';
@@ -19,6 +20,17 @@ import { logLogin } from '../utils/logger.js';
 // Don't read JWT_SECRET at module level - dotenv hasn't loaded yet
 // Read it inside functions where it's needed
 const getJWTSecret = () => process.env.JWT_SECRET || 'nucash_secret_2025';
+
+// Exact, case-insensitive match. Input is escaped so "." or ".*" can't act
+// as wildcards and match someone else's account.
+const exactCI = (value) => new RegExp(`^${escapeRegex(value)}$`, 'i');
+
+// Drivers sign in with their PH mobile number; everyone else with email.
+// Returns the Driver query for whichever one the person typed.
+const driverLoginQuery = (input, normalizedEmail) => {
+  const phone = !String(input).includes('@') ? normalizePhMobile(input) : null;
+  return { ...(phone ? { phoneNumber: phone } : { email: exactCI(normalizedEmail) }), isActive: true };
+};
 
 /**
  * POST /login/check-email
@@ -29,17 +41,14 @@ router.post('/check-email', async (req, res) => {
     const { email } = req.body;
 
     if (!email) {
-      return res.status(400).json({ error: 'Email is required' });
+      return res.status(400).json({ error: 'Email or mobile number is required' });
     }
 
     const normalizedEmail = email.trim().toLowerCase();
     console.log('📧 Checking email:', normalizedEmail);
 
-    // Check drivers first
-    const driver = await Driver.findOne({ 
-      email: { $regex: new RegExp(`^${normalizedEmail}$`, 'i') },
-      isActive: true 
-    });
+    // Check drivers first (mobile number or legacy email)
+    const driver = await Driver.findOne(driverLoginQuery(email, normalizedEmail));
 
     if (driver) {
       // FIXED: Use fullName virtual, or construct from firstName + lastName
@@ -55,8 +64,8 @@ router.post('/check-email', async (req, res) => {
     // Check merchants by email OR username
     const merchant = await Merchant.findOne({
       $or: [
-        { email: { $regex: new RegExp(`^${normalizedEmail}$`, 'i') } },
-        { username: { $regex: new RegExp(`^${normalizedEmail}$`, 'i') } }
+        { email: { $regex: exactCI(normalizedEmail) } },
+        { username: { $regex: exactCI(normalizedEmail) } }
       ],
       isActive: true
     });
@@ -72,7 +81,7 @@ router.post('/check-email', async (req, res) => {
 
     // Check users (students/employees) - don't filter by isActive to allow activation flow
     const user = await User.findOne({
-      email: { $regex: new RegExp(`^${normalizedEmail}$`, 'i') }
+      email: { $regex: exactCI(normalizedEmail) }
     });
 
     if (user) {
@@ -110,11 +119,8 @@ router.post('/', async (req, res) => {
     const normalizedEmail = emailOrUsername.trim().toLowerCase();
     console.log('🔐 Login attempt for:', normalizedEmail);
 
-    // Try driver login first
-    const driver = await Driver.findOne({ 
-      email: { $regex: new RegExp(`^${normalizedEmail}$`, 'i') },
-      isActive: true 
-    });
+    // Try driver login first (mobile number or legacy email)
+    const driver = await Driver.findOne(driverLoginQuery(emailOrUsername, normalizedEmail));
 
     if (driver) {
       // FIXED: Use bcrypt.compare() for hashed passwords
@@ -145,7 +151,8 @@ router.post('/', async (req, res) => {
           role: 'driver',
           driverId: driver.driverId,
           name: driverName,
-          email: driver.email
+          email: driver.email,
+          phoneNumber: driver.phoneNumber
         });
       } else {
         console.log('❌ Invalid PIN for driver:', normalizedEmail);
@@ -155,7 +162,7 @@ router.post('/', async (req, res) => {
 
     // Try admin login (motorpool, treasury, merchant admins) - check without isActive filter first
     const admin = await Admin.findOne({
-      email: { $regex: new RegExp(`^${normalizedEmail}$`, 'i') }
+      email: { $regex: exactCI(normalizedEmail) }
     });
 
     if (admin) {
@@ -196,7 +203,6 @@ router.post('/', async (req, res) => {
       }
 
       // Admin is active and not deactivated, proceed with login
-      console.log('🔐 Signing admin token with getJWTSecret():', getJWTSecret());
       const token = jwt.sign(
         { id: admin._id, role: admin.role || 'admin', adminId: admin.adminId },
         getJWTSecret(),
@@ -237,8 +243,8 @@ router.post('/', async (req, res) => {
     // Try merchant login (by email OR username)
     const merchant = await Merchant.findOne({ 
       $or: [
-        { email: { $regex: new RegExp(`^${normalizedEmail}$`, 'i') } },
-        { username: { $regex: new RegExp(`^${normalizedEmail}$`, 'i') } }
+        { email: { $regex: exactCI(normalizedEmail) } },
+        { username: { $regex: exactCI(normalizedEmail) } }
       ],
       isActive: true 
     });
@@ -278,7 +284,7 @@ router.post('/', async (req, res) => {
     // Try user login (students/employees) - check without isActive filter first
     console.log(`🔍 Searching for user with email: ${normalizedEmail}`);
     const user = await User.findOne({
-      email: { $regex: new RegExp(`^${normalizedEmail}$`, 'i') }
+      email: { $regex: exactCI(normalizedEmail) }
     });
 
     // Debug: List all users in database
@@ -396,7 +402,7 @@ router.post('/forgot-pin', async (req, res) => {
 
     // Find user by email
     const user = await User.findOne({
-      email: { $regex: new RegExp(`^${normalizedEmail}$`, 'i') }
+      email: { $regex: exactCI(normalizedEmail) }
     });
 
     if (!user) {
@@ -583,7 +589,7 @@ router.post('/reset-pin', async (req, res) => {
 
     // Find user
     const user = await User.findOne({
-      email: { $regex: new RegExp(`^${normalizedEmail}$`, 'i') }
+      email: { $regex: exactCI(normalizedEmail) }
     });
 
     if (!user) {

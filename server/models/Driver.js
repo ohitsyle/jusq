@@ -26,11 +26,24 @@ const DriverSchema = new mongoose.Schema({
     default: '' 
   },
   
-  // Contact (email used for login)
-  email: { 
-    type: String, 
-    required: true, 
-    unique: true 
+  // Contact + mobile-app login ID: Philippine mobile number (+639XXXXXXXXX).
+  // Required when an admin creates a driver (enforced in routes/admin.js, not
+  // here, so drivers created before phone numbers keep saving).
+  phoneNumber: {
+    type: String,
+    unique: true,
+    sparse: true,
+    trim: true
+  },
+
+  // Legacy: older drivers were created with an email and can still sign in
+  // with it. No longer collected, hence optional.
+  email: {
+    type: String,
+    unique: true,
+    sparse: true,
+    trim: true,
+    lowercase: true
   },
   
   // Security - 6-digit numeric PIN (stored as hashed password)

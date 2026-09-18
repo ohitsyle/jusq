@@ -1,7 +1,7 @@
 // src/admin/components/Drivers/DriversList.jsx
 import { toast } from 'react-toastify';
 import React, { useState, useEffect } from 'react';
-import { Users, UserCheck, UserX, BadgeAlert } from 'lucide-react';
+import { Users, UserCheck, UserX, BadgeAlert, KeyRound } from 'lucide-react';
 import api from '../../../utils/api';
 import SearchBar from '../../../components/shared/SearchBar';
 import ExportButton from '../../../components/shared/ExportButton';
@@ -23,6 +23,18 @@ const licenseState = (driver) => {
   return { badge: null, color: null, dateLabel, alert: false };
 };
 
+// PH mobile numbers: the form holds the 10 digits after +63 ("9171234567");
+// the server stores "+639171234567". Typing 09… or pasting +63… both work.
+const toLocalDigits = (value) => {
+  let d = String(value || '').replace(/\D/g, '');
+  if (d.startsWith('63') && d.length > 10) d = d.slice(2);
+  if (d.startsWith('0')) d = d.slice(1);
+  return d.slice(0, 10);
+};
+const formatLocal = (d) => [d.slice(0, 3), d.slice(3, 6), d.slice(6, 10)].filter(Boolean).join(' ');
+const formatPhone = (e164) => (e164 ? `+63 ${formatLocal(toLocalDigits(e164))}` : '');
+const generatePin = () => String(crypto.getRandomValues(new Uint32Array(1))[0] % 1000000).padStart(6, '0');
+
 export default function DriversList() {
   const { theme, isDarkMode } = useTheme();
   const [drivers, setDrivers] = useState([]);
@@ -33,6 +45,7 @@ export default function DriversList() {
   const setAlert = (a) => { if (a && a.message) (a.type === 'error' ? toast.error : a.type === 'warning' ? toast.warn : a.type === 'info' ? toast.info : toast.success)(a.message); };
   const [searchQuery, setSearchQuery] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [phoneFocused, setPhoneFocused] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
   const [formData, setFormData] = useState({
@@ -40,7 +53,7 @@ export default function DriversList() {
     firstName: '',
     lastName: '',
     middleInitial: '',
-    email: '',
+    phoneNumber: '',
     password: '',
     shuttleId: '',
     licenseNumber: '',
@@ -89,7 +102,7 @@ export default function DriversList() {
       firstName: '',
       lastName: '',
       middleInitial: '',
-      email: '',
+      phoneNumber: '',
       password: '',
       shuttleId: '',
       licenseNumber: '',
@@ -105,7 +118,7 @@ export default function DriversList() {
       firstName: driver.firstName,
       lastName: driver.lastName,
       middleInitial: driver.middleInitial || '',
-      email: driver.email,
+      phoneNumber: toLocalDigits(driver.phoneNumber),
       password: '', // Don't show PIN
       shuttleId: driver.shuttleId || '',
       licenseNumber: driver.licenseNumber || '',
@@ -129,10 +142,9 @@ export default function DriversList() {
       return;
     }
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!formData.email || !emailRegex.test(formData.email.trim())) {
-      setAlert({ type: 'error', message: 'Please enter a valid email address' });
+    // Validate PH mobile number (+63 9XX XXX XXXX)
+    if (!/^9\d{9}$/.test(formData.phoneNumber)) {
+      setAlert({ type: 'error', message: 'Enter a valid mobile number: +63 9XX XXX XXXX' });
       return;
     }
 
@@ -166,14 +178,16 @@ export default function DriversList() {
     }
 
     setIsSubmitting(true);
+    const payload = { ...formData, phoneNumber: `+63${formData.phoneNumber}` };
     try {
       if (editingDriver) {
         // UPDATE
-        const updateData = { ...formData };
-        if (!updateData.password) delete updateData.password; // Don't update if blank
+        if (!payload.password) delete payload.password; // Don't update if blank
 
-        await api.put(`/admin/drivers/${editingDriver._id}`, updateData);
-        setAlert({ type: 'success', message: 'Driver updated successfully!' });
+        await api.put(`/admin/drivers/${editingDriver._id}`, payload);
+        setAlert({ type: 'success', message: payload.password
+          ? `Driver updated. New PIN: ${payload.password} (give it to the driver)`
+          : 'Driver updated successfully!' });
       } else {
         // CREATE
         if (!formData.password) {
@@ -181,8 +195,8 @@ export default function DriversList() {
           setIsSubmitting(false);
           return;
         }
-        await api.post('/admin/drivers', formData);
-        setAlert({ type: 'success', message: 'Driver created successfully!' });
+        await api.post('/admin/drivers', payload);
+        setAlert({ type: 'success', message: `Driver ${payload.driverId} created. PIN: ${payload.password} (give it to the driver)` });
       }
 
       setIsModalOpen(false);
@@ -190,15 +204,9 @@ export default function DriversList() {
       setTimeout(() => setAlert(null), 3000);
     } catch (error) {
       console.error('Error saving driver:', error);
-      // Better error messages
-      let errorMsg = 'Failed to save driver';
-      if (error.response?.status === 409) {
-        errorMsg = 'Email already exists. Please use a different email.';
-      } else if (error.response?.status === 400) {
-        errorMsg = error.response?.data?.error || 'Invalid driver data. Please check all fields.';
-      } else if (error.response?.status === 500) {
-        errorMsg = 'Server error. Please try again later.';
-      } else if (error.message?.includes('Network')) {
+      // api rejects with the server's JSON body ({ error }), e.g. a duplicate mobile number
+      let errorMsg = error?.error || 'Failed to save driver';
+      if (error?.message?.includes('Network')) {
         errorMsg = 'Network error. Please check your connection.';
       }
       setAlert({ type: 'error', message: errorMsg });
@@ -242,6 +250,8 @@ export default function DriversList() {
     if (name === 'password') {
       const numericValue = value.replace(/\D/g, '').slice(0, 6);
       setFormData(prev => ({ ...prev, [name]: numericValue }));
+    } else if (name === 'phoneNumber') {
+      setFormData(prev => ({ ...prev, phoneNumber: toLocalDigits(value) }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
@@ -255,13 +265,14 @@ export default function DriversList() {
 
     const searchLower = searchQuery.toLowerCase();
     const fullName = `${driver.firstName} ${driver.lastName}`.toLowerCase();
+    const searchDigits = searchQuery.replace(/\D/g, '').replace(/^0/, '');
 
     return (
       driver.driverId?.toLowerCase().includes(searchLower) ||
       driver.firstName?.toLowerCase().includes(searchLower) ||
       driver.lastName?.toLowerCase().includes(searchLower) ||
       fullName.includes(searchLower) ||
-      driver.email?.toLowerCase().includes(searchLower) ||
+      (searchDigits.length >= 3 && driver.phoneNumber?.includes(searchDigits)) ||
       driver.shuttleId?.toLowerCase().includes(searchLower)
     );
   });
@@ -346,7 +357,7 @@ export default function DriversList() {
             <SearchBar
               value={searchQuery}
               onChange={setSearchQuery}
-              placeholder="Search by name, ID, email, or shuttle..."
+              placeholder="Search by name, ID, mobile number, or shuttle..."
             />
             <ExportButton onClick={handleExport} disabled={filteredDrivers.length === 0} />
           </div>
@@ -385,7 +396,7 @@ export default function DriversList() {
               <tr style={{ background: isDarkMode ? 'rgba(255,212,28,0.1)' : 'rgba(59,130,246,0.1)' }}>
                 <th className="text-left p-4 text-[11px] font-extrabold uppercase" style={{ color: theme.accent.primary, borderBottom: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}` }}>Driver ID</th>
                 <th className="text-left p-4 text-[11px] font-extrabold uppercase" style={{ color: theme.accent.primary, borderBottom: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}` }}>Name</th>
-                <th className="text-left p-4 text-[11px] font-extrabold uppercase" style={{ color: theme.accent.primary, borderBottom: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}` }}>Email</th>
+                <th className="text-left p-4 text-[11px] font-extrabold uppercase" style={{ color: theme.accent.primary, borderBottom: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}` }}>Mobile Number</th>
                 <th className="text-left p-4 text-[11px] font-extrabold uppercase" style={{ color: theme.accent.primary, borderBottom: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}` }}>Shuttle</th>
                 <th className="text-left p-4 text-[11px] font-extrabold uppercase" style={{ color: theme.accent.primary, borderBottom: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}` }}>License Expiry</th>
                 <th className="text-left p-4 text-[11px] font-extrabold uppercase" style={{ color: theme.accent.primary, borderBottom: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}` }}>Status</th>
@@ -401,8 +412,8 @@ export default function DriversList() {
                   <td style={{ padding: '16px', color: theme.text.primary }}>
                     {driver.fullName || `${driver.firstName} ${driver.lastName}`}
                   </td>
-                  <td style={{ padding: '16px', color: theme.text.primary }}>
-                    {driver.email}
+                  <td style={{ padding: '16px', color: theme.text.primary, whiteSpace: 'nowrap' }}>
+                    {formatPhone(driver.phoneNumber) || <span style={{ color: theme.text.tertiary }}>Not set</span>}
                   </td>
                   <td style={{ padding: '16px', color: theme.text.primary }}>
                     {driver.shuttleId || 'None'}
@@ -592,25 +603,67 @@ export default function DriversList() {
               </div>
 
               <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', fontWeight: 700, color: theme.accent.primary, textTransform: 'uppercase' }}>Email *</label>
-                <input type="email" name="email" value={formData.email} onChange={handleInputChange} required style={{
-                  width: '100%',
-                  padding: '12px',
-                  border: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}`,
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', fontWeight: 700, color: theme.accent.primary, textTransform: 'uppercase' }}>Mobile Number *</label>
+                {/* +63 is fixed; the admin types only the 10 digits after it */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'stretch',
+                  border: `2px solid ${phoneFocused ? theme.accent.primary : (isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)')}`,
                   borderRadius: '8px',
                   background: isDarkMode ? 'rgba(251,251,251,0.05)' : 'rgba(0,0,0,0.04)',
-                  color: theme.text.primary,
-                  fontSize: '14px',
-                  boxSizing: 'border-box'
-                }} />
+                  overflow: 'hidden'
+                }}>
+                  <span style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '0 14px',
+                    fontSize: '14px',
+                    fontWeight: 700,
+                    color: theme.text.primary,
+                    background: isDarkMode ? 'rgba(255,212,28,0.1)' : 'rgba(59,130,246,0.08)',
+                    borderRight: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}`,
+                    userSelect: 'none'
+                  }}>
+                    +63
+                  </span>
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    name="phoneNumber"
+                    value={formatLocal(formData.phoneNumber)}
+                    onChange={handleInputChange}
+                    onFocus={() => setPhoneFocused(true)}
+                    onBlur={() => setPhoneFocused(false)}
+                    placeholder="917 123 4567"
+                    required
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      padding: '12px',
+                      border: 'none',
+                      outline: 'none',
+                      background: 'transparent',
+                      color: theme.text.primary,
+                      fontSize: '14px',
+                      letterSpacing: '0.5px'
+                    }}
+                  />
+                </div>
+                <p style={{ fontSize: '11px', color: theme.text.tertiary, marginTop: '8px', marginBottom: 0 }}>
+                  The driver signs in to the NUCash app with this number
+                </p>
               </div>
 
               <div style={{ marginBottom: '24px' }}>
                 <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', fontWeight: 700, color: theme.accent.primary, textTransform: 'uppercase' }}>
                   6-Digit PIN {editingDriver && <span style={{ fontSize: '11px', color: theme.text.tertiary, fontWeight: 400 }}>(leave blank to keep current)</span>}
                 </label>
+                <div style={{ display: 'flex', gap: '10px' }}>
                 <input
                   type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
                   name="password"
                   value={formData.password}
                   onChange={handleInputChange}
@@ -619,7 +672,8 @@ export default function DriversList() {
                   placeholder="123456"
                   pattern="\d{6}"
                   style={{
-                    width: '100%',
+                    flex: 1,
+                    minWidth: 0,
                     padding: '12px',
                     border: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)'}`,
                     borderRadius: '8px',
@@ -632,8 +686,31 @@ export default function DriversList() {
                     fontWeight: 700
                   }}
                 />
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, password: generatePin() }))}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '0 18px',
+                    background: isDarkMode ? 'rgba(255,212,28,0.15)' : 'rgba(59,130,246,0.12)',
+                    color: theme.accent.primary,
+                    border: `2px solid ${isDarkMode ? 'rgba(255,212,28,0.4)' : 'rgba(59,130,246,0.4)'}`,
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  <KeyRound className="w-4 h-4" /> Generate
+                </button>
+                </div>
                 <p style={{ fontSize: '11px', color: theme.text.tertiary, marginTop: '8px', marginBottom: 0 }}>
-                  Numbers only, exactly 6 digits
+                  {editingDriver
+                    ? 'Generate a new PIN only if the driver needs a reset, then give it to them'
+                    : 'Generate a PIN (or type 6 digits) and give it to the driver — they sign in with their mobile number and this PIN'}
                 </p>
               </div>
 
@@ -667,6 +744,7 @@ export default function DriversList() {
                   License Expiry Date <span style={{ color: '#EF4444' }}>*</span>
                 </label>
                 <ThemedDateInput
+                  className="w-full"
                   name="licenseExpiry"
                   value={formData.licenseExpiry}
                   onChange={handleInputChange}

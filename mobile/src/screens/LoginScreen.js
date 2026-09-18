@@ -78,15 +78,18 @@ export default function LoginScreen({ navigation }) {
     const trimmedEmail = email.trim();
 
     if (!trimmedEmail) {
-      setError('Please enter your email');
+      setError('Please enter your email or mobile number');
       shakeError();
       return;
     }
 
-    // Validate email format
+    // Merchants sign in with email, drivers with their PH mobile number
+    // (09171234567, +63 917 123 4567, …); the server tells them apart.
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(trimmedEmail)) {
-      setError('Please enter a valid email address');
+    const mobileDigits = trimmedEmail.replace(/\D/g, '').replace(/^63(?=9\d{9}$)/, '').replace(/^0(?=9\d{9}$)/, '');
+    const isMobile = !trimmedEmail.includes('@') && /^9\d{9}$/.test(mobileDigits);
+    if (!emailRegex.test(trimmedEmail) && !isMobile) {
+      setError('Please enter a valid email or mobile number');
       shakeError();
       return;
     }
@@ -111,14 +114,14 @@ export default function LoginScreen({ navigation }) {
           setStep('pin');
         });
       } else {
-        setError('Email not found. Please check and try again.');
+        setError('Account not found. Check your email or mobile number.');
         shakeError();
       }
     } catch (e) {
       console.error('Check email error:', e);
 
       // Safe error message extraction
-      let errorMsg = 'Failed to verify email';
+      let errorMsg = 'Failed to verify account';
       if (e.response && e.response.data && e.response.data.error) {
         errorMsg = e.response.data.error;
       } else if (e.message) {
@@ -358,7 +361,7 @@ export default function LoginScreen({ navigation }) {
               {/* Email Form - FIXED: Centered better */}
               <View style={styles.formSection}>
                 <Text style={styles.welcomeText}>Welcome back!</Text>
-                <Text style={styles.instructionText}>Enter your email to continue</Text>
+                <Text style={styles.instructionText}>Enter your email or mobile number to continue</Text>
 
                 <Animated.View 
                   style={[
@@ -366,11 +369,11 @@ export default function LoginScreen({ navigation }) {
                     { transform: [{ translateX: shakeAnim }] }
                   ]}
                 >
-                  <Text style={styles.inputIcon}>📧</Text>
+                  <Text style={styles.inputIcon}>👤</Text>
                   <TextInput
                     ref={emailInputRef}
                     style={styles.input}
-                    placeholder="Email address"
+                    placeholder="Email or mobile number"
                     placeholderTextColor="rgba(251,251,251,0.4)"
                     value={email}
                     onChangeText={(text) => {
@@ -379,7 +382,7 @@ export default function LoginScreen({ navigation }) {
                     }}
                     autoCapitalize="none"
                     autoCorrect={false}
-                    keyboardType="email-address"
+                    keyboardType="default"
                     editable={!isLoading}
                     returnKeyType="next"
                     onSubmitEditing={handleEmailSubmit}

@@ -9,6 +9,8 @@
 // single-instance deployment; it still makes 6-digit PIN brute force
 // impractical (8 tries / 10 min ≈ years to cover the keyspace).
 
+import { normalizePhMobile } from '../utils/phone.js';
+
 const WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 const MAX_FAILS = 8;              // failures allowed per window per key
 
@@ -24,7 +26,10 @@ setInterval(() => {
 
 function keyFor(req) {
   const ip = req.ip || req.connection?.remoteAddress || 'unknown';
-  const who = (req.body?.emailOrUsername || req.body?.email || '').toString().trim().toLowerCase();
+  const raw = (req.body?.emailOrUsername || req.body?.email || '').toString().trim().toLowerCase();
+  // One bucket per driver number however it's typed (0917…, +63 917…, 917-…),
+  // otherwise each spelling would get its own MAX_FAILS attempts.
+  const who = (!raw.includes('@') && normalizePhMobile(raw)) || raw;
   return `${ip}|${who}`;
 }
 
