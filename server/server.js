@@ -85,7 +85,6 @@ mongoose.connect(mongoUri)
 import apiRoutes from './routes/index.js';
 import adminAuthRoutes from './routes/adminauth.js';
 import adminRoutes from './routes/admin.js';
-import merchantAuthRoutes from './routes/merchantauth.js';
 import merchantAdminRoutes from './routes/merchantadmin.js';
 import promotionsRoutes from './routes/promotions.js';
 import configurationsRoutes from './routes/configurations.js';
@@ -133,7 +132,6 @@ app.use('/api/kiosk', kioskRoutes); // public: self-service registration kiosk (
 app.use('/api/admin/promotions', requireAdminAuth, promotionsRoutes);
 app.use('/api/admin/configurations', requireAdminAuth, configurationsRoutes);
 app.use('/api/admin', requireAdminAuth, adminRoutes); // General admin routes AFTER specific admin/* routes
-app.use('/api/merchant/auth', merchantAuthRoutes);
 app.use('/api/merchant', merchantAdminRoutes);
 app.use('/api/treasury', requireAdminAuth, treasuryRoutes); // Also mount at /api/treasury for client compatibility
 app.use('/api/user', userDashboardRoutes);

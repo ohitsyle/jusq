@@ -111,16 +111,6 @@ export default function UnifiedLogin() {
         color: '#FFD41C',
         icon: '👨‍💼'
       },
-      merchant: {
-        endpoint: `${API_BASE}/merchant/auth/login`,
-        checkEndpoint: `${API_BASE}/merchant/auth/check-email`,
-        tokenKey: 'merchantToken',
-        dataKey: 'merchantData',
-        title: 'Merchant Portal',
-        redirectPath: '/admin/merchant',
-        color: '#22C55E',
-        icon: '🏪'
-      },
       user: {
         endpoint: `${API_BASE}/login`,
         checkEndpoint: `${API_BASE}/login/check-email`,
