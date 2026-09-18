@@ -784,10 +784,11 @@ export default function UnifiedLogin() {
           <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#FFD41C] mb-3">
             Designed &amp; Developed by
           </p>
-          {/* One line on laptop/desktop (borrows some of the card's side padding so
-              three full names fit); on narrow phones it wraps, but only between
-              names — never mid-name. */}
-          <p className="text-[11px] font-semibold text-[rgba(251,251,251,0.92)] leading-relaxed sm:-mx-8 sm:whitespace-nowrap">
+          {/* Always one line. Three full names are wider than the card's text area,
+              so the line borrows most of the card's side padding and its size
+              scales with the screen (2.5vw, capped at 11px on laptops) — sized to
+              fit down to 320px-wide phones. */}
+          <p className="text-[length:clamp(8px,2.5vw,11px)] font-semibold text-[rgba(251,251,251,0.92)] leading-relaxed whitespace-nowrap -mx-10 sm:-mx-8">
             <span className="whitespace-nowrap">Jose Anjelo Abued</span>
             {' | '}
             <span className="whitespace-nowrap">Ashley Gwyneth Cuevas</span>
