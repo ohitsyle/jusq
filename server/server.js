@@ -160,11 +160,6 @@ app.get('/merchant', (req, res) => sendIndex(res));
 // Serve main page
 app.get('/', (req, res) => sendIndex(res));
 
-// Serve activation page
-app.get('/activate', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'activate.html'));
-});
-
 // Serve force logout page
 app.get('/force-logout', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'force-logout.html'));

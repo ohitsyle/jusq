@@ -29,9 +29,11 @@ export default function UnifiedLogin() {
   useEffect(() => {
     const checkMaintenanceMode = async () => {
       try {
-        const response = await fetch(`${API_BASE}/admin/sysad/config`);
+        // Public endpoint — /admin/sysad/config needs a sysad token, so it
+        // always 401'd here and the maintenance check never fired.
+        const response = await fetch(`${API_BASE}/admin/sysad/maintenance-status`);
         const data = await response.json();
-        if (data?.config?.maintenanceMode) {
+        if (data?.maintenanceMode) {
           setMaintenanceMode(true);
         }
       } catch (error) {

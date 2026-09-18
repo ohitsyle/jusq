@@ -112,8 +112,8 @@ export default function RegistrationForm() {
       toast.error('Please enter a valid email address');
       return false;
     }
-    if (!formData.pin || formData.pin.length < 4) {
-      toast.error('PIN must be at least 4 digits');
+    if (!/^\d{6}$/.test(formData.pin || '')) {
+      toast.error('PIN must be exactly 6 digits');
       return false;
     }
     return true;
@@ -417,8 +417,9 @@ export default function RegistrationForm() {
             <input
               type="password"
               value={formData.pin}
-              onChange={(e) => handleInputChange('pin', e.target.value)}
-              placeholder="Enter 4-6 digit PIN"
+              inputMode="numeric"
+              onChange={(e) => handleInputChange('pin', e.target.value.replace(/\D/g, '').slice(0, 6))}
+              placeholder="Enter 6-digit PIN"
               maxLength={6}
               style={{ background: theme.bg.tertiary, color: theme.text.primary, borderColor: theme.border.primary }}
               className="w-full px-4 py-3 rounded-xl border text-sm focus:outline-none text-center tracking-widest"

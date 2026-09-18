@@ -373,6 +373,11 @@ router.post('/users', async (req, res) => {
       });
     }
 
+    // Every login screen (web + mobile) takes exactly 6 digits
+    if (!/^\d{6}$/.test(String(pin))) {
+      return res.status(400).json({ success: false, message: 'PIN must be exactly 6 digits' });
+    }
+
     // For regular users, RFID is required
     if (!isAdminRole && !rfidUId) {
       return res.status(400).json({

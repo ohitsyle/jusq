@@ -52,6 +52,15 @@ router.get('/stats', verifyMerchantToken, async (req, res) => {
     const inactiveMerchants = await Merchant.countDocuments({ isActive: false });
     const pendingMerchants = await Merchant.countDocuments({ verified: false });
 
+    // Same set the merchant Phones tab lists: merchant-assigned + unassigned phones
+    const { default: Phone } = await import('../models/Phone.js');
+    const phonesRegistered = await Phone.countDocuments({
+      $or: [
+        { assignedMerchantId: { $ne: null } },
+        { assignedDriverId: null, assignedMerchantId: null }
+      ]
+    });
+
     // Get recently added merchants (last 10)
     const recentMerchants = await Merchant.find()
       .select('businessName email isActive verified createdAt')
@@ -64,6 +73,7 @@ router.get('/stats', verifyMerchantToken, async (req, res) => {
       activeMerchants,
       inactiveMerchants,
       pendingMerchants,
+      phonesRegistered,
       recentMerchants
     });
   } catch (error) {

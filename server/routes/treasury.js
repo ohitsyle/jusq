@@ -757,6 +757,11 @@ router.post('/register', async (req, res) => {
       });
     }
 
+    // Every login screen (web + mobile) takes exactly 6 digits
+    if (!/^\d{6}$/.test(String(pin))) {
+      return res.status(400).json({ success: false, message: 'PIN must be exactly 6 digits' });
+    }
+
     // Validate and convert RFID to hex little-endian
     if (!validateRfidFormat(rfidUId)) {
       return res.status(400).json({

@@ -76,7 +76,7 @@ export async function logLogout(data) {
   return await logEvent({
     eventType: 'logout',
     title: `${data.userType || 'User'} Logout`,
-    description: `${data.userName || data.userId} logged out`,
+    description: `${data.userName || data.adminName || data.userId || data.adminId || 'User'} logged out`,
     severity: 'info',
     userId: data.userId,
     driverId: data.driverId,
