@@ -7,13 +7,33 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // Create email transporter (using Gmail - you can change this)
+// Pooled connections, starting at most 1 email/second: bursts (e.g. a full
+// shuttle boarding, or test runs) look like bulk mail to Gmail and push our
+// messages toward spam (a burst on 2026-09-18 got "421 try again later").
+// 3 connections so the queue still drains when Gmail is slow to accept.
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASSWORD
-  }
+  },
+  pool: true,
+  maxConnections: 3,
+  rateDelta: 1000,
+  rateLimit: 1
 });
+
+// Plain-text copy of an HTML email — HTML-only messages score worse with spam filters.
+const htmlToText = (html) => String(html)
+  .replace(/<(style|script)[^>]*>[\s\S]*?<\/\1>/gi, '')
+  .replace(/<br\s*\/?>/gi, '\n')
+  .replace(/<\/(p|div|tr|h[1-6]|li|table)>/gi, '\n')
+  .replace(/<\/td>/gi, '  ')
+  .replace(/<[^>]+>/g, '')
+  .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+  .replace(/[ \t]+/g, ' ')
+  .replace(/\n\s*\n+/g, '\n\n')
+  .trim();
 
 // Verify transporter on startup
 transporter.verify((error, success) => {
@@ -315,7 +335,7 @@ export const sendEmail = async ({ to, subject, html, text }) => {
     to,
     subject,
     html: html || text,
-    text: text || undefined
+    text: text || (html ? htmlToText(html) : undefined)
   };
 
   try {
