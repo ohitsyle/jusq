@@ -37,6 +37,7 @@ const ALERT_SEVERITY = {
 import api from '../services/api';
 import ChangePinModal from './ChangePinModal';
 import DeactivateAccountModal from './DeactivateAccountModal';
+import SendMoneyModal from './SendMoneyModal';
 
 const AUTO_REFRESH_INTERVAL = 30000;
 const THEME_KEY = '@nucash_user_theme';
@@ -150,16 +151,8 @@ export default function UserDashboardScreen({ navigation, route }) {
   const [promos, setPromos] = useState([]);
   const [promoTabEnabled, setPromoTabEnabled] = useState(false);
 
-  // Transfer (student-to-student)
+  // Send Money (student-to-student) — see SendMoneyModal
   const [showTransferModal, setShowTransferModal] = useState(false);
-  const [tStep, setTStep] = useState('search'); // search | amount | pin | success
-  const [tSchoolId, setTSchoolId] = useState('');
-  const [tRecipient, setTRecipient] = useState(null);
-  const [tAmount, setTAmount] = useState('');
-  const [tPin, setTPin] = useState('');
-  const [tLoading, setTLoading] = useState(false);
-  const [tError, setTError] = useState('');
-  const [tResult, setTResult] = useState(null);
 
   const userId = route.params?.userId;
   const userEmail = route.params?.userEmail;
@@ -300,48 +293,15 @@ export default function UserDashboardScreen({ navigation, route }) {
     }
   };
 
-  // ---- Transfer (student-to-student) ----------------------------------------
+  // ---- Send Money ------------------------------------------------------------
   const peso = (n) => `₱${Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
-  const resetTransfer = () => {
-    setTStep('search'); setTSchoolId(''); setTRecipient(null); setTAmount(''); setTPin(''); setTError(''); setTResult(null);
-  };
-  const openTransfer = () => { resetTransfer(); setShowTransferModal(true); };
+  const openTransfer = () => setShowTransferModal(true);
 
-  const handleLookup = async () => {
-    setTError('');
-    const digits = tSchoolId.replace(/\D/g, '');
-    if (digits.length < 4) { setTError('Enter a valid school ID'); return; }
-    setTLoading(true);
-    try {
-      const res = await api.get(`/user/lookup/${digits}`);
-      const d = res.data;
-      if (d?.found) { setTRecipient(d); setTStep('amount'); }
-      else if (d?.self) setTError('You cannot send money to yourself.');
-      else if (d?.inactive) setTError('That account is not active.');
-      else setTError('No student found with that school ID.');
-    } catch (e) { setTError(e?.response?.data?.error || 'Lookup failed. Try again.'); }
-    finally { setTLoading(false); }
-  };
-
-  const proceedTAmount = () => {
-    setTError('');
-    const amt = Math.round((parseFloat(tAmount) || 0) * 100) / 100;
-    if (!amt || amt <= 0) { setTError('Enter an amount greater than 0.'); return; }
-    if (amt > balance) { setTError('Amount exceeds your available balance.'); return; }
-    setTStep('pin');
-  };
-
-  const handleTransferSend = async () => {
-    setTError('');
-    const amt = Math.round((parseFloat(tAmount) || 0) * 100) / 100;
-    if (tPin.replace(/\D/g, '').length < 4) { setTError('Enter your PIN.'); return; }
-    setTLoading(true);
-    try {
-      const res = await api.post('/user/transfer', { recipientSchoolId: tRecipient.schoolUId, amount: amt, pin: tPin });
-      if (res.data?.success) { setTResult(res.data); setTStep('success'); setBalance(res.data.newBalance); fetchDashboardData(true); }
-      else setTError(res.data?.error || 'Transfer failed.');
-    } catch (e) { setTError(e?.response?.data?.error || 'Transfer failed. Please try again.'); }
-    finally { setTLoading(false); }
+  // 3 wrong PINs lock the account and end every session — go back to sign-in.
+  const signOutAfterLock = async () => {
+    setShowTransferModal(false);
+    try { await AsyncStorage.multiRemove(['auth_token', 'user_role']); } catch { /* ignore */ }
+    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
 
   const dismissAlert = (id) => setDismissedAlerts((prev) => [...prev, id]);
@@ -895,99 +855,15 @@ export default function UserDashboardScreen({ navigation, route }) {
         </TouchableOpacity>
       </Modal>
 
-      {/* Transfer Modal (student-to-student) */}
-      <Modal visible={showTransferModal} animationType="slide" transparent onRequestClose={() => setShowTransferModal(false)}>
-        <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => !tLoading && setShowTransferModal(false)}>
-          <View style={styles.sheet} onStartShouldSetResponder={() => true}>
-            <View style={styles.sheetHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <View style={styles.tSendIcon}><Send size={18} color={theme.accent} /></View>
-                <View>
-                  <Text style={styles.sheetTitle}>Send Money</Text>
-                  <Text style={styles.tStepText}>{tStep === 'success' ? 'Complete' : `Step ${{ search: 1, amount: 2, pin: 3 }[tStep]} of 3`}</Text>
-                </View>
-              </View>
-              <TouchableOpacity onPress={() => setShowTransferModal(false)}><X size={22} color={theme.textSecondary} /></TouchableOpacity>
-            </View>
-
-            {!!tError && (
-              <View style={styles.tErr}>
-                <AlertOctagon size={16} color={theme.danger} />
-                <Text style={styles.tErrText}>{tError}</Text>
-              </View>
-            )}
-
-            {tStep === 'search' && (
-              <View>
-                <Text style={styles.fieldLabel}>Recipient School ID</Text>
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <TextInput style={[styles.inputSingle, { flex: 1, marginBottom: 0 }]} value={tSchoolId} onChangeText={setTSchoolId} placeholder="e.g. 2023-121235" placeholderTextColor={theme.textMuted} autoFocus />
-                  <TouchableOpacity style={styles.tSearchBtn} onPress={handleLookup} disabled={tLoading}>
-                    {tLoading ? <ActivityIndicator color={theme.onAccent} /> : <Search size={20} color={theme.onAccent} />}
-                  </TouchableOpacity>
-                </View>
-                <Text style={styles.tHint}>Enter your schoolmate's school ID to find them.</Text>
-              </View>
-            )}
-
-            {tStep === 'amount' && tRecipient && (
-              <View>
-                <View style={styles.tRecipRow}>
-                  <View style={styles.tRecipAvatar}><Text style={styles.tRecipInitials}>{(tRecipient.firstName?.[0] || '') + (tRecipient.lastName?.[0] || '')}</Text></View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.tRecipName}>{tRecipient.fullName}</Text>
-                    <Text style={styles.tRecipMeta}>{tRecipient.schoolUId} • {tRecipient.accountType === 'employee' ? 'Employee' : 'Student'}</Text>
-                  </View>
-                  <TouchableOpacity onPress={() => { setTStep('search'); setTRecipient(null); setTAmount(''); setTError(''); }}><Text style={styles.tChange}>Change</Text></TouchableOpacity>
-                </View>
-
-                <View style={styles.tBalRow}>
-                  <View style={styles.tBalBox}><Text style={styles.tBalLabel}>Available</Text><Text style={styles.tBalValue}>{peso(balance)}</Text></View>
-                  <View style={styles.tBalBox}><Text style={styles.tBalLabel}>Balance After</Text><Text style={[styles.tBalValue, { color: (balance - (parseFloat(tAmount) || 0)) < 0 ? theme.danger : theme.success }]}>{peso(balance - (parseFloat(tAmount) || 0))}</Text></View>
-                </View>
-
-                <Text style={styles.fieldLabel}>Amount to Send</Text>
-                <View style={styles.tAmtRow}>
-                  <Text style={styles.tPeso}>₱</Text>
-                  <TextInput style={styles.tAmtInput} value={tAmount} onChangeText={setTAmount} placeholder="0.00" placeholderTextColor={theme.textMuted} keyboardType="numeric" autoFocus />
-                </View>
-
-                <TouchableOpacity style={styles.tBtn} onPress={proceedTAmount}>
-                  <Text style={styles.tBtnText}>Continue</Text><ArrowRight size={18} color={theme.onAccent} />
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {tStep === 'pin' && tRecipient && (
-              <View>
-                <View style={{ alignItems: 'center', marginBottom: 16 }}>
-                  <View style={styles.tShield}><ShieldCheck size={26} color={theme.accent} /></View>
-                  <Text style={styles.tPinPrompt}>Sending <Text style={{ color: theme.text, fontWeight: '800' }}>{peso(parseFloat(tAmount) || 0)}</Text> to <Text style={{ color: theme.text, fontWeight: '800' }}>{tRecipient.fullName}</Text></Text>
-                </View>
-                <Text style={[styles.fieldLabel, { textAlign: 'center' }]}>Enter your PIN to confirm</Text>
-                <TextInput style={styles.tPinInput} value={tPin} onChangeText={(v) => setTPin(v.replace(/\D/g, ''))} placeholder="••••••" placeholderTextColor={theme.textMuted} keyboardType="numeric" secureTextEntry maxLength={6} autoFocus />
-                <View style={{ flexDirection: 'row', gap: 12 }}>
-                  <TouchableOpacity style={styles.tGhost} onPress={() => { setTStep('amount'); setTPin(''); setTError(''); }} disabled={tLoading}><Text style={styles.tGhostText}>Back</Text></TouchableOpacity>
-                  <TouchableOpacity style={[styles.tBtn, { flex: 1, marginTop: 0 }]} onPress={handleTransferSend} disabled={tLoading}>
-                    {tLoading ? <ActivityIndicator color={theme.onAccent} /> : <Send size={18} color={theme.onAccent} />}
-                    <Text style={styles.tBtnText}>Send</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-
-            {tStep === 'success' && tResult && (
-              <View style={{ alignItems: 'center', paddingVertical: 8 }}>
-                <View style={styles.tSuccessIcon}><CheckCircle2 size={34} color={theme.success} /></View>
-                <Text style={styles.tSuccessTitle}>Money Sent!</Text>
-                <Text style={styles.tSuccessMsg}>{peso(parseFloat(tAmount) || 0)} sent to {tResult.recipientName}.</Text>
-                <View style={styles.tNewBal}><Wallet size={16} color={theme.textSecondary} /><Text style={styles.tNewBalText}>New balance: <Text style={{ color: theme.text, fontWeight: '800' }}>{peso(tResult.newBalance)}</Text></Text></View>
-                <TouchableOpacity style={[styles.tBtn, { width: '100%' }]} onPress={() => setShowTransferModal(false)}><Text style={styles.tBtnText}>Done</Text></TouchableOpacity>
-              </View>
-            )}
-          </View>
-        </TouchableOpacity>
-      </Modal>
+      {/* Send Money (student-to-student) */}
+      <SendMoneyModal
+        visible={showTransferModal}
+        onClose={() => setShowTransferModal(false)}
+        theme={theme}
+        balance={balance}
+        onSuccess={(newBalance) => { if (typeof newBalance === 'number') setBalance(newBalance); fetchDashboardData(true); }}
+        onLockedSignOut={signOutAfterLock}
+      />
 
       <ChangePinModal visible={showChangePinModal} onClose={() => setShowChangePinModal(false)} userEmail={userEmail} userId={userId} />
       <DeactivateAccountModal visible={showDeactivateModal} onClose={() => setShowDeactivateModal(false)} userEmail={userEmail} userId={userId} />

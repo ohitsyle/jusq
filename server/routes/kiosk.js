@@ -3,6 +3,9 @@
 // Treasury remains the primary registration channel; this is a backup channel
 // with tighter validation and per-IP rate limiting.
 //
+// The NUCash app uses the same endpoints with { source: 'phone' } so students
+// can register on their own phone instead of queueing at the kiosk.
+//
 // Identity controls (see user manual):
 //  - Email MUST be a school-issued address (allow-listed domains). The
 //    temporary PIN is delivered ONLY to that mailbox, so an account can't be
@@ -48,6 +51,20 @@ setInterval(() => {
   for (const [k, e] of hits) if (now - e.windowStart > 60 * 60 * 1000) hits.delete(k);
 }, 10 * 60 * 1000).unref();
 
+// The phone reads the card's raw chip ID (hex). Payments look cards up by that
+// exact value, so an app registration must store it unchanged — the kiosk's
+// reader converter would byte-reverse 7-byte IDs and break later taps.
+const PHONE_UID_RE = /^([0-9A-F]{8}|[0-9A-F]{14}|[0-9A-F]{20})$/;
+const fromPhone = (req) => req.body?.source === 'phone';
+function cardKey(req) {
+  const raw = String(req.body?.rfid || '').trim();
+  if (fromPhone(req)) {
+    const hex = raw.replace(/[\s:-]/g, '').toUpperCase();
+    return PHONE_UID_RE.test(hex) ? hex : null;
+  }
+  return raw && validateRfidFormat(raw) ? convertRfidToHexLittleEndian(raw) : null;
+}
+
 // ---- phone-as-scanner relay (for testing without a USB RFID reader) --------
 // A phone in "scanner mode" reads a card via NFC and POSTs the UID here; the
 // kiosk page polls /relay/latest and consumes the scan as if it were tapped.
@@ -82,16 +99,15 @@ router.get('/relay/latest', (req, res) => {
  */
 router.post('/check-card', async (req, res) => {
   try {
-    if (limited(req.ip, 'check', 60, 10 * 60 * 1000)) {
+    // Phones share campus Wi-Fi (one IP for many students), so their cap is higher.
+    if (limited(req.ip, fromPhone(req) ? 'check-phone' : 'check', fromPhone(req) ? 300 : 60, 10 * 60 * 1000)) {
       return res.status(429).json({ error: 'Too many requests. Please wait a moment.' });
     }
 
-    const { rfid } = req.body;
-    if (!rfid || !validateRfidFormat(String(rfid).trim())) {
+    const converted = cardKey(req);
+    if (!converted) {
       return res.status(400).json({ error: 'Card not recognized. Please tap your school ID.' });
     }
-
-    const converted = convertRfidToHexLittleEndian(String(rfid).trim());
     const user = await User.findOne({ rfidUId: converted }).select('firstName isActive').lean();
 
     return res.json({
@@ -112,19 +128,27 @@ router.post('/check-card', async (req, res) => {
  */
 router.post('/register', async (req, res) => {
   try {
-    if (limited(req.ip, 'register', 10, 60 * 60 * 1000)) {
-      return res.status(429).json({ error: 'Too many registrations from this kiosk. Please see the Treasury Office.' });
-    }
-
-    let { rfid, email, firstName, middleName, lastName, schoolUId } = req.body;
+    let { email, firstName, middleName, lastName, schoolUId } = req.body;
     email = String(email || '').trim().toLowerCase();
+
+    // Kiosk: 10 an hour per kiosk. App: phones on campus Wi-Fi share one IP, so
+    // allow more per IP but only 3 attempts an hour per email address.
+    const tooMany = fromPhone(req)
+      ? limited(req.ip, 'register-phone', 60, 60 * 60 * 1000) || limited(email || req.ip, 'register-email', 3, 60 * 60 * 1000)
+      : limited(req.ip, 'register', 10, 60 * 60 * 1000);
+    if (tooMany) {
+      return res.status(429).json({ error: fromPhone(req)
+        ? 'Too many registration attempts. Please try again later or visit the Treasury Office.'
+        : 'Too many registrations from this kiosk. Please see the Treasury Office.' });
+    }
     firstName = String(firstName || '').trim();
     middleName = String(middleName || '').trim();
     lastName = String(lastName || '').trim();
     const schoolDigits = String(schoolUId || '').replace(/\D/g, '');
 
     // --- validation -----------------------------------------------------
-    if (!rfid || !validateRfidFormat(String(rfid).trim())) {
+    const converted = cardKey(req);
+    if (!converted) {
       return res.status(400).json({ error: 'Card not recognized. Please restart and tap your school ID again.' });
     }
     if (!EMAIL_RE.test(email)) {
@@ -142,8 +166,6 @@ router.post('/register', async (req, res) => {
     if (schoolDigits.length !== 10) {
       return res.status(400).json({ error: 'School ID must be 10 digits (e.g. 2023-121235).' });
     }
-
-    const converted = convertRfidToHexLittleEndian(String(rfid).trim());
 
     // --- uniqueness -------------------------------------------------------
     if (await User.findOne({ rfidUId: converted })) {
@@ -188,16 +210,16 @@ router.post('/register', async (req, res) => {
 
     // --- audit trail (appears in Treasury logs) ----------------------------
     logAdminAction({
-      action: 'User Registered (Kiosk)',
-      description: `Kiosk self-registration: ${firstName} ${lastName} (${schoolDigits})`,
-      adminId: 'kiosk',
-      adminName: 'Registration Kiosk',
+      action: fromPhone(req) ? 'User Registered (App)' : 'User Registered (Kiosk)',
+      description: `${fromPhone(req) ? 'NUCash app' : 'Kiosk'} self-registration: ${firstName} ${lastName} (${schoolDigits})`,
+      adminId: fromPhone(req) ? 'app' : 'kiosk',
+      adminName: fromPhone(req) ? 'NUCash App' : 'Registration Kiosk',
       adminRole: 'treasury',
       department: 'treasury',
       targetEntity: 'user',
       targetId: user._id.toString(),
       crudOperation: 'registration',
-      changes: { schoolUId: schoolDigits, rfidUId: converted, email, via: 'kiosk' },
+      changes: { schoolUId: schoolDigits, rfidUId: converted, email, via: fromPhone(req) ? 'app' : 'kiosk' },
       ipAddress: req.ip
     }).catch(() => {});
 

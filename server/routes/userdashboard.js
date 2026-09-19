@@ -613,6 +613,41 @@ router.get('/transfer/overview', verifyUserToken, async (req, res) => {
   }
 });
 
+// Card taps come from the phone's NFC reader as the raw chip ID (hex), the same
+// value driver/merchant phones send for payments. At most 20 lookups per
+// student per 10 minutes, so card numbers can't be scanned in bulk.
+const cardLookups = new Map(); // userId -> { count, first }
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of cardLookups) if (now - v.first > 10 * 60 * 1000) cardLookups.delete(k);
+}, 10 * 60 * 1000).unref();
+
+/**
+ * GET /api/user/lookup-card/:uid
+ * Send Money "Tap their card": who owns this school ID card?
+ */
+router.get('/lookup-card/:uid', verifyUserToken, async (req, res) => {
+  try {
+    const key = String(req.user._id);
+    const hit = cardLookups.get(key);
+    if (hit && Date.now() - hit.first <= 10 * 60 * 1000) {
+      if (hit.count >= 20) return res.status(429).json({ error: 'Too many card taps. Please wait a few minutes.' });
+      hit.count += 1;
+    } else cardLookups.set(key, { count: 1, first: Date.now() });
+
+    const uid = String(req.params.uid || '').replace(/[\s:-]/g, '').toUpperCase();
+    if (!/^[0-9A-F]{8,20}$/.test(uid)) return res.json({ found: false });
+    const recipient = await User.findOne({ rfidUId: uid });
+    if (!recipient) return res.json({ found: false });
+    if (String(recipient._id) === key) return res.json({ found: false, self: true });
+    if (!recipient.isActive || recipient.isDeactivated) return res.json({ found: false, inactive: true });
+    return res.json({ found: true, ...peerSummary(recipient) });
+  } catch (error) {
+    console.error('Card lookup error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 /** POST /api/user/transfer/favorites  { schoolUId } — add a favorite recipient */
 router.post('/transfer/favorites', verifyUserToken, async (req, res) => {
   try {

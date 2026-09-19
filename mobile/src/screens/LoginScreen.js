@@ -404,6 +404,17 @@ export default function LoginScreen({ navigation }) {
                   </Text>
                   {!isLoading && <Text style={styles.buttonArrow}>→</Text>}
                 </TouchableOpacity>
+
+                {/* Students: register on their own phone instead of queueing at the kiosk */}
+                <TouchableOpacity
+                  style={styles.registerLink}
+                  onPress={() => navigation.navigate('SelfRegister')}
+                  disabled={isLoading}
+                >
+                  <Text style={styles.registerLinkText}>
+                    New to NUCash? <Text style={styles.registerLinkStrong}>Register with your school ID</Text>
+                  </Text>
+                </TouchableOpacity>
               </View>
 
               {/* Footer */}
@@ -601,6 +612,19 @@ const styles = StyleSheet.create({
   },
 
   // Footer
+  registerLink: {
+    marginTop: 18,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  registerLinkText: {
+    color: 'rgba(251,251,251,0.65)',
+    fontSize: 14,
+  },
+  registerLinkStrong: {
+    color: '#FFD41C',
+    fontWeight: '700',
+  },
   footer: {
     alignItems: 'center',
   },

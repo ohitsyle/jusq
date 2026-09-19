@@ -16,6 +16,7 @@ import ResultScreen from '../screens/ResultScreen';
 import MerchantScreen from '../screens/MerchantScreen';
 import UserDashboardScreen from '../screens/UserDashboardScreen';
 import ScannerModeScreen from '../screens/ScannerModeScreen';
+import SelfRegisterScreen from '../screens/SelfRegisterScreen';
 
 import { initializeAPIConfig, isServerConfigured } from '../config/api.config';
 import { initializeAPI } from '../services/api';
@@ -85,6 +86,7 @@ export default function AppNavigator() {
         <Stack.Screen name="Merchant" component={MerchantScreen} />
         <Stack.Screen name="UserDashboard" component={UserDashboardScreen} />
         <Stack.Screen name="ScannerMode" component={ScannerModeScreen} />
+        <Stack.Screen name="SelfRegister" component={SelfRegisterScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
