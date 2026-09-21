@@ -19,7 +19,7 @@ import User from '../models/User.js';
 import { sendTemporaryPIN } from '../services/emailService.js';
 import { convertRfidToHexLittleEndian, validateRfidFormat } from '../utils/rfidConverter.js';
 import { logAdminAction } from '../utils/logger.js';
-import { pushKioskScan, takeKioskScan, pushTreasuryScan } from '../utils/scanRelay.js';
+import { pushScan, takeScan, RELAY_TARGETS } from '../utils/scanRelay.js';
 
 const router = express.Router();
 
@@ -67,11 +67,11 @@ function cardKey(req) {
 }
 
 // ---- phone-as-scanner relay (for testing without a USB RFID reader) --------
-// A phone in the app's Scanner Mode reads a card via NFC and POSTs the UID
-// here. The kiosk page polls /relay/latest; a Treasury Cash-In window gets
-// scans only through its pairing code (see utils/scanRelay.js).
+// A phone in the app's hidden Scanner Mode reads a card via NFC and POSTs the
+// UID here, picking the kiosk or a Treasury Cash-In window as the destination
+// (see utils/scanRelay.js).
 
-/** POST /api/kiosk/relay  { uid, target?: 'kiosk' | 'treasury', code? } */
+/** POST /api/kiosk/relay  { uid, target?: 'kiosk' | 'treasury' } */
 router.post('/relay', (req, res) => {
   if (limited(req.ip, 'relay', 60, 60 * 1000)) {
     return res.status(429).json({ error: 'Too many scans. Please wait a moment.' });
@@ -80,28 +80,15 @@ router.post('/relay', (req, res) => {
   if (!uid || !validateRfidFormat(uid)) {
     return res.status(400).json({ error: 'Invalid card UID' });
   }
-
-  if (req.body?.target === 'treasury') {
-    // Wrong codes are capped per phone, so a code can't be guessed.
-    const code = String(req.body?.code || '').replace(/\D/g, '');
-    if (code.length !== 6 || !pushTreasuryScan(code, uid)) {
-      if (limited(req.ip, 'relay-badcode', 10, 10 * 60 * 1000)) {
-        return res.status(429).json({ error: 'Too many wrong codes. Please wait 10 minutes.' });
-      }
-      return res.status(404).json({ error: "That code isn't active. Check the code on the Treasury Cash-In screen." });
-    }
-    console.log('[Scanner relay] treasury scan received');
-    return res.json({ success: true });
-  }
-
-  pushKioskScan(uid);
-  console.log('[Kiosk relay] received scan:', uid);
+  const target = RELAY_TARGETS.includes(req.body?.target) ? req.body.target : 'kiosk';
+  pushScan(target, uid);
+  console.log(`[Scanner relay] ${target} scan received`);
   res.json({ success: true });
 });
 
 /** GET /api/kiosk/relay/latest — kiosk polls; returns a fresh scan once, then clears it */
 router.get('/relay/latest', (req, res) => {
-  res.json({ uid: takeKioskScan() });
+  res.json({ uid: takeScan('kiosk') });
 });
 
 /**

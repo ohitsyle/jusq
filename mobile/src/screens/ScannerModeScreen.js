@@ -2,11 +2,11 @@
 // SECRET testing tool: turns the phone into an RFID scanner for the web kiosk
 // or a Treasury Cash-In window. Reads a real card via NFC and relays its UID
 // through the server; the page reacts as if the card was tapped on a USB
-// reader. Treasury needs the 6-digit pairing code shown on its Cash-In screen.
+// reader.
 // Reached by tapping the NUCash logo 7x on the login screen.
 
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Animated, Easing } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Animated, Easing } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Nfc, ArrowLeft, CheckCircle2, XCircle, Send, Wifi, Monitor, Wallet } from 'lucide-react-native';
@@ -18,7 +18,7 @@ const NAVY2 = '#181D40';
 const YELLOW = '#FFD41C';
 const TEXT = '#FBFBFB';
 const MUTED = 'rgba(251,251,251,0.6)';
-const PREFS_KEY = 'scanner_mode_prefs'; // { target, code }
+const PREFS_KEY = 'scanner_mode_prefs'; // { target }
 const TARGETS = {
   kiosk: { label: 'Kiosk', Icon: Monitor, name: 'kiosk' },
   treasury: { label: 'Treasury cash-in', Icon: Wallet, name: 'Treasury' },
@@ -29,25 +29,22 @@ export default function ScannerModeScreen({ navigation }) {
   const [uid, setUid] = useState('');
   const [error, setError] = useState('');
   const [target, setTarget] = useState('kiosk');
-  const [code, setCode] = useState('');
   const pulse = useRef(new Animated.Value(1)).current;
   const mounted = useRef(true);
   const dest = TARGETS[target];
-  const needsCode = target === 'treasury' && code.length !== 6;
 
-  // Remember where scans go (and the pairing code) between visits
+  // Remember where scans go between visits
   useEffect(() => {
     AsyncStorage.getItem(PREFS_KEY).then((v) => {
       try {
         const p = JSON.parse(v || '{}');
         if (TARGETS[p.target]) setTarget(p.target);
-        if (typeof p.code === 'string') setCode(p.code);
       } catch { /* ignore */ }
     });
   }, []);
   useEffect(() => {
-    AsyncStorage.setItem(PREFS_KEY, JSON.stringify({ target, code })).catch(() => {});
-  }, [target, code]);
+    AsyncStorage.setItem(PREFS_KEY, JSON.stringify({ target })).catch(() => {});
+  }, [target]);
 
   const chooseTarget = (t) => {
     if (phase === 'scanning' || phase === 'sending') return;
@@ -82,9 +79,7 @@ export default function ScannerModeScreen({ navigation }) {
       }
       setUid(result.uid);
       setPhase('sending');
-      await api.post('/kiosk/relay', target === 'treasury'
-        ? { uid: result.uid, target, code }
-        : { uid: result.uid });
+      await api.post('/kiosk/relay', { uid: result.uid, target });
       if (!mounted.current) return;
       setPhase('sent');
     } catch (e) {
@@ -121,20 +116,6 @@ export default function ScannerModeScreen({ navigation }) {
             );
           })}
         </View>
-        {target === 'treasury' && (
-          <View style={styles.codeRow}>
-            <Text style={styles.codeLabel}>Pairing code</Text>
-            <TextInput
-              value={code}
-              onChangeText={(v) => setCode(v.replace(/\D/g, '').slice(0, 6))}
-              keyboardType="number-pad"
-              maxLength={6}
-              placeholder="000000"
-              placeholderTextColor="rgba(251,251,251,0.25)"
-              style={styles.codeInput}
-            />
-          </View>
-        )}
       </View>
 
       <View style={styles.body}>
@@ -146,7 +127,7 @@ export default function ScannerModeScreen({ navigation }) {
             <Text style={styles.big}>Ready to scan</Text>
             <Text style={styles.hint}>
               {target === 'treasury'
-                ? 'On the laptop, open Treasury → Cash-In and choose "Use phone as card reader". Type the 6-digit code it shows above, then tap the button and hold a card to the back of the phone.'
+                ? 'On the laptop, open Treasury → Cash-In so it waits for a card, then tap the button and hold a card to the back of the phone.'
                 : 'Open the kiosk page on your laptop, then tap the button and hold a card to the back of the phone.'}
             </Text>
           </>
@@ -196,15 +177,14 @@ export default function ScannerModeScreen({ navigation }) {
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.scanBtn, (phase === 'scanning' || needsCode) && { opacity: 0.5 }]}
+          style={[styles.scanBtn, phase === 'scanning' && { opacity: 0.6 }]}
           onPress={scan}
-          disabled={phase === 'scanning' || phase === 'sending' || needsCode}
+          disabled={phase === 'scanning' || phase === 'sending'}
           activeOpacity={0.85}
         >
           {phase === 'sent' ? <Send size={20} color={NAVY2} /> : <Nfc size={20} color={NAVY2} />}
           <Text style={styles.scanBtnText}>
-            {needsCode ? 'Enter the pairing code first'
-              : phase === 'ready' ? 'Scan a card' : phase === 'sent' || phase === 'error' ? 'Scan another card' : 'Scanning…'}
+            {phase === 'ready' ? 'Scan a card' : phase === 'sent' || phase === 'error' ? 'Scan another card' : 'Scanning…'}
           </Text>
         </TouchableOpacity>
         <View style={styles.netRow}>
@@ -249,10 +229,4 @@ const styles = StyleSheet.create({
   segBtnOn: { backgroundColor: YELLOW },
   segText: { color: MUTED, fontSize: 13.5, fontWeight: '700' },
   segTextOn: { color: NAVY2 },
-  codeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, gap: 12 },
-  codeLabel: { color: TEXT, fontSize: 14, fontWeight: '700' },
-  codeInput: {
-    flex: 1, maxWidth: 200, borderRadius: 12, borderWidth: 2, borderColor: 'rgba(255,212,28,0.4)', backgroundColor: 'rgba(255,255,255,0.04)',
-    color: YELLOW, fontSize: 24, fontWeight: '800', letterSpacing: 6, textAlign: 'center', paddingVertical: 8, fontFamily: 'monospace',
-  },
 });

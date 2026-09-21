@@ -2,7 +2,7 @@
 // Treasury admin modal for processing cash-in transactions
 
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Wallet, CreditCard, AlertCircle, CheckCircle, User, Loader2, ArrowRight, Clock, UserPlus, Edit3, Smartphone } from 'lucide-react';
+import { X, Wallet, CreditCard, AlertCircle, CheckCircle, User, Loader2, ArrowRight, Clock, UserPlus, Edit3 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../utils/api';
 import { toast } from 'react-toastify';
@@ -20,9 +20,6 @@ const maskRfid = (rfid) => {
 // Default preset amounts for quick selection
 const DEFAULT_PRESET_AMOUNTS = [100, 200, 300, 500, 1000];
 const STORAGE_KEY = 'cashin_preset_amounts';
-// Phone as card reader (testing aid): the app's hidden Scanner Mode sends taps
-// here using the pairing code this window shows.
-const PHONE_READER_KEY = 'treasury_phone_reader';
 
 export default function CashInModal({ isOpen, onClose, onSuccess, onRegisterUser, prefillRfid = '' }) {
   const { theme, isDarkMode } = useTheme();
@@ -34,8 +31,6 @@ export default function CashInModal({ isOpen, onClose, onSuccess, onRegisterUser
 
   const [rfidInput, setRfidInput] = useState('');
   const [tappedOnPhone, setTappedOnPhone] = useState(false);
-  const [phoneReaderOn, setPhoneReaderOn] = useState(() => localStorage.getItem(PHONE_READER_KEY) === '1');
-  const [pairCode, setPairCode] = useState('');
   const [normalizedRfid, setNormalizedRfid] = useState('');
   const [user, setUser] = useState(null);
   const [selectedAmount, setSelectedAmount] = useState(null);
@@ -95,18 +90,11 @@ export default function CashInModal({ isOpen, onClose, onSuccess, onRegisterUser
     };
   }, [step, countdown]);
 
-  // Pair once (the server keeps the same code for this admin until "Stop")
-  useEffect(() => {
-    if (!isOpen || !phoneReaderOn || pairCode) return;
-    api.post('/admin/treasury/scanner/pair')
-      .then((r) => setPairCode(r?.code || ''))
-      .catch(() => { toast.error('Could not set up the phone reader'); setPhoneReaderOn(false); });
-  }, [isOpen, phoneReaderOn, pairCode]);
-
-  // While waiting for a card, pick up taps sent from the paired phone
+  // Testing aid (no UI): while waiting for a card, pick up taps sent from the
+  // NUCash app's hidden Scanner Mode set to "Treasury".
   const searchRef = useRef(null);
   useEffect(() => {
-    if (!isOpen || step !== 1 || !pairCode || searching) return;
+    if (!isOpen || step !== 1 || searching) return;
     const t = setInterval(async () => {
       try {
         const r = await api.get('/admin/treasury/scanner/latest');
@@ -118,18 +106,7 @@ export default function CashInModal({ isOpen, onClose, onSuccess, onRegisterUser
       } catch { /* keep listening */ }
     }, 1200);
     return () => clearInterval(t);
-  }, [isOpen, step, pairCode, searching]);
-
-  const startPhoneReader = () => {
-    localStorage.setItem(PHONE_READER_KEY, '1');
-    setPhoneReaderOn(true);
-  };
-  const stopPhoneReader = () => {
-    localStorage.removeItem(PHONE_READER_KEY);
-    setPhoneReaderOn(false);
-    setPairCode('');
-    api.delete('/admin/treasury/scanner/pair').catch(() => {});
-  };
+  }, [isOpen, step, searching]);
 
   const resetForm = () => {
     setStep(1);
@@ -500,59 +477,11 @@ export default function CashInModal({ isOpen, onClose, onSuccess, onRegisterUser
                 />
                 {rfidInput && (
                   <p style={{ color: theme.text.tertiary }} className="text-xs mt-2">
-                    {tappedOnPhone
-                      ? 'Tapped on the paired phone'
-                      : <>Will search as: <span className="font-mono">{normalizeRfidHex(rfidInput)}</span></>}
+                    Will search as: <span className="font-mono">{tappedOnPhone ? rfidInput : normalizeRfidHex(rfidInput)}</span>
                   </p>
                 )}
               </div>
 
-              {/* Phone as card reader (for testing without a USB reader) */}
-              {phoneReaderOn ? (
-                <div
-                  style={{ background: 'rgba(16,185,129,0.06)', borderColor: 'rgba(16,185,129,0.35)' }}
-                  className="p-4 rounded-xl border"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <Smartphone className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-                      <div>
-                        <p style={{ color: theme.text.primary }} className="font-semibold text-sm">Phone card reader</p>
-                        <p style={{ color: theme.text.secondary }} className="text-xs flex items-center gap-1.5">
-                          <span className="relative flex w-2 h-2">
-                            <span className="absolute inline-flex w-full h-full rounded-full bg-emerald-400 opacity-75 animate-ping" />
-                            <span className="relative inline-flex w-2 h-2 rounded-full bg-emerald-500" />
-                          </span>
-                          {searching ? 'Looking up the card…' : 'Waiting for a tap on the phone'}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p style={{ color: theme.text.tertiary }} className="text-[10px] font-bold uppercase tracking-wider">Pairing code</p>
-                      <p className="font-mono text-2xl font-extrabold tracking-[0.2em] text-emerald-500">
-                        {pairCode ? `${pairCode.slice(0, 3)} ${pairCode.slice(3)}` : '··· ···'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center justify-between gap-2 mt-3">
-                    <p style={{ color: theme.text.tertiary }} className="text-xs">
-                      In the NUCash app: tap the logo 7 times → Treasury cash-in → enter this code.
-                    </p>
-                    <button type="button" onClick={stopPhoneReader} style={{ color: theme.text.secondary }} className="text-xs font-semibold underline hover:opacity-80">
-                      Stop using phone
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={startPhoneReader}
-                  style={{ color: theme.text.secondary, borderColor: theme.border.primary }}
-                  className="w-full py-2.5 rounded-xl border border-dashed text-sm font-semibold flex items-center justify-center gap-2 hover:opacity-80 transition-opacity"
-                >
-                  <Smartphone className="w-4 h-4" /> Use phone as card reader
-                </button>
-              )}
 
               <div className="flex gap-3 pt-2">
                 <button
@@ -1016,12 +945,6 @@ export default function CashInModal({ isOpen, onClose, onSuccess, onRegisterUser
                       ₱{getFinalAmount().toLocaleString()}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center mt-2 pt-2 border-t border-emerald-500/20">
-                    <span style={{ color: theme.text.secondary }}>New Balance</span>
-                    <span style={{ color: theme.text.primary }} className="font-semibold">
-                      ₱{(parseFloat(user.balance || 0) + getFinalAmount()).toLocaleString()}
-                    </span>
-                  </div>
                 </div>
               )}
 
@@ -1141,12 +1064,6 @@ export default function CashInModal({ isOpen, onClose, onSuccess, onRegisterUser
                   <span style={{ color: theme.text.secondary }} className="text-sm">Amount Loaded</span>
                   <span className="font-bold text-emerald-500">
                     +₱{parseFloat(transaction.amount).toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex justify-between pt-2 border-t" style={{ borderColor: theme.border.primary }}>
-                  <span style={{ color: theme.text.secondary }} className="text-sm">New Balance</span>
-                  <span style={{ color: theme.text.primary }} className="text-lg font-bold">
-                    ₱{parseFloat(transaction.newBalance || user.balance).toLocaleString()}
                   </span>
                 </div>
               </div>
