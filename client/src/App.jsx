@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import { AppProvider } from './context/AppContext';
+import IdleTimeout from './components/shared/IdleTimeout';
 import { ToastContainer } from 'react-toastify'; // aliased to NotifyHost (themed pop-ups)
 import { useMaintenanceMode } from './hooks/useMaintenanceMode.js';
 
@@ -675,6 +676,7 @@ function App() {
           <ToastContainer />
           <ExportCompleteModal />
           <ConfirmDialogHost />
+          <IdleTimeout />
           <AppContent />
         </BrowserRouter>
       </AppProvider>
