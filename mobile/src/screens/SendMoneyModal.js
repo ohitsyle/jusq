@@ -5,9 +5,10 @@
 // ₱5,000 daily limit and locks the account after 3 wrong PINs.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, Modal, ScrollView, ActivityIndicator,
+  View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator,
   StyleSheet, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
+import { ActivityModal } from '../shared/components/IdleSignOut';
 import NfcManager from 'react-native-nfc-manager';
 import {
   Send, X, Star, Clock, ArrowRight, ArrowLeft, CheckCircle2, XCircle, Lock, ShieldCheck,
@@ -214,7 +215,7 @@ export default function SendMoneyModal({ visible, onClose, theme: t, balance: ba
   );
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={close}>
+    <ActivityModal visible={visible} animationType="slide" transparent onRequestClose={close}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.overlay}>
         <View style={s.sheet}>
           {/* Header */}
@@ -499,7 +500,7 @@ export default function SendMoneyModal({ visible, onClose, theme: t, balance: ba
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
-    </Modal>
+    </ActivityModal>
   );
 }
 

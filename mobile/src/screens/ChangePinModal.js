@@ -5,13 +5,13 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  Modal,
   TouchableOpacity,
   TextInput,
   StyleSheet,
   Alert,
   ActivityIndicator
 } from 'react-native';
+import { ActivityModal } from '../shared/components/IdleSignOut';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
 
@@ -115,7 +115,7 @@ export default function ChangePinModal({ visible, onClose, userEmail, userId }) 
   };
 
   return (
-    <Modal
+    <ActivityModal
       visible={visible}
       animationType="slide"
       transparent={true}
@@ -229,7 +229,7 @@ export default function ChangePinModal({ visible, onClose, userEmail, userId }) 
           </View>
         </View>
       </TouchableOpacity>
-    </Modal>
+    </ActivityModal>
   );
 }
 

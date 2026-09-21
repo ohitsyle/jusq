@@ -12,12 +12,12 @@ import {
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
-  Modal,
   TextInput,
   Alert,
   ActivityIndicator,
   StatusBar,
 } from 'react-native';
+import IdleSignOut, { ActivityModal, IDLE_MINUTES, markActive } from '../shared/components/IdleSignOut';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -303,6 +303,15 @@ export default function UserDashboardScreen({ navigation, route }) {
     setShowTransferModal(false);
     try { await AsyncStorage.multiRemove(['auth_token', 'user_role']); } catch { /* ignore */ }
     navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+  };
+
+  // Inactivity sign-out (IdleSignOut), or "Sign out now" on its warning
+  const signOutIdle = async (reason) => {
+    try { await AsyncStorage.multiRemove(['auth_token', 'user_role', 'user_id']); } catch { /* ignore */ }
+    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+    if (reason === 'idle') {
+      Alert.alert('Signed out', `You were signed out after ${IDLE_MINUTES} minutes without activity. Please sign in again.`);
+    }
   };
 
   const dismissAlert = (id) => setDismissedAlerts((prev) => [...prev, id]);
@@ -623,8 +632,9 @@ export default function UserDashboardScreen({ navigation, route }) {
   ];
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.bg }]} edges={['top']}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.bg }]} edges={['top']} onTouchStart={markActive}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.headerBg} />
+      <IdleSignOut theme={theme} onSignOut={signOutIdle} />
 
       {/* Header */}
       <View style={styles.header}>
@@ -678,7 +688,7 @@ export default function UserDashboardScreen({ navigation, route }) {
       </ScrollView>
 
       {/* Profile Modal */}
-      <Modal visible={showProfileModal} animationType="slide" transparent onRequestClose={() => setShowProfileModal(false)}>
+      <ActivityModal visible={showProfileModal} animationType="slide" transparent onRequestClose={() => setShowProfileModal(false)}>
         <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => setShowProfileModal(false)}>
           <View style={styles.sheet} onStartShouldSetResponder={() => true}>
             <View style={styles.sheetHeader}>
@@ -719,10 +729,10 @@ export default function UserDashboardScreen({ navigation, route }) {
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
-      </Modal>
+      </ActivityModal>
 
       {/* Concern Modal */}
-      <Modal visible={showConcernModal} animationType="slide" transparent onRequestClose={() => setShowConcernModal(false)}>
+      <ActivityModal visible={showConcernModal} animationType="slide" transparent onRequestClose={() => setShowConcernModal(false)}>
         <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => setShowConcernModal(false)}>
           <View style={[styles.sheet, { maxHeight: '90%' }]} onStartShouldSetResponder={() => true}>
             <View style={styles.sheetHeader}>
@@ -764,10 +774,10 @@ export default function UserDashboardScreen({ navigation, route }) {
             </ScrollView>
           </View>
         </TouchableOpacity>
-      </Modal>
+      </ActivityModal>
 
       {/* Feedback Modal */}
-      <Modal visible={showFeedbackModal} animationType="slide" transparent onRequestClose={() => setShowFeedbackModal(false)}>
+      <ActivityModal visible={showFeedbackModal} animationType="slide" transparent onRequestClose={() => setShowFeedbackModal(false)}>
         <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => setShowFeedbackModal(false)}>
           <View style={[styles.sheet, { maxHeight: '90%' }]} onStartShouldSetResponder={() => true}>
             <View style={styles.sheetHeader}>
@@ -818,7 +828,7 @@ export default function UserDashboardScreen({ navigation, route }) {
             </ScrollView>
           </View>
         </TouchableOpacity>
-      </Modal>
+      </ActivityModal>
 
       {/* Send Money (student-to-student) */}
       <SendMoneyModal

@@ -5,7 +5,6 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  Modal,
   TouchableOpacity,
   TextInput,
   StyleSheet,
@@ -13,6 +12,7 @@ import {
   ActivityIndicator,
   DeviceEventEmitter
 } from 'react-native';
+import { ActivityModal } from '../shared/components/IdleSignOut';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api, { SESSION_ENDED_EVENT } from '../services/api';
 
@@ -115,7 +115,7 @@ export default function DeactivateAccountModal({ visible, onClose, userEmail, us
   };
 
   return (
-    <Modal
+    <ActivityModal
       visible={visible}
       animationType="slide"
       transparent={true}
@@ -205,7 +205,7 @@ export default function DeactivateAccountModal({ visible, onClose, userEmail, us
           </View>
         </View>
       </TouchableOpacity>
-    </Modal>
+    </ActivityModal>
   );
 }
 
