@@ -20,7 +20,7 @@ import {
   ScrollView
 } from 'react-native';
 import api from '../services/api';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { startSession } from '../services/session';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');
@@ -154,32 +154,8 @@ export default function LoginScreen({ navigation }) {
       // Safely check response and token
       if (res && res.data && res.data.token) {
         try {
-          await AsyncStorage.setItem('auth_token', res.data.token);
-          await AsyncStorage.setItem('user_role', res.data.role || 'user');
-
-          if (res.data.role === 'driver') {
-            await AsyncStorage.setItem('driver_id', res.data.driverId || '');
-            navigation.replace('ShuttleSelection', {
-              driverId: res.data.driverId,
-              name: res.data.name || 'Driver'
-            });
-          } else if (res.data.role === 'merchant') {
-            await AsyncStorage.setItem('merchant_id', res.data.merchantId || '');
-            navigation.replace('Merchant', {
-              merchantId: res.data.merchantId,
-              businessName: res.data.businessName || 'Merchant',
-              contactPerson: res.data.contactPerson || ''
-            });
-          } else if (res.data.role === 'student' || res.data.role === 'employee') {
-            await AsyncStorage.setItem('user_id', res.data.userId || '');
-            navigation.replace('UserDashboard', {
-              userId: res.data.userId,
-              userEmail: res.data.email,
-              role: res.data.role,
-              name: res.data.name || 'User'
-            });
-          } else {
-            // Unknown role
+          const started = await startSession(navigation, res.data);
+          if (!started) {
             setError('Unknown account type. Please contact support.');
             setPin('');
             shakeError();
@@ -197,11 +173,25 @@ export default function LoginScreen({ navigation }) {
       }
     } catch (e) {
       console.error('Login error:', e);
+      const data = e.response?.data || {};
+
+      // First sign-in with the temporary PIN: set up the account here.
+      if (e.response?.status === 403 && data.requiresActivation && data.activationToken) {
+        setPin('');
+        navigation.navigate('Activation', {
+          accountId: data.accountId,
+          accountType: data.accountType,
+          email: data.email,
+          fullName: data.fullName,
+          activationToken: data.activationToken,
+        });
+        return;
+      }
 
       // Safe error message extraction
       let errorMsg = 'Invalid PIN. Please try again.';
-      if (e.response && e.response.data && e.response.data.error) {
-        errorMsg = e.response.data.error;
+      if (data.error || data.message) {
+        errorMsg = data.error || data.message;
       } else if (e.message) {
         // Network errors, timeout, etc.
         if (e.message.includes('Network')) {

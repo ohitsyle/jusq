@@ -63,16 +63,20 @@ function Gradient({ colors, from = [0, 0], to = [1, 1], style, children }) {
   const id = useRef(`g${++gradientSeq}`).current;
   return (
     <View style={[{ overflow: 'hidden' }, style]}>
-      <Svg style={StyleSheet.absoluteFill} width="100%" height="100%">
-        <Defs>
-          <LinearGradient id={id} x1={from[0]} y1={from[1]} x2={to[0]} y2={to[1]}>
-            {colors.map((c, i) => (
-              <Stop key={i} offset={colors.length === 1 ? 0 : i / (colors.length - 1)} stopColor={c} />
-            ))}
-          </LinearGradient>
-        </Defs>
-        <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${id})`} />
-      </Svg>
+      {/* The Svg sits in its own absolute layer; on Android an Svg given
+          position:absolute directly still took part in layout. */}
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Svg width="100%" height="100%">
+          <Defs>
+            <LinearGradient id={id} x1={from[0]} y1={from[1]} x2={to[0]} y2={to[1]}>
+              {colors.map((c, i) => (
+                <Stop key={i} offset={colors.length === 1 ? 0 : i / (colors.length - 1)} stopColor={c} />
+              ))}
+            </LinearGradient>
+          </Defs>
+          <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${id})`} />
+        </Svg>
+      </View>
       {children}
     </View>
   );

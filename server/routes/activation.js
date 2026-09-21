@@ -3,12 +3,70 @@
 
 import express from 'express';
 import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 
 const router = express.Router();
 
 // Helper function to generate 6-digit OTP
 function generateOTP() {
   return crypto.randomInt(100000, 999999).toString();
+}
+
+// Only someone who just signed in with the temporary PIN may activate.
+// The login (and /check-account) hands out this short-lived pass; every step
+// below requires it, so knowing an account ID is not enough to set its PIN.
+export const issueActivationToken = (account, accountType) => jwt.sign(
+  { id: String(account._id), accountType, purpose: 'activation' },
+  process.env.JWT_SECRET,
+  { expiresIn: '30m' }
+);
+
+const WEAK_PINS = ['123456', '654321', '111111', '222222', '333333', '444444', '555555', '666666', '777777', '888888', '999999', '000000'];
+const MAX_OTP_FAILS = 5;
+const RESEND_COOLDOWN_MS = 55 * 1000;
+const otpFails = new Map(); // accountId -> wrong codes since the last one was issued
+const lastOtpSent = new Map(); // accountId -> when a code was last emailed
+
+async function requireActivationPass(req, res, next) {
+  const { accountId, accountType } = req.body || {};
+  if (!accountId || !['admin', 'user'].includes(accountType)) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+  // Body first (the app's API client puts its own login token in the header), then header (web).
+  const header = req.headers.authorization || '';
+  const token = req.body.activationToken || (header.startsWith('Bearer ') ? header.slice(7) : '');
+  let pass;
+  try {
+    pass = jwt.verify(token || '', process.env.JWT_SECRET);
+  } catch {
+    return res.status(403).json({ error: 'Your activation session has expired. Please sign in again with your temporary PIN.', restart: true });
+  }
+  if (pass.purpose !== 'activation' || pass.id !== String(accountId) || pass.accountType !== accountType) {
+    return res.status(403).json({ error: 'Your activation session has expired. Please sign in again with your temporary PIN.', restart: true });
+  }
+
+  const Model = accountType === 'admin'
+    ? (await import('../models/Admin.js')).default
+    : (await import('../models/User.js')).default;
+  const account = await Model.findById(accountId);
+  if (!account) return res.status(404).json({ error: 'Account not found' });
+  if (account.isDeactivated) {
+    return res.status(403).json({ error: 'Your account has been deactivated. Please visit ITSO to reactivate your account.', deactivated: true });
+  }
+  if (account.isActive) {
+    return res.status(409).json({ error: 'This account is already activated. Please sign in with your PIN.', alreadyActive: true });
+  }
+  req.activation = { Model, account };
+  next();
+}
+
+async function emailActivationCode(Model, account) {
+  const otp = generateOTP();
+  await Model.findByIdAndUpdate(account._id, { $set: { resetOtp: otp, resetOtpExpireAt: new Date(Date.now() + 10 * 60 * 1000) } });
+  otpFails.delete(String(account._id));
+  lastOtpSent.set(String(account._id), Date.now());
+  const { sendActivationOTP } = await import('../services/emailService.js');
+  await sendActivationOTP(account.email, otp, account.fullName || `${account.firstName} ${account.lastName}`);
 }
 
 // POST /api/activation/check-account
@@ -76,6 +134,7 @@ router.post('/check-account', async (req, res) => {
     res.json({
       needsActivation: true,
       accountId: account._id,
+      activationToken: issueActivationToken(account, accountType === 'admin' ? 'admin' : 'user'),
       email: account.email,
       fullName: account.fullName || `${account.firstName} ${account.lastName}`,
       isActive: account.isActive || false
@@ -88,135 +147,36 @@ router.post('/check-account', async (req, res) => {
 });
 
 // POST /api/activation/accept-terms
-// Accept terms and conditions
-// Just acknowledges terms acceptance - no field updates needed
-// Actual activation happens after PIN change + OTP verification
-router.post('/accept-terms', async (req, res) => {
-  try {
-    const { accountId, accountType } = req.body;
-
-    console.log('📝 Accept terms request:', { accountId, accountType });
-
-    if (!accountId || !accountType) {
-      console.error('❌ Missing required fields:', { accountId, accountType });
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
-
-    // Import appropriate model
-    let Model;
-    if (accountType === 'admin') {
-      const { default: Admin } = await import('../models/Admin.js');
-      Model = Admin;
-    } else {
-      const { default: User } = await import('../models/User.js');
-      Model = User;
-    }
-
-    console.log('🔍 Looking up account with ID:', accountId);
-
-    // Just verify the account exists
-    const account = await Model.findById(accountId);
-
-    if (!account) {
-      console.error('❌ Account not found with ID:', accountId);
-      return res.status(404).json({ error: 'Account not found' });
-    }
-
-    console.log(`✅ Terms accepted for ${account.email}`);
-
-    res.json({
-      success: true,
-      message: 'Terms accepted successfully'
-    });
-
-  } catch (error) {
-    console.error('❌ Accept terms error:', error);
-    console.error('Error details:', {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-      accountId: req.body.accountId,
-      accountType: req.body.accountType
-    });
-
-    // Provide more specific error messages
-    if (error.name === 'CastError') {
-      return res.status(400).json({ error: 'Invalid account ID format' });
-    }
-
-    res.status(500).json({
-      error: 'Failed to accept terms',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
+// Acknowledges the terms. Actual activation happens after PIN change + OTP.
+router.post('/accept-terms', requireActivationPass, async (req, res) => {
+  console.log(`✅ Terms accepted for ${req.activation.account.email}`);
+  res.json({ success: true, message: 'Terms accepted successfully' });
 });
 
 // POST /api/activation/set-new-pin
-// Set new PIN after terms acceptance (uses findByIdAndUpdate to avoid full-doc save overwrites)
-router.post('/set-new-pin', async (req, res) => {
+// Sets the new PIN and emails a verification code (only for accounts still
+// waiting for activation — see requireActivationPass).
+router.post('/set-new-pin', requireActivationPass, async (req, res) => {
   try {
-    const { accountId, accountType, newPin } = req.body;
+    const { newPin } = req.body;
+    const { Model, account } = req.activation;
 
-    if (!accountId || !accountType || !newPin) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
-
-    // Validate PIN (6 digits)
-    if (!/^\d{6}$/.test(newPin)) {
+    if (!/^\d{6}$/.test(String(newPin || ''))) {
       return res.status(400).json({ error: 'PIN must be exactly 6 digits' });
     }
-
-    // Import appropriate model
-    let Model;
-    if (accountType === 'admin') {
-      const { default: Admin } = await import('../models/Admin.js');
-      Model = Admin;
-    } else {
-      const { default: User } = await import('../models/User.js');
-      Model = User;
+    if (WEAK_PINS.includes(newPin)) {
+      return res.status(400).json({ error: 'Please choose a stronger PIN' });
     }
 
-    if (accountType === 'user') {
-      console.log(`[Activation] set-new-pin called for user accountId: ${accountId}`);
-      const countBefore = await Model.countDocuments();
-      console.log(`[Activation] User count before set-new-pin: ${countBefore}`);
-    }
-
-    // Hash new PIN
-    const bcrypt = await import('bcrypt');
-    const salt = await bcrypt.default.genSalt(10);
-    const hashedPin = await bcrypt.default.hash(newPin, salt);
-
-    // Generate OTP
-    const otp = generateOTP();
-    const otpExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes (timestamp)
-
-    // Update only these fields (avoids full-doc save that could overwrite other fields)
-    const account = await Model.findByIdAndUpdate(
-      accountId,
-      { $set: { pin: hashedPin, resetOtp: otp, resetOtpExpireAt: new Date(otpExpiry) } },
-      { new: true, runValidators: true }
-    );
-
-    if (!account) {
-      return res.status(404).json({ error: 'Account not found' });
-    }
-
-    if (accountType === 'user') {
-      const countAfter = await Model.countDocuments();
-      console.log(`[Activation] User count after set-new-pin: ${countAfter}`);
-    }
-
-    // Send OTP via email
-    const { sendActivationOTP } = await import('../services/emailService.js');
-    await sendActivationOTP(account.email, otp, account.fullName || `${account.firstName} ${account.lastName}`);
+    const bcrypt = (await import('bcrypt')).default;
+    await Model.findByIdAndUpdate(account._id, { $set: { pin: await bcrypt.hash(newPin, 10) } });
+    await emailActivationCode(Model, account);
 
     res.json({
       success: true,
       message: 'PIN updated successfully. OTP sent to your email.',
       email: account.email
     });
-
   } catch (error) {
     console.error('Set new PIN error:', error);
     res.status(500).json({ error: 'Failed to set new PIN' });
@@ -224,74 +184,39 @@ router.post('/set-new-pin', async (req, res) => {
 });
 
 // POST /api/activation/verify-otp
-// Verify OTP and activate account (uses findByIdAndUpdate to avoid full-doc save overwrites)
-router.post('/verify-otp', async (req, res) => {
+// Checks the emailed code and activates the account. 5 wrong codes void it.
+router.post('/verify-otp', requireActivationPass, async (req, res) => {
   try {
-    const { accountId, accountType, otp } = req.body;
+    const { otp } = req.body;
+    const { Model, account } = req.activation;
+    const key = String(account._id);
 
-    if (!accountId || !accountType || !otp) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    if (!otp) return res.status(400).json({ error: 'Missing required fields' });
+    if (!account.resetOtp) {
+      return res.status(400).json({ error: 'No code found. Please tap "Resend Code".' });
+    }
+    if (Date.now() > new Date(account.resetOtpExpireAt).getTime()) {
+      return res.status(400).json({ error: 'That code has expired. Please tap "Resend Code".' });
+    }
+    if (account.resetOtp !== String(otp)) {
+      const fails = (otpFails.get(key) || 0) + 1;
+      otpFails.set(key, fails);
+      if (fails >= MAX_OTP_FAILS) {
+        otpFails.delete(key);
+        await Model.findByIdAndUpdate(account._id, { $set: { resetOtp: '', resetOtpExpireAt: null } });
+        return res.status(400).json({ error: 'Too many wrong codes. Please tap "Resend Code" for a new one.' });
+      }
+      return res.status(400).json({ error: `Invalid code. ${MAX_OTP_FAILS - fails} attempt${MAX_OTP_FAILS - fails === 1 ? '' : 's'} left.` });
     }
 
-    // Import appropriate model
-    let Model;
-    if (accountType === 'admin') {
-      const { default: Admin } = await import('../models/Admin.js');
-      Model = Admin;
-    } else {
-      const { default: User } = await import('../models/User.js');
-      Model = User;
-    }
-
-    // Find account (read-only for OTP check)
-    const account = await Model.findById(accountId);
-
-    if (!account) {
-      return res.status(404).json({ error: 'Account not found' });
-    }
-
-    // Get stored OTP
-    const storedOtp = account.resetOtp;
-    const otpExpiry = account.resetOtpExpireAt;
-
-    // Check if OTP exists
-    if (!storedOtp) {
-      return res.status(400).json({ error: 'No OTP found. Please request a new one.' });
-    }
-
-    // Check if OTP expired
-    const now = Date.now();
-    if (now > otpExpiry) {
-      return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
-    }
-
-    // Verify OTP
-    if (storedOtp !== otp) {
-      return res.status(401).json({ error: 'Invalid OTP' });
-    }
-
-    // Block deactivated users from activating
-    if (account.isDeactivated) {
-      return res.status(403).json({
-        error: 'Your account has been deactivated. Please visit ITSO to reactivate your account.',
-        deactivated: true
-      });
-    }
-
-    // Activate account - update only these fields (avoids full-doc save)
     const updated = await Model.findByIdAndUpdate(
-      accountId,
+      account._id,
       { $set: { isActive: true, resetOtp: '', resetOtpExpireAt: null } },
-      { new: true, runValidators: true }
+      { new: true }
     );
-
-    console.log(`✅ Account activated for ${updated.email} - isActive: true`);
-
-    // Diagnostic: log user count after activation
-    if (accountType === 'user') {
-      const userCount = await Model.countDocuments();
-      console.log(`📊 [Activation] User collection count after verify-otp: ${userCount}`);
-    }
+    otpFails.delete(key);
+    lastOtpSent.delete(key);
+    console.log(`✅ Account activated for ${updated.email}`);
 
     res.json({
       success: true,
@@ -303,7 +228,6 @@ router.post('/verify-otp', async (req, res) => {
         isActive: updated.isActive
       }
     });
-
   } catch (error) {
     console.error('Verify OTP error:', error);
     res.status(500).json({ error: 'Failed to verify OTP' });
@@ -311,61 +235,16 @@ router.post('/verify-otp', async (req, res) => {
 });
 
 // POST /api/activation/resend-otp
-// Resend OTP (uses findByIdAndUpdate to avoid full-doc save overwrites)
-router.post('/resend-otp', async (req, res) => {
+// Emails a fresh code (at most one a minute, so the inbox can't be flooded).
+router.post('/resend-otp', requireActivationPass, async (req, res) => {
   try {
-    const { accountId, accountType } = req.body;
-
-    if (!accountId || !accountType) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    const { Model, account } = req.activation;
+    const last = lastOtpSent.get(String(account._id)) || 0;
+    if (Date.now() - last < RESEND_COOLDOWN_MS) {
+      return res.status(429).json({ error: 'Please wait a minute before requesting another code.' });
     }
-
-    // Import appropriate model
-    let Model;
-    if (accountType === 'admin') {
-      const { default: Admin } = await import('../models/Admin.js');
-      Model = Admin;
-    } else {
-      const { default: User } = await import('../models/User.js');
-      Model = User;
-    }
-
-    if (accountType === 'user') {
-      console.log(`[Activation] resend-otp called for user accountId: ${accountId}`);
-      const countBefore = await Model.countDocuments();
-      console.log(`[Activation] User count before resend-otp: ${countBefore}`);
-    }
-
-    // Generate new OTP
-    const otp = generateOTP();
-    const otpExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes (timestamp)
-
-    // Update only OTP fields (avoids full-doc save that could overwrite other fields)
-    const account = await Model.findByIdAndUpdate(
-      accountId,
-      { $set: { resetOtp: otp, resetOtpExpireAt: new Date(otpExpiry) } },
-      { new: true, runValidators: true }
-    );
-
-    if (!account) {
-      return res.status(404).json({ error: 'Account not found' });
-    }
-
-    if (accountType === 'user') {
-      const countAfter = await Model.countDocuments();
-      console.log(`[Activation] User count after resend-otp: ${countAfter}`);
-    }
-
-    // Send OTP via email
-    const { sendActivationOTP } = await import('../services/emailService.js');
-    await sendActivationOTP(account.email, otp, account.fullName || `${account.firstName} ${account.lastName}`);
-
-    res.json({
-      success: true,
-      message: 'OTP resent successfully',
-      email: account.email
-    });
-
+    await emailActivationCode(Model, account);
+    res.json({ success: true, message: 'OTP resent successfully', email: account.email });
   } catch (error) {
     console.error('Resend OTP error:', error);
     res.status(500).json({ error: 'Failed to resend OTP' });

@@ -11,6 +11,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import nodemailer from 'nodemailer';
 import Driver from '../models/Driver.js';
+import { issueActivationToken } from './activation.js';
 import { normalizePhMobile, escapeRegex } from '../utils/phone.js';
 import Merchant from '../models/Merchant.js';
 import User from '../models/User.js';
@@ -196,6 +197,7 @@ router.post('/', async (req, res) => {
           requiresActivation: true,
           accountId: admin._id.toString(),
           accountType: 'admin',
+          activationToken: issueActivationToken(admin, 'admin'),
           email: admin.email,
           fullName: `${admin.firstName} ${admin.lastName}`,
           message: 'Account activation required'
@@ -328,6 +330,7 @@ router.post('/', async (req, res) => {
           requiresActivation: true,
           accountId: user._id.toString(),
           accountType: 'user',
+          activationToken: issueActivationToken(user, 'user'),
           email: user.email,
           fullName: user.fullName || `${user.firstName} ${user.lastName}`,
           message: 'Account activation required'

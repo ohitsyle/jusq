@@ -202,6 +202,8 @@ export default function UnifiedLogin() {
           throw new Error('Server error: Missing account ID for activation');
         }
 
+        // Short-lived pass proving this browser just signed in with the temporary PIN
+        try { sessionStorage.setItem('nucash_activation', JSON.stringify({ accountId: data.accountId, token: data.activationToken })); } catch { /* private mode */ }
         const activationUrl = `/activate?accountId=${data.accountId}&accountType=${data.accountType || detectedRole}&email=${encodeURIComponent(data.email || email)}&fullName=${encodeURIComponent(data.fullName || '')}`;
         console.log('🔗 Activation URL:', activationUrl);
         navigate(activationUrl);

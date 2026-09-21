@@ -5,8 +5,42 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import { FileText, ChevronDown, AlertTriangle, ArrowRight, LockKeyhole, Eye, EyeOff, Check, X, Lightbulb, Mail } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+
+// Activation pass stored by the login page (proves the temporary PIN was entered)
+const readActivationToken = (accountId) => {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem("nucash_activation") || "null");
+    return saved && saved.accountId === accountId ? saved.token : null;
+  } catch {
+    return null;
+  }
+};
+
+const ErrorBox = ({ message }) => (
+  <div style={{
+    background: 'rgba(239, 68, 68, 0.15)',
+    border: '2px solid rgba(239, 68, 68, 0.3)',
+    color: '#EF4444',
+    padding: '12px 16px',
+    borderRadius: '10px',
+    marginBottom: '16px',
+    fontSize: '14px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  }}>
+    <AlertTriangle size={16} style={{ flexShrink: 0 }} /> {message}
+  </div>
+);
+
+const buttonContent = (label) => (
+  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+    {label} <ArrowRight size={18} strokeWidth={2.5} />
+  </span>
+);
 
 // Terms and Conditions content
 const TERMS_CONTENT = {
@@ -104,13 +138,32 @@ export default function AccountActivation() {
   const otpRefs = useRef([]);
   const [resendCooldown, setResendCooldown] = useState(0);
 
+  const activationToken = readActivationToken(accountId);
+
   // Validation
   useEffect(() => {
-    if (!accountId) {
-      toast.error("Invalid activation link. Please try logging in again.");
+    if (!accountId || !activationToken) {
+      toast.error("Please sign in with your temporary PIN to activate your account.");
       navigate("/login");
     }
-  }, [accountId, navigate]);
+  }, [accountId, activationToken, navigate]);
+
+  // Every activation step carries the pass; an expired pass or an account that
+  // is already active sends the person back to sign in.
+  const activationPost = async (path, body) => {
+    const response = await fetch(`${API_BASE}/activation/${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${activationToken}` },
+      body: JSON.stringify({ accountId, accountType: isAdmin ? "admin" : "user", ...body })
+    });
+    const data = await response.json();
+    if (!response.ok && (data.restart || data.alreadyActive || data.deactivated)) {
+      try { sessionStorage.removeItem("nucash_activation"); } catch { /* ignore */ }
+      toast.error(data.error);
+      navigate("/login");
+    }
+    return { response, data };
+  };
 
   // Handle terms scroll
   const handleTermsScroll = (e) => {
@@ -131,13 +184,7 @@ export default function AccountActivation() {
     setError("");
 
     try {
-      const response = await fetch(`${API_BASE}/activation/accept-terms`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accountId, accountType: isAdmin ? "admin" : "user" })
-      });
-
-      const data = await response.json();
+      const { response, data } = await activationPost("accept-terms", {});
 
       if (!response.ok) {
         throw new Error(data.error || "Failed to accept terms");
@@ -182,17 +229,7 @@ export default function AccountActivation() {
     setError("");
 
     try {
-      const response = await fetch(`${API_BASE}/activation/set-new-pin`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          accountId,
-          accountType: isAdmin ? "admin" : "user",
-          newPin
-        })
-      });
-
-      const data = await response.json();
+      const { response, data } = await activationPost("set-new-pin", { newPin });
 
       if (!response.ok) {
         throw new Error(data.error || "Failed to set PIN");
@@ -252,22 +289,13 @@ export default function AccountActivation() {
     setError("");
 
     try {
-      const response = await fetch(`${API_BASE}/activation/verify-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          accountId,
-          accountType: isAdmin ? "admin" : "user",
-          otp: otpString
-        })
-      });
-
-      const data = await response.json();
+      const { response, data } = await activationPost("verify-otp", { otp: otpString });
 
       if (!response.ok) {
         throw new Error(data.error || "Invalid verification code");
       }
 
+      try { sessionStorage.removeItem("nucash_activation"); } catch { /* ignore */ }
       toast.success("Account activated successfully! Logging you in...");
 
       // Auto-login after activation using the PIN they just set
@@ -326,16 +354,7 @@ export default function AccountActivation() {
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE}/activation/resend-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          accountId,
-          accountType: isAdmin ? "admin" : "user"
-        })
-      });
-
-      const data = await response.json();
+      const { response, data } = await activationPost("resend-otp", {});
 
       if (!response.ok) {
         throw new Error(data.error || "Failed to resend code");
@@ -482,7 +501,7 @@ export default function AccountActivation() {
                         ? '0 4px 20px rgba(34, 197, 94, 0.3)'
                         : 'none'
                   }}>
-                    {isComplete ? '✓' : i + 1}
+                    {isComplete ? <Check size={18} strokeWidth={3} /> : i + 1}
                   </div>
                   <span style={{
                     fontSize: '11px',
@@ -534,7 +553,7 @@ export default function AccountActivation() {
                   alignItems: 'center',
                   gap: '10px'
                 }}>
-                  <span>📋</span> {terms.title}
+                  <FileText size={22} style={{ flexShrink: 0 }} /> {terms.title}
                 </h2>
                 <p style={{ color: 'rgba(251, 251, 251, 0.6)', fontSize: '13px', margin: '8px 0 0 0' }}>
                   Please read carefully before proceeding
@@ -589,7 +608,7 @@ export default function AccountActivation() {
                     justifyContent: 'center',
                     gap: '6px'
                   }}>
-                    <span>↓</span> Scroll to the bottom to enable acceptance
+                    <ChevronDown size={14} /> Scroll to the bottom to enable acceptance
                   </p>
                 )}
 
@@ -628,22 +647,7 @@ export default function AccountActivation() {
                   </span>
                 </label>
 
-                {error && (
-                  <div style={{
-                    background: 'rgba(239, 68, 68, 0.15)',
-                    border: '2px solid rgba(239, 68, 68, 0.3)',
-                    color: '#EF4444',
-                    padding: '12px 16px',
-                    borderRadius: '10px',
-                    marginBottom: '16px',
-                    fontSize: '14px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}>
-                    <span>⚠️</span> {error}
-                  </div>
-                )}
+                {error && <ErrorBox message={error} />}
 
                 <button
                   onClick={handleAcceptTerms}
@@ -664,7 +668,7 @@ export default function AccountActivation() {
                     letterSpacing: '1px'
                   }}
                 >
-                  {loading ? "Processing..." : "Accept & Continue →"}
+                  {loading ? "Processing..." : buttonContent("Accept & Continue")}
                 </button>
               </div>
             </>
@@ -687,7 +691,7 @@ export default function AccountActivation() {
                   alignItems: 'center',
                   gap: '10px'
                 }}>
-                  <span>🔐</span> Set Your New PIN
+                  <LockKeyhole size={22} style={{ flexShrink: 0 }} /> Set Your New PIN
                 </h2>
                 <p style={{ color: 'rgba(251, 251, 251, 0.6)', fontSize: '13px', margin: '8px 0 0 0' }}>
                   Create a secure 6-digit PIN for your account
@@ -750,11 +754,12 @@ export default function AccountActivation() {
                         border: 'none',
                         color: 'rgba(251, 251, 251, 0.5)',
                         cursor: 'pointer',
-                        fontSize: '20px',
-                        padding: '4px'
+                        padding: '4px',
+                        display: 'flex'
                       }}
+                      aria-label={showPin ? "Hide PIN" : "Show PIN"}
                     >
-                      {showPin ? "🙈" : "👁️"}
+                      {showPin ? <EyeOff size={20} /> : <Eye size={20} />}
                     </button>
                   </div>
                 </div>
@@ -818,7 +823,7 @@ export default function AccountActivation() {
                     fontSize: '14px',
                     fontWeight: 600
                   }}>
-                    <span>{newPin === confirmPin ? '✓' : '✗'}</span>
+                    {newPin === confirmPin ? <Check size={16} strokeWidth={3} /> : <X size={16} strokeWidth={3} />}
                     {newPin === confirmPin ? "PINs match" : "PINs do not match"}
                   </div>
                 )}
@@ -840,7 +845,7 @@ export default function AccountActivation() {
                     alignItems: 'center',
                     gap: '8px'
                   }}>
-                    <span>💡</span> PIN Tips
+                    <Lightbulb size={16} /> PIN Tips
                   </h4>
                   <ul style={{
                     margin: 0,
@@ -856,22 +861,7 @@ export default function AccountActivation() {
                   </ul>
                 </div>
 
-                {error && (
-                  <div style={{
-                    background: 'rgba(239, 68, 68, 0.15)',
-                    border: '2px solid rgba(239, 68, 68, 0.3)',
-                    color: '#EF4444',
-                    padding: '12px 16px',
-                    borderRadius: '10px',
-                    marginBottom: '16px',
-                    fontSize: '14px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}>
-                    <span>⚠️</span> {error}
-                  </div>
-                )}
+                {error && <ErrorBox message={error} />}
 
                 <button
                   onClick={handleSetPin}
@@ -892,7 +882,7 @@ export default function AccountActivation() {
                     letterSpacing: '1px'
                   }}
                 >
-                  {loading ? "Setting PIN..." : "Set PIN & Continue →"}
+                  {loading ? "Setting PIN..." : buttonContent("Set PIN & Continue")}
                 </button>
               </div>
             </>
@@ -915,7 +905,7 @@ export default function AccountActivation() {
                   alignItems: 'center',
                   gap: '10px'
                 }}>
-                  <span>📧</span> Verify Your Email
+                  <Mail size={22} style={{ flexShrink: 0 }} /> Verify Your Email
                 </h2>
                 <p style={{ color: 'rgba(251, 251, 251, 0.6)', fontSize: '13px', margin: '8px 0 0 0' }}>
                   Enter the 6-digit code sent to <strong style={{ color: '#FFD41C' }}>{email}</strong>
@@ -989,22 +979,7 @@ export default function AccountActivation() {
                   </button>
                 </div>
 
-                {error && (
-                  <div style={{
-                    background: 'rgba(239, 68, 68, 0.15)',
-                    border: '2px solid rgba(239, 68, 68, 0.3)',
-                    color: '#EF4444',
-                    padding: '12px 16px',
-                    borderRadius: '10px',
-                    marginBottom: '16px',
-                    fontSize: '14px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}>
-                    <span>⚠️</span> {error}
-                  </div>
-                )}
+                {error && <ErrorBox message={error} />}
 
                 <button
                   onClick={handleVerifyOtp}
@@ -1025,7 +1000,7 @@ export default function AccountActivation() {
                     letterSpacing: '1px'
                   }}
                 >
-                  {loading ? "Verifying..." : "Verify & Activate →"}
+                  {loading ? "Verifying..." : buttonContent("Verify & Activate")}
                 </button>
               </div>
             </>
@@ -1045,7 +1020,7 @@ export default function AccountActivation() {
                 marginBottom: '24px',
                 boxShadow: '0 8px 32px rgba(34, 197, 94, 0.4)'
               }}>
-                <span style={{ fontSize: '50px', color: '#FFFFFF' }}>✓</span>
+                <Check size={52} color="#FFFFFF" strokeWidth={3} />
               </div>
 
               <h2 style={{
@@ -1109,7 +1084,7 @@ export default function AccountActivation() {
                   e.target.style.boxShadow = '0 4px 20px rgba(255, 212, 28, 0.4)';
                 }}
               >
-                Go to Login →
+                {buttonContent("Go to Login")}
               </button>
             </div>
           )}
