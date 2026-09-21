@@ -12,6 +12,7 @@ import {
   Alert,
   ActivityIndicator
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
 
 export default function ChangePinModal({ visible, onClose, userEmail, userId }) {
@@ -79,6 +80,8 @@ export default function ChangePinModal({ visible, onClose, userEmail, userId }) 
       const { data } = await api.post('/user/change-pin', { otp });
 
       if (data.success) {
+        // Other devices were signed out; keep this phone signed in.
+        if (data.token) await AsyncStorage.setItem('auth_token', data.token);
         Alert.alert('Success', 'PIN changed successfully!', [
           {
             text: 'OK',

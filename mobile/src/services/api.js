@@ -2,6 +2,7 @@
 // API Service with dynamic URL support
 
 import axios from 'axios';
+import { DeviceEventEmitter } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import API_CONFIG, {
   initializeAPIConfig,
@@ -9,6 +10,8 @@ import API_CONFIG, {
   isServerConfigured,
   getAPIConfig
 } from '../config/api.config';
+
+export const SESSION_ENDED_EVENT = 'nucash:session-ended';
 
 // Create axios instance - will be reconfigured when URL changes
 let api = null;
@@ -75,8 +78,23 @@ const createAPIInstance = () => {
         }
       }
 
-      // Handle 401 Unauthorized - token expired
-      if (error.response?.status === 401) {
+      // A student/employee whose session was ended on the server (PIN changed
+      // on another device, account deactivated, security lock) is sent back
+      // to sign-in. AppNavigator listens for this event.
+      const status = error.response?.status;
+      const url = error.config?.url || '';
+      const role = await AsyncStorage.getItem('user_role');
+      const isUserApp = (role === 'student' || role === 'employee') && url.startsWith('/user/');
+      if (isUserApp && (status === 401 || (status === 403 && error.response?.data?.deactivated))) {
+        await AsyncStorage.multiRemove(['auth_token', 'user_role', 'user_id']);
+        const data = error.response?.data || {};
+        DeviceEventEmitter.emit(SESSION_ENDED_EVENT, {
+          message: data.signedOut ? data.error
+            : data.deactivated ? 'This account has been deactivated. Please visit ITSO to reactivate it.'
+            : 'Your session has ended. Please sign in again.'
+        });
+      } else if (status === 401) {
+        // Handle 401 Unauthorized - token expired
         await AsyncStorage.removeItem('auth_token');
         await AsyncStorage.removeItem('user_role');
         await AsyncStorage.removeItem('driver_id');

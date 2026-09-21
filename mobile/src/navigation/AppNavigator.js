@@ -2,8 +2,8 @@
 // UPDATED: Added ServerConfig screen for dynamic IP configuration
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { View, Text, ActivityIndicator, StyleSheet, Alert, DeviceEventEmitter } from 'react-native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import LoginScreen from '../screens/LoginScreen';
@@ -19,9 +19,10 @@ import ScannerModeScreen from '../screens/ScannerModeScreen';
 import SelfRegisterScreen from '../screens/SelfRegisterScreen';
 
 import { initializeAPIConfig, isServerConfigured } from '../config/api.config';
-import { initializeAPI } from '../services/api';
+import { initializeAPI, SESSION_ENDED_EVENT } from '../services/api';
 
 const Stack = createNativeStackNavigator();
+const navigationRef = createNavigationContainerRef();
 
 // Loading screen while checking configuration
 function LoadingScreen() {
@@ -59,12 +60,24 @@ export default function AppNavigator() {
     init();
   }, []);
 
+  // The server ended this student's session (PIN changed elsewhere, account
+  // deactivated, security lock). Several requests fail at once, so only the
+  // first one while still inside the account navigates.
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener(SESSION_ENDED_EVENT, ({ message } = {}) => {
+      if (!navigationRef.isReady() || navigationRef.getCurrentRoute()?.name !== 'UserDashboard') return;
+      navigationRef.reset({ index: 0, routes: [{ name: 'Login' }] });
+      if (message) Alert.alert('Signed out', message);
+    });
+    return () => sub.remove();
+  }, []);
+
   if (!isReady) {
     return <LoadingScreen />;
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator
         initialRouteName={needsConfig ? 'ServerConfig' : 'Login'}
         screenOptions={{

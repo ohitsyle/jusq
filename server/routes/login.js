@@ -609,6 +609,8 @@ router.post('/reset-pin', async (req, res) => {
     // Update PIN
     user.pin = hashedPin;
     user.pinChangedAt = new Date();
+    // Forgot-PIN reset signs out every device still logged in with the old PIN.
+    user.sessionsValidAfter = new Date();
     await user.save();
 
     // Clear OTP

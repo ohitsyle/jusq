@@ -774,9 +774,10 @@ router.patch('/users/:userId/toggle-status', async (req, res) => {
       // For users: toggle isDeactivated
       user.isDeactivated = !user.isDeactivated;
       if (user.isDeactivated) {
-        // Deactivating: also set isActive to false
+        // Deactivating: also set isActive to false, and sign out their phone/browser
         user.isActive = false;
         user.deactivatedAt = new Date();
+        user.sessionsValidAfter = new Date();
       } else {
         // Un-deactivating: clear deactivatedAt, keep isActive as-is
         // User may need to go through activation flow if isActive was false
@@ -878,7 +879,7 @@ router.post('/users/:userId/reset-pin', async (req, res) => {
       const Admin = (await import('../models/Admin.js')).default;
       await Admin.updateOne({ _id: account._id }, { $set: { pin: await bcrypt.hash(tempPin, 10), isActive: false, resetOtp: '', resetOtpExpireAt: 0 } });
     } else {
-      await User.findByIdAndUpdate(account._id, { $set: { pin: tempPin, isActive: false } });
+      await User.findByIdAndUpdate(account._id, { $set: { pin: tempPin, isActive: false, sessionsValidAfter: new Date() } });
     }
 
     const emailSent = await sendTemporaryPIN(

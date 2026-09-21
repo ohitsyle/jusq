@@ -21,6 +21,14 @@ export default function UnifiedLogin() {
     } catch { /* ignore */ }
     return null;
   });
+  // Set by the API client when the server ends this browser's session
+  const [signoutNotice, setSignoutNotice] = useState(() => {
+    try {
+      const n = JSON.parse(sessionStorage.getItem('nucash_signout_notice') || 'null');
+      sessionStorage.removeItem('nucash_signout_notice');
+      return n;
+    } catch { return null; }
+  });
   const dismissLockNotice = () => {
     try { sessionStorage.removeItem('nucash_lock_notice'); } catch { /* ignore */ }
     setLockNotice(null);
@@ -463,6 +471,15 @@ export default function UnifiedLogin() {
             </div>
             <p className="text-[rgba(251,251,251,0.8)] text-xs leading-relaxed">{lockNotice.message}</p>
             <p className="text-[rgba(251,251,251,0.55)] text-xs mt-2">No money was sent. If this wasn't you, report it to ITSO.</p>
+          </div>
+        )}
+
+        {/* Session ended by the server (PIN changed elsewhere, deactivated) */}
+        {signoutNotice && !lockNotice && (
+          <div role="status" className="mb-6 p-4 bg-[rgba(255,212,28,0.1)] border-2 border-[rgba(255,212,28,0.4)] rounded-xl relative">
+            <button onClick={() => setSignoutNotice(null)} aria-label="Dismiss" className="absolute top-2 right-3 text-[rgba(251,251,251,0.5)] hover:text-white text-lg leading-none">×</button>
+            <div className="text-[#FFD41C] font-bold mb-1">{signoutNotice.title}</div>
+            <p className="text-[rgba(251,251,251,0.8)] text-xs leading-relaxed">{signoutNotice.message}</p>
           </div>
         )}
 

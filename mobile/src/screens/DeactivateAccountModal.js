@@ -10,9 +10,11 @@ import {
   TextInput,
   StyleSheet,
   Alert,
-  ActivityIndicator
+  ActivityIndicator,
+  DeviceEventEmitter
 } from 'react-native';
-import api from '../services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import api, { SESSION_ENDED_EVENT } from '../services/api';
 
 export default function DeactivateAccountModal({ visible, onClose, userEmail, userId }) {
   const [pin, setPin] = useState('');
@@ -77,10 +79,12 @@ export default function DeactivateAccountModal({ visible, onClose, userEmail, us
                   [
                     {
                       text: 'OK',
-                      onPress: () => {
+                      onPress: async () => {
                         resetForm();
                         onClose();
-                        // You might want to logout here
+                        // A deactivated account can't stay signed in.
+                        await AsyncStorage.multiRemove(['auth_token', 'user_role', 'user_id']);
+                        DeviceEventEmitter.emit(SESSION_ENDED_EVENT, {});
                       }
                     }
                   ]

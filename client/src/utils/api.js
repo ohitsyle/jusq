@@ -38,9 +38,18 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response.data,
   (error) => {
-    if (error.response?.status === 401) {
+    const status = error.response?.status;
+    const data = error.response?.data || {};
+    // The login page shows why (PIN changed on another device, account deactivated, lock).
+    const endSession = (notice) => {
+      try { if (notice) sessionStorage.setItem('nucash_signout_notice', JSON.stringify(notice)); } catch { /* private mode */ }
       localStorage.clear();
       window.location.href = '/login';
+    };
+    if (status === 401) {
+      endSession(data.signedOut ? { title: data.locked ? 'Account locked' : 'Signed out', message: data.error } : null);
+    } else if (status === 403 && data.deactivated && localStorage.getItem('userToken')) {
+      endSession({ title: 'Account deactivated', message: data.error });
     }
     
     // Handle maintenance mode (503) - force logout and redirect to login

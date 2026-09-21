@@ -127,6 +127,8 @@ export default function UserProfile() {
       });
 
       if (data?.success) {
+        // Other devices were signed out; keep this browser signed in.
+        if (data.token) localStorage.setItem('userToken', data.token);
         setShowPinSuccess(true);
         setPinError('');
       }

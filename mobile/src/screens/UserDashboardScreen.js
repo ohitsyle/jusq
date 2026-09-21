@@ -25,7 +25,7 @@ import {
   CheckCircle2, XCircle, MessageSquare, ArrowDownLeft, ArrowUpRight,
   Monitor, Wallet, Store, Bus, Star, KeyRound, AlertTriangle, LogOut,
   X, ChevronRight, Inbox, Receipt, Check,
-  Send, Gift, Bell, Info, AlertOctagon, Search, ArrowRight, Sparkles, TrendingUp, Ticket, Navigation, ShieldCheck,
+  Send, Gift, Bell, Info, AlertOctagon, Search, ArrowRight, TrendingUp, Navigation, ShieldCheck,
 } from 'lucide-react-native';
 
 const ALERT_SEVERITY = {
@@ -38,6 +38,7 @@ import api from '../services/api';
 import ChangePinModal from './ChangePinModal';
 import DeactivateAccountModal from './DeactivateAccountModal';
 import SendMoneyModal from './SendMoneyModal';
+import PromosTab from './PromosTab';
 
 const AUTO_REFRESH_INTERVAL = 30000;
 const THEME_KEY = '@nucash_user_theme';
@@ -147,7 +148,7 @@ export default function UserDashboardScreen({ navigation, route }) {
   const [systemAlerts, setSystemAlerts] = useState([]);
   const [dismissedAlerts, setDismissedAlerts] = useState([]);
   const [recentTrips, setRecentTrips] = useState([]);
-  const [tripCount, setTripCount] = useState(0);
+  const [trips, setTrips] = useState([]);
   const [promos, setPromos] = useState([]);
   const [promoTabEnabled, setPromoTabEnabled] = useState(false);
 
@@ -200,7 +201,7 @@ export default function UserDashboardScreen({ navigation, route }) {
 
       // Ported extras (best-effort; token-authed via api interceptor)
       api.get('/system-alerts/active').then((r) => setSystemAlerts(Array.isArray(r.data) ? r.data : [])).catch(() => {});
-      api.get('/user/trips').then((r) => { setRecentTrips((r.data?.trips || []).filter((t) => !t.isRefund).slice(0, 4)); setTripCount(r.data?.totalTrips || 0); }).catch(() => {});
+      api.get('/user/trips').then((r) => { const all = r.data?.trips || []; setTrips(all); setRecentTrips(all.filter((t) => !t.isRefund).slice(0, 4)); }).catch(() => {});
       api.get('/user/promos').then((r) => { setPromos(r.data?.promos || []); setPromoTabEnabled(!!r.data?.tabEnabled); }).catch(() => {});
 
       initialLoadDone.current = true;
@@ -601,43 +602,7 @@ export default function UserDashboardScreen({ navigation, route }) {
     </>
   );
 
-  const renderPromos = () => (
-    <>
-      <Text style={styles.pageTitle}>Promotions</Text>
-      {promos.length === 0 ? (
-        <EmptyState theme={theme} Icon={Ticket} text="No active promotions right now" />
-      ) : (
-        promos.map((p, i) => {
-          const goal = p.minimumRides || 0;
-          const pct = goal ? Math.min(100, Math.round((tripCount / goal) * 100)) : 0;
-          return (
-            <View key={p._id || i} style={styles.promoCard}>
-              <View style={styles.promoTop}>
-                <View style={styles.promoIcon}><Sparkles size={20} color={theme.accent} /></View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.promoTitle}>{p.title}</Text>
-                  <Text style={styles.promoDesc}>{p.description}</Text>
-                </View>
-              </View>
-              {goal > 0 && (
-                <View style={{ marginTop: 12 }}>
-                  <View style={styles.progressLabelRow}>
-                    <Text style={styles.progressLabel}>Your progress</Text>
-                    <Text style={styles.progressValue}>{tripCount} / {goal} rides</Text>
-                  </View>
-                  <View style={styles.progressTrack}>
-                    <View style={[styles.progressFill, { width: `${pct}%` }]} />
-                  </View>
-                  {pct >= 100 && <Text style={styles.progressDone}>You qualify for this reward!</Text>}
-                </View>
-              )}
-            </View>
-          );
-        })
-      )}
-      <Text style={styles.promoNote}>Progress is based on your recorded shuttle trips. Detailed loyalty points are coming soon.</Text>
-    </>
-  );
+  const renderPromos = () => <PromosTab promos={promos} trips={trips} theme={theme} />;
 
   if (loading) {
     return (
@@ -1007,20 +972,6 @@ const makeStyles = (t) =>
     tripIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: t.accentSoft, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
     tripName: { color: t.text, fontSize: 14, fontWeight: '700' },
     tripDate: { color: t.textMuted, fontSize: 12, marginTop: 2 },
-
-    // Promotions
-    promoCard: { backgroundColor: t.card, borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1.5, borderColor: `${t.accent}55` },
-    promoTop: { flexDirection: 'row', gap: 12 },
-    promoIcon: { width: 42, height: 42, borderRadius: 12, backgroundColor: t.accentSoft, justifyContent: 'center', alignItems: 'center' },
-    promoTitle: { color: t.text, fontSize: 15, fontWeight: '800' },
-    promoDesc: { color: t.textSecondary, fontSize: 13, marginTop: 2 },
-    progressLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-    progressLabel: { color: t.textSecondary, fontSize: 12 },
-    progressValue: { color: t.text, fontSize: 12, fontWeight: '800' },
-    progressTrack: { height: 10, borderRadius: 5, backgroundColor: t.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', overflow: 'hidden' },
-    progressFill: { height: '100%', borderRadius: 5, backgroundColor: t.accent },
-    progressDone: { color: t.success, fontSize: 12, fontWeight: '700', marginTop: 6 },
-    promoNote: { color: t.textMuted, fontSize: 11, textAlign: 'center', marginTop: 8, lineHeight: 16 },
 
     // Transfer modal
     tSendIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: t.accentSoft, justifyContent: 'center', alignItems: 'center' },

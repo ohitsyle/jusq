@@ -146,9 +146,19 @@ const verifyUserToken = async (req, res, next) => {
 
     // Logins issued before a security sign-out (e.g. transfer PIN lockout) are dead,
     // and nobody can use the account while it's locked.
-    if ((user.sessionsValidAfter && (decoded.iat || 0) * 1000 < user.sessionsValidAfter.getTime())
-        || (user.transferLockedUntil && user.transferLockedUntil > new Date())) {
-      return res.status(401).json({ error: 'You were signed out for security. Please sign in again.' });
+    if (user.transferLockedUntil && user.transferLockedUntil > new Date()) {
+      const mins = Math.ceil((user.transferLockedUntil - Date.now()) / 60000);
+      return res.status(401).json({
+        error: `Your account is locked for ${mins} more minute${mins === 1 ? '' : 's'} after 3 wrong PINs. Check your email for details.`,
+        locked: true,
+        signedOut: true
+      });
+    }
+    if (user.sessionsValidAfter && (decoded.iat || 0) * 1000 < user.sessionsValidAfter.getTime()) {
+      return res.status(401).json({
+        error: 'You were signed out because your PIN was changed or your account was secured on another device. Please sign in again.',
+        signedOut: true
+      });
     }
 
     req.user = user;
@@ -163,6 +173,17 @@ const verifyUserToken = async (req, res, next) => {
     return res.status(500).json({ error: 'Server error' });
   }
 };
+
+// Signs out every device logged into this account. JWT iat is in whole seconds,
+// so the cutoff is floored to the second — a token issued right after (the
+// device that made the change) stays valid.
+const revokeUserSessions = () => new Date(Math.floor(Date.now() / 1000) * 1000);
+
+const issueUserToken = (user) => jwt.sign(
+  { id: user._id, role: user.role, userId: user.userId },
+  getJWTSecret(),
+  { expiresIn: '24h' }
+);
 
 /**
  * GET /api/user/balance
@@ -1106,7 +1127,7 @@ router.post('/send-pin-change-otp', verifyUserToken, async (req, res) => {
     }
 
     if (!isValidPin) {
-      return res.status(401).json({ error: 'Current PIN is incorrect' });
+      return res.status(400).json({ error: 'Current PIN is incorrect' });
     }
 
     if (currentPin === newPin) {
@@ -1171,13 +1192,15 @@ router.post('/change-pin', verifyUserToken, async (req, res) => {
     }
 
     if (storedData.otp !== otp) {
-      return res.status(401).json({ error: 'Invalid verification code' });
+      return res.status(400).json({ error: 'Invalid verification code' });
     }
 
     // OTP is valid, change the PIN
     const salt = await bcrypt.genSalt(10);
     user.pin = await bcrypt.hash(storedData.newPin, salt);
     user.pinChangedAt = new Date();
+    // A new PIN signs out every other phone and browser; this device gets a fresh token.
+    user.sessionsValidAfter = revokeUserSessions();
     await user.save();
 
     // Clear OTP
@@ -1187,7 +1210,8 @@ router.post('/change-pin', verifyUserToken, async (req, res) => {
 
     return res.json({
       success: true,
-      message: 'PIN changed successfully'
+      message: 'PIN changed successfully',
+      token: issueUserToken(user)
     });
   } catch (error) {
     console.error('Error changing PIN:', error);
@@ -1267,7 +1291,7 @@ router.post('/deactivate-account', verifyUserToken, async (req, res) => {
     }
 
     if (storedData.otp !== otp) {
-      return res.status(401).json({ error: 'Invalid verification code' });
+      return res.status(400).json({ error: 'Invalid verification code' });
     }
 
     // Clear OTP
@@ -1277,8 +1301,7 @@ router.post('/deactivate-account', verifyUserToken, async (req, res) => {
     user.isActive = false;
     user.isDeactivated = true;
     user.deactivatedAt = new Date();
-    user.isDeactivated = true;
-    user.deactivatedAt = new Date();
+    user.sessionsValidAfter = revokeUserSessions();
     await user.save();
 
     // Log the deactivation for admin audit trail
@@ -1325,20 +1348,9 @@ router.post('/deactivate-account', verifyUserToken, async (req, res) => {
  * POST /api/user/request-transaction-history
  * Send transaction history to user's email
  */
-router.post('/request-transaction-history', async (req, res) => {
+router.post('/request-transaction-history', verifyUserToken, async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'No token provided' });
-    }
-
-    const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, getJWTSecret());
-
-    const user = await User.findById(decoded.id);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
+    const user = req.user;
 
     const { startDate, endDate, type } = req.body;
 
