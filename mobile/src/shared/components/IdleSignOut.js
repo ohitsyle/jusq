@@ -13,7 +13,7 @@ import { Modal, View, Text, TouchableOpacity, StyleSheet, AppState, Accessibilit
 import Svg, { Circle } from 'react-native-svg';
 import { Clock, LogOut } from 'lucide-react-native';
 
-export const IDLE_MINUTES = 10;
+export const IDLE_MINUTES = 5;
 const WARNING_SECONDS = 60;
 const IDLE_MS = IDLE_MINUTES * 60 * 1000;
 const SIGN_OUT_MS = IDLE_MS + WARNING_SECONDS * 1000;
