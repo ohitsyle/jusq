@@ -2,7 +2,7 @@
 // Treasury admin modal for processing cash-in transactions
 
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Wallet, CreditCard, AlertCircle, CheckCircle, User, Loader2, ArrowRight, Clock, UserPlus, Edit3 } from 'lucide-react';
+import { X, Wallet, CreditCard, AlertCircle, CheckCircle, User, Loader2, ArrowRight, Clock, UserPlus, Edit3, Smartphone } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../utils/api';
 import { toast } from 'react-toastify';
@@ -20,6 +20,9 @@ const maskRfid = (rfid) => {
 // Default preset amounts for quick selection
 const DEFAULT_PRESET_AMOUNTS = [100, 200, 300, 500, 1000];
 const STORAGE_KEY = 'cashin_preset_amounts';
+// Phone as card reader (testing aid): the app's hidden Scanner Mode sends taps
+// here using the pairing code this window shows.
+const PHONE_READER_KEY = 'treasury_phone_reader';
 
 export default function CashInModal({ isOpen, onClose, onSuccess, onRegisterUser, prefillRfid = '' }) {
   const { theme, isDarkMode } = useTheme();
@@ -30,6 +33,9 @@ export default function CashInModal({ isOpen, onClose, onSuccess, onRegisterUser
   const countdownRef = useRef(null);
 
   const [rfidInput, setRfidInput] = useState('');
+  const [tappedOnPhone, setTappedOnPhone] = useState(false);
+  const [phoneReaderOn, setPhoneReaderOn] = useState(() => localStorage.getItem(PHONE_READER_KEY) === '1');
+  const [pairCode, setPairCode] = useState('');
   const [normalizedRfid, setNormalizedRfid] = useState('');
   const [user, setUser] = useState(null);
   const [selectedAmount, setSelectedAmount] = useState(null);
@@ -89,9 +95,46 @@ export default function CashInModal({ isOpen, onClose, onSuccess, onRegisterUser
     };
   }, [step, countdown]);
 
+  // Pair once (the server keeps the same code for this admin until "Stop")
+  useEffect(() => {
+    if (!isOpen || !phoneReaderOn || pairCode) return;
+    api.post('/admin/treasury/scanner/pair')
+      .then((r) => setPairCode(r?.code || ''))
+      .catch(() => { toast.error('Could not set up the phone reader'); setPhoneReaderOn(false); });
+  }, [isOpen, phoneReaderOn, pairCode]);
+
+  // While waiting for a card, pick up taps sent from the paired phone
+  const searchRef = useRef(null);
+  useEffect(() => {
+    if (!isOpen || step !== 1 || !pairCode || searching) return;
+    const t = setInterval(async () => {
+      try {
+        const r = await api.get('/admin/treasury/scanner/latest');
+        if (r?.uid) {
+          setRfidInput(r.uid);
+          setTappedOnPhone(true);
+          searchRef.current(r.uid, { fromPhone: true });
+        }
+      } catch { /* keep listening */ }
+    }, 1200);
+    return () => clearInterval(t);
+  }, [isOpen, step, pairCode, searching]);
+
+  const startPhoneReader = () => {
+    localStorage.setItem(PHONE_READER_KEY, '1');
+    setPhoneReaderOn(true);
+  };
+  const stopPhoneReader = () => {
+    localStorage.removeItem(PHONE_READER_KEY);
+    setPhoneReaderOn(false);
+    setPairCode('');
+    api.delete('/admin/treasury/scanner/pair').catch(() => {});
+  };
+
   const resetForm = () => {
     setStep(1);
     setRfidInput('');
+    setTappedOnPhone(false);
     setNormalizedRfid('');
     setUser(null);
     setSelectedAmount(null);
@@ -116,7 +159,7 @@ export default function CashInModal({ isOpen, onClose, onSuccess, onRegisterUser
 
   // Search for user by RFID. Accepts an optional rfid (used when pre-filled
   // from the register modal) to avoid relying on async state.
-  const handleSearchUser = async (rfidArg) => {
+  const handleSearchUser = async (rfidArg, { fromPhone = false } = {}) => {
     const raw = (typeof rfidArg === 'string' ? rfidArg : rfidInput).trim();
     if (!raw) {
       toast.error('Please scan or enter RFID');
@@ -125,8 +168,9 @@ export default function CashInModal({ isOpen, onClose, onSuccess, onRegisterUser
 
     setSearching(true);
     try {
-      // Normalize to little-endian hex format
-      const hexRfid = normalizeRfidHex(raw);
+      // Normalize to little-endian hex format. A phone reads the chip ID as-is,
+      // which is also how the app and driver phones store and look up cards.
+      const hexRfid = fromPhone ? raw.replace(/[\s:-]/g, '').toUpperCase() : normalizeRfidHex(raw);
       setNormalizedRfid(hexRfid);
 
       // Search for user using the admin treasury endpoint
@@ -150,6 +194,8 @@ export default function CashInModal({ isOpen, onClose, onSuccess, onRegisterUser
       setSearching(false);
     }
   };
+
+  searchRef.current = handleSearchUser; // for the phone-reader poll
 
   // Handle Enter key on RFID input
   const handleRfidKeyDown = (e) => {
@@ -441,7 +487,7 @@ export default function CashInModal({ isOpen, onClose, onSuccess, onRegisterUser
                   ref={rfidInputRef}
                   type="text"
                   value={rfidInput}
-                  onChange={(e) => setRfidInput(e.target.value.toUpperCase())}
+                  onChange={(e) => { setRfidInput(e.target.value.toUpperCase()); setTappedOnPhone(false); }}
                   onKeyDown={handleRfidKeyDown}
                   placeholder="Scan or enter RFID..."
                   style={{
@@ -454,10 +500,59 @@ export default function CashInModal({ isOpen, onClose, onSuccess, onRegisterUser
                 />
                 {rfidInput && (
                   <p style={{ color: theme.text.tertiary }} className="text-xs mt-2">
-                    Will search as: <span className="font-mono">{normalizeRfidHex(rfidInput)}</span>
+                    {tappedOnPhone
+                      ? 'Tapped on the paired phone'
+                      : <>Will search as: <span className="font-mono">{normalizeRfidHex(rfidInput)}</span></>}
                   </p>
                 )}
               </div>
+
+              {/* Phone as card reader (for testing without a USB reader) */}
+              {phoneReaderOn ? (
+                <div
+                  style={{ background: 'rgba(16,185,129,0.06)', borderColor: 'rgba(16,185,129,0.35)' }}
+                  className="p-4 rounded-xl border"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <Smartphone className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                      <div>
+                        <p style={{ color: theme.text.primary }} className="font-semibold text-sm">Phone card reader</p>
+                        <p style={{ color: theme.text.secondary }} className="text-xs flex items-center gap-1.5">
+                          <span className="relative flex w-2 h-2">
+                            <span className="absolute inline-flex w-full h-full rounded-full bg-emerald-400 opacity-75 animate-ping" />
+                            <span className="relative inline-flex w-2 h-2 rounded-full bg-emerald-500" />
+                          </span>
+                          {searching ? 'Looking up the card…' : 'Waiting for a tap on the phone'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p style={{ color: theme.text.tertiary }} className="text-[10px] font-bold uppercase tracking-wider">Pairing code</p>
+                      <p className="font-mono text-2xl font-extrabold tracking-[0.2em] text-emerald-500">
+                        {pairCode ? `${pairCode.slice(0, 3)} ${pairCode.slice(3)}` : '··· ···'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2 mt-3">
+                    <p style={{ color: theme.text.tertiary }} className="text-xs">
+                      In the NUCash app: tap the logo 7 times → Treasury cash-in → enter this code.
+                    </p>
+                    <button type="button" onClick={stopPhoneReader} style={{ color: theme.text.secondary }} className="text-xs font-semibold underline hover:opacity-80">
+                      Stop using phone
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={startPhoneReader}
+                  style={{ color: theme.text.secondary, borderColor: theme.border.primary }}
+                  className="w-full py-2.5 rounded-xl border border-dashed text-sm font-semibold flex items-center justify-center gap-2 hover:opacity-80 transition-opacity"
+                >
+                  <Smartphone className="w-4 h-4" /> Use phone as card reader
+                </button>
+              )}
 
               <div className="flex gap-3 pt-2">
                 <button

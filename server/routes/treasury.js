@@ -9,7 +9,8 @@ import Merchant from '../models/Merchant.js';
 import UserConcern from '../models/UserConcern.js';
 import { logAdminAction, logCashIn, logAutoExportConfigChange, logManualExport } from '../utils/logger.js';
 import { sendTemporaryPIN, sendConcernInProgressEmail, sendConcernResolvedEmail } from '../services/emailService.js';
-import { convertRfidToHexLittleEndian, validateRfidFormat } from '../utils/rfidConverter.js';
+import { convertRfidToHexLittleEndian, validateRfidFormat, rfidLookupValues } from '../utils/rfidConverter.js';
+import { pairTreasury, unpairTreasury, takeTreasuryScan } from '../utils/scanRelay.js';
 import { extractAdminInfo } from '../middlewares/extractAdminInfo.js';
 import { requireAdminAuthForMutations } from '../middlewares/requireAdminAuth.js';
 
@@ -544,6 +545,24 @@ router.get('/search-user/:rfid', async (req, res) => {
 });
 
 /**
+ * Phone as card reader (testing aid). The Cash-In window shows a 6-digit
+ * code; the app's Scanner Mode sends taps with it; the window collects them.
+ * POST   /api/admin/treasury/scanner/pair    -> { code } (same code until disconnected)
+ * GET    /api/admin/treasury/scanner/latest  -> { uid | null } (each tap once)
+ * DELETE /api/admin/treasury/scanner/pair    -> disconnect the phone
+ */
+router.post('/scanner/pair', (req, res) => {
+  res.json({ success: true, code: pairTreasury(String(req.authAdmin.id)) });
+});
+router.get('/scanner/latest', (req, res) => {
+  res.json({ uid: takeTreasuryScan(String(req.authAdmin.id)) });
+});
+router.delete('/scanner/pair', (req, res) => {
+  unpairTreasury(String(req.authAdmin.id));
+  res.json({ success: true });
+});
+
+/**
  * GET /api/admin/treasury/users/search-rfid
  * Search for user by RFID
  */
@@ -558,8 +577,8 @@ router.get('/users/search-rfid', async (req, res) => {
       });
     }
 
-    // Canonicalize so a raw or already-converted RFID both match what's stored.
-    const user = await User.findOne({ rfidUId: convertRfidToHexLittleEndian(rfidUId) });
+    // Reader-converted or raw phone chip ID — either matches what's stored.
+    const user = await User.findOne({ rfidUId: { $in: rfidLookupValues(rfidUId) } });
 
     if (!user) {
       return res.status(404).json({
@@ -614,8 +633,8 @@ router.post('/cash-in', async (req, res) => {
     if (userId) {
       user = await User.findOne({ userId });
     } else if (rfid) {
-      // Canonicalize so a raw or already-converted RFID both match what's stored.
-      user = await User.findOne({ rfidUId: convertRfidToHexLittleEndian(rfid) });
+      // Reader-converted or raw phone chip ID — either matches what's stored.
+      user = await User.findOne({ rfidUId: { $in: rfidLookupValues(rfid) } });
     }
 
     if (!user) {

@@ -56,6 +56,18 @@ export function convertRfidToHexLittleEndian(rfid) {
 }
 
 /**
+ * Stored card IDs come in two forms: the USB-reader value converted above
+ * (Treasury / kiosk registration) and a phone's raw chip ID (registered in
+ * the app, or tapped on a phone used as a reader). Lookups try both.
+ * @param {string} rfid
+ * @returns {string[]}
+ */
+export function rfidLookupValues(rfid) {
+  const cleaned = String(rfid || '').replace(/[\s:-]/g, '').toUpperCase();
+  return [...new Set([convertRfidToHexLittleEndian(cleaned), cleaned].filter(Boolean))];
+}
+
+/**
  * Validate RFID tag format
  * @param {string} rfid - The RFID tag to validate
  * @returns {boolean} - True if valid format

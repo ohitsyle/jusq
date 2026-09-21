@@ -1,13 +1,15 @@
 // src/screens/ScannerModeScreen.js
-// SECRET testing tool: turns the phone into an RFID scanner for the web kiosk.
-// Reads a real card via NFC and relays its UID to the server; the kiosk page
-// (idle) polls /kiosk/relay/latest and reacts as if the card was tapped on a
-// USB reader. Reached by tapping the NUCash logo 7x on the login screen.
+// SECRET testing tool: turns the phone into an RFID scanner for the web kiosk
+// or a Treasury Cash-In window. Reads a real card via NFC and relays its UID
+// through the server; the page reacts as if the card was tapped on a USB
+// reader. Treasury needs the 6-digit pairing code shown on its Cash-In screen.
+// Reached by tapping the NUCash logo 7x on the login screen.
 
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Animated, Easing } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Animated, Easing } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Nfc, ArrowLeft, CheckCircle2, XCircle, Send, Wifi } from 'lucide-react-native';
+import { Nfc, ArrowLeft, CheckCircle2, XCircle, Send, Wifi, Monitor, Wallet } from 'lucide-react-native';
 import NFCService from '../services/NFCService';
 import api from '../services/api';
 
@@ -16,13 +18,43 @@ const NAVY2 = '#181D40';
 const YELLOW = '#FFD41C';
 const TEXT = '#FBFBFB';
 const MUTED = 'rgba(251,251,251,0.6)';
+const PREFS_KEY = 'scanner_mode_prefs'; // { target, code }
+const TARGETS = {
+  kiosk: { label: 'Kiosk', Icon: Monitor, name: 'kiosk' },
+  treasury: { label: 'Treasury cash-in', Icon: Wallet, name: 'Treasury' },
+};
 
 export default function ScannerModeScreen({ navigation }) {
   const [phase, setPhase] = useState('ready'); // ready | scanning | sending | sent | error
   const [uid, setUid] = useState('');
   const [error, setError] = useState('');
+  const [target, setTarget] = useState('kiosk');
+  const [code, setCode] = useState('');
   const pulse = useRef(new Animated.Value(1)).current;
   const mounted = useRef(true);
+  const dest = TARGETS[target];
+  const needsCode = target === 'treasury' && code.length !== 6;
+
+  // Remember where scans go (and the pairing code) between visits
+  useEffect(() => {
+    AsyncStorage.getItem(PREFS_KEY).then((v) => {
+      try {
+        const p = JSON.parse(v || '{}');
+        if (TARGETS[p.target]) setTarget(p.target);
+        if (typeof p.code === 'string') setCode(p.code);
+      } catch { /* ignore */ }
+    });
+  }, []);
+  useEffect(() => {
+    AsyncStorage.setItem(PREFS_KEY, JSON.stringify({ target, code })).catch(() => {});
+  }, [target, code]);
+
+  const chooseTarget = (t) => {
+    if (phase === 'scanning' || phase === 'sending') return;
+    setTarget(t);
+    setPhase('ready');
+    setError('');
+  };
 
   useEffect(() => {
     mounted.current = true;
@@ -50,12 +82,14 @@ export default function ScannerModeScreen({ navigation }) {
       }
       setUid(result.uid);
       setPhase('sending');
-      await api.post('/kiosk/relay', { uid: result.uid });
+      await api.post('/kiosk/relay', target === 'treasury'
+        ? { uid: result.uid, target, code }
+        : { uid: result.uid });
       if (!mounted.current) return;
       setPhase('sent');
     } catch (e) {
       if (!mounted.current) return;
-      setError(e?.response?.data?.error || 'Failed to send to kiosk. Check the connection.');
+      setError(e?.response?.data?.error || `Failed to send to the ${dest.name}. Check the connection.`);
       setPhase('error');
     }
   };
@@ -69,8 +103,38 @@ export default function ScannerModeScreen({ navigation }) {
         </TouchableOpacity>
         <View>
           <Text style={styles.title}>Scanner Mode</Text>
-          <Text style={styles.subtitle}>Testing tool — relays card taps to the kiosk</Text>
+          <Text style={styles.subtitle}>Testing tool — relays card taps to the web</Text>
         </View>
+      </View>
+
+      {/* where taps go */}
+      <View style={styles.targetWrap}>
+        <Text style={styles.targetLabel}>SEND TAPS TO</Text>
+        <View style={styles.segment}>
+          {Object.entries(TARGETS).map(([key, t]) => {
+            const on = key === target;
+            return (
+              <TouchableOpacity key={key} style={[styles.segBtn, on && styles.segBtnOn]} onPress={() => chooseTarget(key)} activeOpacity={0.85}>
+                <t.Icon size={16} color={on ? NAVY2 : MUTED} />
+                <Text style={[styles.segText, on && styles.segTextOn]}>{t.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        {target === 'treasury' && (
+          <View style={styles.codeRow}>
+            <Text style={styles.codeLabel}>Pairing code</Text>
+            <TextInput
+              value={code}
+              onChangeText={(v) => setCode(v.replace(/\D/g, '').slice(0, 6))}
+              keyboardType="number-pad"
+              maxLength={6}
+              placeholder="000000"
+              placeholderTextColor="rgba(251,251,251,0.25)"
+              style={styles.codeInput}
+            />
+          </View>
+        )}
       </View>
 
       <View style={styles.body}>
@@ -80,7 +144,11 @@ export default function ScannerModeScreen({ navigation }) {
               <Nfc size={64} color={YELLOW} />
             </Animated.View>
             <Text style={styles.big}>Ready to scan</Text>
-            <Text style={styles.hint}>Open the kiosk page on your laptop, then tap the button and hold a card to the back of the phone.</Text>
+            <Text style={styles.hint}>
+              {target === 'treasury'
+                ? 'On the laptop, open Treasury → Cash-In and choose "Use phone as card reader". Type the 6-digit code it shows above, then tap the button and hold a card to the back of the phone.'
+                : 'Open the kiosk page on your laptop, then tap the button and hold a card to the back of the phone.'}
+            </Text>
           </>
         )}
 
@@ -97,7 +165,7 @@ export default function ScannerModeScreen({ navigation }) {
         {phase === 'sending' && (
           <>
             <ActivityIndicator size="large" color={YELLOW} />
-            <Text style={styles.big}>Sending to kiosk…</Text>
+            <Text style={styles.big}>Sending to {dest.name}…</Text>
             <Text style={styles.uid}>{uid}</Text>
           </>
         )}
@@ -107,9 +175,11 @@ export default function ScannerModeScreen({ navigation }) {
             <View style={[styles.ring, { borderColor: 'rgba(34,197,94,0.4)' }]}>
               <CheckCircle2 size={64} color="#22C55E" />
             </View>
-            <Text style={styles.big}>Sent to kiosk!</Text>
+            <Text style={styles.big}>Sent to {dest.name}!</Text>
             <Text style={styles.uid}>{uid}</Text>
-            <Text style={styles.hint}>The kiosk should react within a second or two.</Text>
+            <Text style={styles.hint}>
+              {target === 'treasury' ? 'The Cash-In window should show the student within a second or two.' : 'The kiosk should react within a second or two.'}
+            </Text>
           </>
         )}
 
@@ -126,19 +196,24 @@ export default function ScannerModeScreen({ navigation }) {
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.scanBtn, phase === 'scanning' && { opacity: 0.6 }]}
+          style={[styles.scanBtn, (phase === 'scanning' || needsCode) && { opacity: 0.5 }]}
           onPress={scan}
-          disabled={phase === 'scanning' || phase === 'sending'}
+          disabled={phase === 'scanning' || phase === 'sending' || needsCode}
           activeOpacity={0.85}
         >
           {phase === 'sent' ? <Send size={20} color={NAVY2} /> : <Nfc size={20} color={NAVY2} />}
           <Text style={styles.scanBtnText}>
-            {phase === 'ready' ? 'Scan a card' : phase === 'sent' || phase === 'error' ? 'Scan another card' : 'Scanning…'}
+            {needsCode ? 'Enter the pairing code first'
+              : phase === 'ready' ? 'Scan a card' : phase === 'sent' || phase === 'error' ? 'Scan another card' : 'Scanning…'}
           </Text>
         </TouchableOpacity>
         <View style={styles.netRow}>
           <Wifi size={12} color={MUTED} />
-          <Text style={styles.netText}>Relays through the NUCash server — kiosk must be on its idle screen</Text>
+          <Text style={styles.netText}>
+            {target === 'treasury'
+              ? 'Relays through the NUCash server — Cash-In must be waiting for a card'
+              : 'Relays through the NUCash server — kiosk must be on its idle screen'}
+          </Text>
         </View>
       </View>
     </SafeAreaView>
@@ -166,5 +241,18 @@ const styles = StyleSheet.create({
   },
   scanBtnText: { color: NAVY2, fontSize: 17, fontWeight: '800' },
   netRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 12 },
-  netText: { color: MUTED, fontSize: 11 },
+  netText: { color: MUTED, fontSize: 11, textAlign: 'center', flexShrink: 1 },
+  targetWrap: { paddingHorizontal: 18, paddingTop: 16 },
+  targetLabel: { color: MUTED, fontSize: 11, fontWeight: '800', letterSpacing: 1.2, marginBottom: 8 },
+  segment: { flexDirection: 'row', gap: 6, padding: 5, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,212,28,0.2)' },
+  segBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 11, borderRadius: 10 },
+  segBtnOn: { backgroundColor: YELLOW },
+  segText: { color: MUTED, fontSize: 13.5, fontWeight: '700' },
+  segTextOn: { color: NAVY2 },
+  codeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, gap: 12 },
+  codeLabel: { color: TEXT, fontSize: 14, fontWeight: '700' },
+  codeInput: {
+    flex: 1, maxWidth: 200, borderRadius: 12, borderWidth: 2, borderColor: 'rgba(255,212,28,0.4)', backgroundColor: 'rgba(255,255,255,0.04)',
+    color: YELLOW, fontSize: 24, fontWeight: '800', letterSpacing: 6, textAlign: 'center', paddingVertical: 8, fontFamily: 'monospace',
+  },
 });
