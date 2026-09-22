@@ -2,13 +2,30 @@
 // Full page for admin profile with personal info and password management
 
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, ClipboardList, Lock, Mail, Shield, User } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ClipboardList, Eye, EyeOff, Lock, Mail, Shield, User } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
+
+// Profile colours follow the theme: the yellow accent (dark mode) becomes the
+// blue accent in light mode, and faint white overlays become faint navy.
+function useProfileColors() {
+  const { theme, isDarkMode } = useTheme();
+  return {
+    accent: theme.accent.primary,
+    onAccent: theme.accent.secondary,
+    tint: (a) => (isDarkMode ? `rgba(255,212,28,${a})` : `rgba(59,130,246,${a})`),
+    ink: (a) => (isDarkMode ? `rgba(251,251,251,${a})` : `rgba(24,29,64,${a})`),
+    avatarBg: isDarkMode ? 'linear-gradient(135deg, #FFD41C 0%, #F59E0B 100%)' : 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+    surface: isDarkMode ? '#1E2347' : '#FFFFFF',
+    tabIdleBg: isDarkMode ? 'rgba(30, 35, 71, 0.4)' : '#FFFFFF',
+  };
+}
+
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 export default function ProfilePage() {
     const { theme, isDarkMode } = useTheme();
+    const P = useProfileColors();
   const [adminData, setAdminData] = useState(() => {
     const data = localStorage.getItem('adminData');
     return data ? JSON.parse(data) : null;
@@ -209,33 +226,33 @@ export default function ProfilePage() {
 
   const renderPersonalInfo = () => (
     <div style={{
-      background: theme.bg.tertiary,
+      background: isDarkMode ? theme.bg.tertiary : '#FFFFFF',
       borderRadius: '16px',
       border: `1px solid ${theme.border.primary}`,
       overflow: 'hidden'
     }}>
       {/* Profile Header */}
       <div style={{
-        background: 'linear-gradient(135deg, rgba(255,212,28,0.2) 0%, rgba(255,212,28,0.05) 100%)',
+        background: `linear-gradient(135deg, ${P.tint(0.2)} 0%, ${P.tint(0.05)} 100%)`,
         padding: '40px',
         display: 'flex',
         alignItems: 'center',
         gap: '24px',
-        borderBottom: '1px solid rgba(255,212,28,0.2)'
+        borderBottom: `1px solid ${P.tint(0.2)}`
       }}>
         {/* Avatar */}
         <div style={{
           width: '100px',
           height: '100px',
           borderRadius: '50%',
-          background: 'linear-gradient(135deg, #FFD41C 0%, #F59E0B 100%)',
+          background: P.avatarBg,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           fontSize: '40px',
           fontWeight: 800,
           color: theme.accent.secondary,
-          boxShadow: '0 0 0 6px rgba(255,212,28,0.2)'
+          boxShadow: `0 0 0 6px ${P.tint(0.2)}`
         }}>
           {getInitials()}
         </div>
@@ -253,8 +270,8 @@ export default function ProfilePage() {
           <div style={{
             display: 'inline-block',
             padding: '6px 16px',
-            background: 'rgba(255,212,28,0.2)',
-            border: '1px solid rgba(255,212,28,0.4)',
+            background: P.tint(0.2),
+            border: `1px solid ${P.tint(0.4)}`,
             borderRadius: '20px',
             color: theme.accent.primary,
             fontSize: '13px',
@@ -296,16 +313,16 @@ export default function ProfilePage() {
 
   const renderSecuritySettings = () => (
     <div style={{
-      background: theme.bg.tertiary,
+      background: isDarkMode ? theme.bg.tertiary : '#FFFFFF',
       borderRadius: '16px',
       border: `1px solid ${theme.border.primary}`,
       overflow: 'hidden'
     }}>
       {/* Security Header */}
       <div style={{
-        background: 'rgba(255,212,28,0.05)',
+        background: P.tint(0.05),
         padding: '24px 32px',
-        borderBottom: '1px solid rgba(255,212,28,0.2)'
+        borderBottom: `1px solid ${P.tint(0.2)}`
       }}>
         <h3 style={{
           fontSize: '18px',
@@ -389,7 +406,7 @@ export default function ProfilePage() {
                   }}
                   aria-label={field.show ? 'Hide PIN' : 'Show PIN'}
                 >
-                  {field.show ? '🙈' : '👁️'}
+                  {field.show ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
               {field.hint && (
@@ -406,7 +423,7 @@ export default function ProfilePage() {
             style={{
               width: '100%', padding: '14px', marginTop: '6px',
               background: (loading || formData.oldPin.length !== 6 || formData.newPin.length !== 6 || formData.confirmPin.length !== 6)
-                ? (isDarkMode ? 'rgba(255, 212, 28, 0.3)' : 'rgba(59,130,246,0.3)')
+                ? (isDarkMode ? P.tint(0.3) : 'rgba(59,130,246,0.3)')
                 : theme.accent.primary,
               color: isDarkMode ? '#181D40' : '#FFFFFF',
               border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: 700,
@@ -463,7 +480,7 @@ export default function ProfilePage() {
             marginBottom: '24px',
             textAlign: 'center'
           }}>
-            <div style={{ fontSize: '32px', marginBottom: '8px' }}>📧</div>
+            <Mail className="w-8 h-8 mx-auto mb-2" style={{ color: '#3B82F6' }} />
             <div style={{
               fontSize: '14px',
               color: '#3B82F6',
@@ -502,7 +519,7 @@ export default function ProfilePage() {
               style={{
                 width: '100%',
                 padding: '14px',
-                border: '2px solid rgba(255, 212, 28, 0.3)',
+                border: `2px solid ${P.tint(0.3)}`,
                 borderRadius: '10px',
                 background: theme.bg.tertiary,
                 color: theme.text.primary,
@@ -531,8 +548,8 @@ export default function ProfilePage() {
               width: '100%',
               padding: '14px',
               background: loading || formData.otp.length !== 6
-                ? 'rgba(255, 212, 28, 0.3)'
-                : '#FFD41C',
+                ? P.tint(0.3)
+                : P.accent,
               color: theme.accent.secondary,
               border: 'none',
               borderRadius: '10px',
@@ -558,7 +575,7 @@ export default function ProfilePage() {
 
       {step === 3 && (
         <div style={{ textAlign: 'center', padding: '40px 0', maxWidth: '500px', margin: '0 auto' }}>
-          <div style={{ fontSize: '80px', marginBottom: '24px' }}>✅</div>
+          <CheckCircle2 className="w-20 h-20 mx-auto mb-6" style={{ color: '#22C55E' }} />
           <h3 style={{
             fontSize: '24px',
             fontWeight: 700,
@@ -578,7 +595,7 @@ export default function ProfilePage() {
             onClick={resetPasswordForm}
             style={{
               padding: '14px 32px',
-              background: '#FFD41C',
+              background: P.accent,
               color: theme.accent.secondary,
               border: 'none',
               borderRadius: '10px',
@@ -614,16 +631,16 @@ export default function ProfilePage() {
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: isDarkMode ? '#1a1f3a' : theme.bg.secondary,
+              background: isDarkMode ? P.surface : theme.bg.secondary,
               borderRadius: '16px',
               padding: '32px',
               maxWidth: '400px',
               width: '90%',
-              border: '2px solid rgba(255, 212, 28, 0.3)',
+              border: `2px solid ${P.tint(0.3)}`,
               textAlign: 'center'
             }}
           >
-            <div className="text-5xl mb-4">⚠️</div>
+            <AlertTriangle className="w-12 h-12 mx-auto mb-4" style={{ color: '#F59E0B' }} />
             <h3 style={{
               fontSize: '18px',
               fontWeight: 700,
@@ -645,9 +662,9 @@ export default function ProfilePage() {
                 style={{
                   flex: 1,
                   padding: '12px',
-                  background: 'rgba(251, 251, 251, 0.1)',
+                  background: P.ink(0.1),
                   color: theme.text.secondary,
-                  border: '1px solid rgba(251, 251, 251, 0.2)',
+                  border: `1px solid ${P.ink(0.2)}`,
                   borderRadius: '8px',
                   fontSize: '14px',
                   fontWeight: 600,
@@ -664,7 +681,7 @@ export default function ProfilePage() {
                 style={{
                   flex: 1,
                   padding: '12px',
-                  background: '#FFD41C',
+                  background: P.accent,
                   color: theme.accent.secondary,
                   border: 'none',
                   borderRadius: '8px',
@@ -714,15 +731,15 @@ export default function ProfilePage() {
           style={{
             padding: '12px 24px',
             background: activeSection === 'personal'
-              ? 'rgba(255, 212, 28, 0.15)'
-              : 'rgba(30, 35, 71, 0.4)',
+              ? P.tint(0.15)
+              : P.tabIdleBg,
             border: activeSection === 'personal'
-              ? '2px solid rgba(255, 212, 28, 0.4)'
-              : '2px solid rgba(255, 212, 28, 0.1)',
+              ? `2px solid ${P.tint(0.4)}`
+              : `2px solid ${P.tint(0.1)}`,
             borderRadius: '12px',
             color: activeSection === 'personal'
-              ? '#FFD41C'
-              : 'rgba(251, 251, 251, 0.7)',
+              ? P.accent
+              : P.ink(0.7),
             fontSize: '14px',
             fontWeight: activeSection === 'personal' ? 700 : 600,
             cursor: 'pointer',
@@ -740,15 +757,15 @@ export default function ProfilePage() {
           style={{
             padding: '12px 24px',
             background: activeSection === 'security'
-              ? 'rgba(255, 212, 28, 0.15)'
-              : 'rgba(30, 35, 71, 0.4)',
+              ? P.tint(0.15)
+              : P.tabIdleBg,
             border: activeSection === 'security'
-              ? '2px solid rgba(255, 212, 28, 0.4)'
-              : '2px solid rgba(255, 212, 28, 0.1)',
+              ? `2px solid ${P.tint(0.4)}`
+              : `2px solid ${P.tint(0.1)}`,
             borderRadius: '12px',
             color: activeSection === 'security'
-              ? '#FFD41C'
-              : 'rgba(251, 251, 251, 0.7)',
+              ? P.accent
+              : P.ink(0.7),
             fontSize: '14px',
             fontWeight: activeSection === 'security' ? 700 : 600,
             cursor: 'pointer',
@@ -775,8 +792,8 @@ export default function ProfilePage() {
           <div style={{
             width: '40px',
             height: '40px',
-            border: '4px solid rgba(255, 212, 28, 0.2)',
-            borderTopColor: '#FFD41C',
+            border: `4px solid ${P.tint(0.2)}`,
+            borderTopColor: P.accent,
             borderRadius: '50%',
             animation: 'spin 0.8s linear infinite'
           }} />
@@ -794,6 +811,7 @@ export default function ProfilePage() {
 // Info Field Component
 function InfoField({ label, value, highlight, fullWidth }) {
   const { theme, isDarkMode } = useTheme();
+  const P = useProfileColors();
   const getHighlightColor = () => {
     if (highlight === 'success') return { bg: 'rgba(34, 197, 94, 0.15)', border: 'rgba(34, 197, 94, 0.3)', color: '#22C55E' };
     if (highlight === 'error') return { bg: 'rgba(239, 68, 68, 0.15)', border: 'rgba(239, 68, 68, 0.3)', color: '#EF4444' };

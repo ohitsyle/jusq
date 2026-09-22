@@ -8,8 +8,25 @@ import api from '../../utils/api';
 import { toast } from 'react-toastify';
 import { User, Shield, Eye, EyeOff, AlertTriangle, CheckCircle, X, KeyRound, Lock, Mail, ClipboardList, Clock } from 'lucide-react';
 
+// Profile colours follow the theme: the yellow accent (dark mode) becomes the
+// blue accent in light mode, and faint white overlays become faint navy.
+function useProfileColors() {
+  const { theme, isDarkMode } = useTheme();
+  return {
+    accent: theme.accent.primary,
+    onAccent: theme.accent.secondary,
+    tint: (a) => (isDarkMode ? `rgba(255,212,28,${a})` : `rgba(59,130,246,${a})`),
+    ink: (a) => (isDarkMode ? `rgba(251,251,251,${a})` : `rgba(24,29,64,${a})`),
+    avatarBg: isDarkMode ? 'linear-gradient(135deg, #FFD41C 0%, #F59E0B 100%)' : 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+    surface: isDarkMode ? '#1E2347' : '#FFFFFF',
+    tabIdleBg: isDarkMode ? 'rgba(30, 35, 71, 0.4)' : '#FFFFFF',
+  };
+}
+
+
 export default function UserProfile() {
   const { theme, isDarkMode } = useTheme();
+  const P = useProfileColors();
   const [activeTab, setActiveTab] = useState('profile');
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -308,13 +325,13 @@ export default function UserProfile() {
         justifyContent: 'center',
         alignItems: 'center',
         padding: '80px 20px',
-        color: 'rgba(251, 251, 251, 0.6)'
+        color: P.ink(0.6)
       }}>
         <div style={{
           width: '40px',
           height: '40px',
-          border: '4px solid rgba(255, 212, 28, 0.2)',
-          borderTopColor: '#FFD41C',
+          border: `4px solid ${P.tint(0.2)}`,
+          borderTopColor: P.accent,
           borderRadius: '50%',
           animation: 'spin 0.8s linear infinite'
         }} />
@@ -332,31 +349,31 @@ export default function UserProfile() {
     <div style={{
       background: isDarkMode ? 'rgba(255,255,255,0.05)' : '#FFFFFF',
       borderRadius: '16px',
-      border: '1px solid rgba(255,212,28,0.2)',
+      border: `1px solid ${P.tint(0.2)}`,
       overflow: 'hidden'
     }}>
       {/* Profile Header */}
       <div className="profile-header" style={{
-        background: 'linear-gradient(135deg, rgba(255,212,28,0.2) 0%, rgba(255,212,28,0.05) 100%)',
+        background: `linear-gradient(135deg, ${P.tint(0.2)} 0%, ${P.tint(0.05)} 100%)`,
         padding: '40px',
         display: 'flex',
         alignItems: 'center',
         gap: '24px',
-        borderBottom: '1px solid rgba(255,212,28,0.2)'
+        borderBottom: `1px solid ${P.tint(0.2)}`
       }}>
         {/* Avatar */}
         <div className="profile-avatar" style={{
           width: '100px',
           height: '100px',
           borderRadius: '50%',
-          background: 'linear-gradient(135deg, #FFD41C 0%, #F59E0B 100%)',
+          background: P.avatarBg,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           fontSize: '40px',
           fontWeight: 800,
-          color: '#181D40',
-          boxShadow: '0 0 0 6px rgba(255,212,28,0.2)',
+          color: P.onAccent,
+          boxShadow: `0 0 0 6px ${P.tint(0.2)}`,
           flexShrink: 0
         }}>
           {getInitials()}
@@ -367,7 +384,7 @@ export default function UserProfile() {
           <h2 className="profile-name" style={{
             fontSize: '28px',
             fontWeight: 700,
-            color: '#FBFBFB',
+            color: P.ink(1),
             margin: '0 0 8px 0',
             wordBreak: 'break-word'
           }}>
@@ -376,10 +393,10 @@ export default function UserProfile() {
           <div style={{
             display: 'inline-block',
             padding: '6px 16px',
-            background: 'rgba(255,212,28,0.2)',
-            border: '1px solid rgba(255,212,28,0.4)',
+            background: P.tint(0.2),
+            border: `1px solid ${P.tint(0.4)}`,
             borderRadius: '20px',
-            color: '#FFD41C',
+            color: P.accent,
             fontSize: '13px',
             fontWeight: 700,
             textTransform: 'uppercase',
@@ -410,19 +427,19 @@ export default function UserProfile() {
     <div style={{
       background: isDarkMode ? 'rgba(255,255,255,0.05)' : '#FFFFFF',
       borderRadius: '16px',
-      border: '1px solid rgba(255,212,28,0.2)',
+      border: `1px solid ${P.tint(0.2)}`,
       overflow: 'hidden'
     }}>
       {/* Security Header */}
       <div style={{
-        background: 'rgba(255,212,28,0.05)',
+        background: P.tint(0.05),
         padding: '24px 32px',
-        borderBottom: '1px solid rgba(255,212,28,0.2)'
+        borderBottom: `1px solid ${P.tint(0.2)}`
       }}>
         <h3 style={{
           fontSize: '18px',
           fontWeight: 700,
-          color: '#FFD41C',
+          color: P.accent,
           margin: '0 0 8px 0',
           display: 'flex',
           alignItems: 'center',
@@ -469,14 +486,14 @@ export default function UserProfile() {
           {/* Change PIN Section */}
           <div className="pin-section" style={{
             padding: '24px',
-            background: 'rgba(255, 212, 28, 0.1)',
-            border: '2px solid rgba(255, 212, 28, 0.3)',
+            background: P.tint(0.1),
+            border: `2px solid ${P.tint(0.3)}`,
             borderRadius: '12px'
           }}>
             <h4 style={{
               fontSize: '16px',
               fontWeight: 700,
-              color: '#FFD41C',
+              color: P.accent,
               marginBottom: '20px',
               display: 'flex',
               alignItems: 'center',
@@ -517,7 +534,7 @@ export default function UserProfile() {
                     marginBottom: '8px',
                     fontSize: '12px',
                     fontWeight: 700,
-                    color: '#FFD41C',
+                    color: P.accent,
                     textTransform: 'uppercase',
                     letterSpacing: '0.5px'
                   }}>
@@ -539,10 +556,10 @@ export default function UserProfile() {
                       style={{
                         width: '100%',
                         padding: '14px 45px 14px 14px',
-                        border: '2px solid rgba(255, 212, 28, 0.3)',
+                        border: `2px solid ${P.tint(0.3)}`,
                         borderRadius: '10px',
-                        background: 'rgba(251, 251, 251, 0.05)',
-                        color: 'rgba(251, 251, 251, 0.9)',
+                        background: P.ink(0.05),
+                        color: P.ink(0.9),
                         fontSize: '24px',
                         fontWeight: 700,
                         letterSpacing: '12px',
@@ -562,7 +579,7 @@ export default function UserProfile() {
                         background: 'none',
                         border: 'none',
                         cursor: 'pointer',
-                        color: 'rgba(251, 251, 251, 0.5)',
+                        color: P.ink(0.5),
                         padding: '4px'
                       }}
                     >
@@ -577,7 +594,7 @@ export default function UserProfile() {
                     marginBottom: '8px',
                     fontSize: '12px',
                     fontWeight: 700,
-                    color: '#FFD41C',
+                    color: P.accent,
                     textTransform: 'uppercase',
                     letterSpacing: '0.5px'
                   }}>
@@ -599,10 +616,10 @@ export default function UserProfile() {
                       style={{
                         width: '100%',
                         padding: '14px 45px 14px 14px',
-                        border: '2px solid rgba(255, 212, 28, 0.3)',
+                        border: `2px solid ${P.tint(0.3)}`,
                         borderRadius: '10px',
-                        background: 'rgba(251, 251, 251, 0.05)',
-                        color: 'rgba(251, 251, 251, 0.9)',
+                        background: P.ink(0.05),
+                        color: P.ink(0.9),
                         fontSize: '24px',
                         fontWeight: 700,
                         letterSpacing: '12px',
@@ -622,7 +639,7 @@ export default function UserProfile() {
                         background: 'none',
                         border: 'none',
                         cursor: 'pointer',
-                        color: 'rgba(251, 251, 251, 0.5)',
+                        color: P.ink(0.5),
                         padding: '4px'
                       }}
                     >
@@ -637,7 +654,7 @@ export default function UserProfile() {
                     marginBottom: '8px',
                     fontSize: '12px',
                     fontWeight: 700,
-                    color: '#FFD41C',
+                    color: P.accent,
                     textTransform: 'uppercase',
                     letterSpacing: '0.5px'
                   }}>
@@ -659,10 +676,10 @@ export default function UserProfile() {
                       style={{
                         width: '100%',
                         padding: '14px 45px 14px 14px',
-                        border: '2px solid rgba(255, 212, 28, 0.3)',
+                        border: `2px solid ${P.tint(0.3)}`,
                         borderRadius: '10px',
-                        background: 'rgba(251, 251, 251, 0.05)',
-                        color: 'rgba(251, 251, 251, 0.9)',
+                        background: P.ink(0.05),
+                        color: P.ink(0.9),
                         fontSize: '24px',
                         fontWeight: 700,
                         letterSpacing: '12px',
@@ -682,7 +699,7 @@ export default function UserProfile() {
                         background: 'none',
                         border: 'none',
                         cursor: 'pointer',
-                        color: 'rgba(251, 251, 251, 0.5)',
+                        color: P.ink(0.5),
                         padding: '4px'
                       }}
                     >
@@ -691,7 +708,7 @@ export default function UserProfile() {
                   </div>
                   <p style={{
                     fontSize: '11px',
-                    color: 'rgba(251, 251, 251, 0.5)',
+                    color: P.ink(0.5),
                     marginTop: '8px',
                     marginBottom: 0
                   }}>
@@ -706,9 +723,9 @@ export default function UserProfile() {
                     width: '100%',
                     padding: '14px',
                     background: sendingOtp || pinForm.currentPin.length !== 6 || pinForm.newPin.length !== 6 || pinForm.confirmPin.length !== 6
-                      ? 'rgba(255, 212, 28, 0.3)'
-                      : '#FFD41C',
-                    color: '#181D40',
+                      ? P.tint(0.3)
+                      : P.accent,
+                    color: P.onAccent,
                     border: 'none',
                     borderRadius: '10px',
                     fontSize: '14px',
@@ -731,7 +748,7 @@ export default function UserProfile() {
                         width: '14px',
                         height: '14px',
                         border: '2px solid rgba(24, 29, 64, 0.3)',
-                        borderTopColor: '#181D40',
+                        borderTopColor: P.onAccent,
                         borderRadius: '50%',
                         animation: 'spin 0.8s linear infinite'
                       }} />
@@ -767,19 +784,19 @@ export default function UserProfile() {
                   <p style={{
                     fontSize: '14px',
                     fontWeight: 600,
-                    color: '#FBFBFB',
+                    color: P.ink(1),
                     marginBottom: '8px'
                   }}>
                     Check your email
                   </p>
                   <p style={{
                     fontSize: '12px',
-                    color: 'rgba(251, 251, 251, 0.7)',
+                    color: P.ink(0.7),
                     lineHeight: '1.5',
                     margin: 0
                   }}>
                     We sent a 6-digit code to<br />
-                    <strong style={{ color: '#FFD41C' }}>{userData?.email}</strong>
+                    <strong style={{ color: P.accent }}>{userData?.email}</strong>
                   </p>
                 </div>
 
@@ -789,7 +806,7 @@ export default function UserProfile() {
                     marginBottom: '8px',
                     fontSize: '12px',
                     fontWeight: 700,
-                    color: '#FFD41C',
+                    color: P.accent,
                     textTransform: 'uppercase',
                     letterSpacing: '0.5px',
                     textAlign: 'center'
@@ -810,10 +827,10 @@ export default function UserProfile() {
                     style={{
                       width: '100%',
                       padding: '16px',
-                      background: 'rgba(251, 251, 251, 0.05)',
-                      border: '2px solid rgba(255, 212, 28, 0.3)',
+                      background: P.ink(0.05),
+                      border: `2px solid ${P.tint(0.3)}`,
                       borderRadius: '10px',
-                      color: 'rgba(251, 251, 251, 0.9)',
+                      color: P.ink(0.9),
                       fontSize: '28px',
                       fontWeight: 700,
                       letterSpacing: '0.5em',
@@ -824,7 +841,7 @@ export default function UserProfile() {
                   />
                   <p style={{
                     fontSize: '11px',
-                    color: 'rgba(251, 251, 251, 0.5)',
+                    color: P.ink(0.5),
                     textAlign: 'center',
                     marginTop: '12px',
                     marginBottom: 0
@@ -836,7 +853,7 @@ export default function UserProfile() {
                       style={{
                         background: 'none',
                         border: 'none',
-                        color: '#FFD41C',
+                        color: P.accent,
                         fontWeight: 700,
                         cursor: sendingOtp ? 'not-allowed' : 'pointer',
                         textDecoration: 'underline',
@@ -855,9 +872,9 @@ export default function UserProfile() {
                     style={{
                       flex: 1,
                       padding: '14px',
-                      background: 'rgba(251, 251, 251, 0.1)',
-                      color: 'rgba(251, 251, 251, 0.7)',
-                      border: '1px solid rgba(251, 251, 251, 0.2)',
+                      background: P.ink(0.1),
+                      color: P.ink(0.7),
+                      border: `1px solid ${P.ink(0.2)}`,
                       borderRadius: '10px',
                       fontSize: '14px',
                       fontWeight: 600,
@@ -873,8 +890,8 @@ export default function UserProfile() {
                     style={{
                       flex: 1,
                       padding: '14px',
-                      background: changingPin || pinForm.otp.length !== 6 ? 'rgba(255, 212, 28, 0.3)' : '#FFD41C',
-                      color: '#181D40',
+                      background: changingPin || pinForm.otp.length !== 6 ? P.tint(0.3) : P.accent,
+                      color: P.onAccent,
                       border: 'none',
                       borderRadius: '10px',
                       fontSize: '14px',
@@ -894,7 +911,7 @@ export default function UserProfile() {
                           width: '14px',
                           height: '14px',
                           border: '2px solid rgba(24, 29, 64, 0.3)',
-                          borderTopColor: '#181D40',
+                          borderTopColor: P.onAccent,
                           borderRadius: '50%',
                           animation: 'spin 0.8s linear infinite'
                         }} />
@@ -940,7 +957,7 @@ export default function UserProfile() {
                 <span style={{
                   fontSize: '11px',
                   fontWeight: 700,
-                  color: 'rgba(251, 251, 251, 0.5)',
+                  color: P.ink(0.5),
                   textTransform: 'uppercase',
                   letterSpacing: '0.5px'
                 }}>
@@ -997,7 +1014,7 @@ export default function UserProfile() {
 
                   <p style={{
                     fontSize: '13px',
-                    color: 'rgba(251, 251, 251, 0.7)',
+                    color: P.ink(0.7),
                     marginBottom: '16px',
                     lineHeight: '1.6'
                   }}>
@@ -1028,7 +1045,7 @@ export default function UserProfile() {
                     </p>
                     <p style={{
                       fontSize: '11px',
-                      color: 'rgba(251, 251, 251, 0.7)',
+                      color: P.ink(0.7),
                       margin: 0,
                       lineHeight: '1.4',
                       textAlign: 'center'
@@ -1101,19 +1118,19 @@ export default function UserProfile() {
                   <p style={{
                     fontSize: '13px',
                     fontWeight: 600,
-                    color: '#FBFBFB',
+                    color: P.ink(1),
                     marginBottom: '6px'
                   }}>
                     Check your email
                   </p>
                   <p style={{
                     fontSize: '11px',
-                    color: 'rgba(251, 251, 251, 0.7)',
+                    color: P.ink(0.7),
                     lineHeight: '1.4',
                     margin: 0
                   }}>
                     We sent a code to<br />
-                    <strong style={{ color: '#FFD41C' }}>{userData?.email}</strong>
+                    <strong style={{ color: P.accent }}>{userData?.email}</strong>
                   </p>
                 </div>
 
@@ -1122,7 +1139,7 @@ export default function UserProfile() {
                     display: 'block',
                     fontSize: '12px',
                     fontWeight: 700,
-                    color: '#FBFBFB',
+                    color: P.ink(1),
                     marginBottom: '8px',
                     textAlign: 'center'
                   }}>
@@ -1141,10 +1158,10 @@ export default function UserProfile() {
                     style={{
                       width: '100%',
                       padding: '14px',
-                      background: 'rgba(251, 251, 251, 0.05)',
-                      border: '2px solid rgba(255, 212, 28, 0.3)',
+                      background: P.ink(0.05),
+                      border: `2px solid ${P.tint(0.3)}`,
                       borderRadius: '10px',
-                      color: 'rgba(251, 251, 251, 0.9)',
+                      color: P.ink(0.9),
                       fontSize: '24px',
                       fontWeight: 700,
                       letterSpacing: '0.5em',
@@ -1155,7 +1172,7 @@ export default function UserProfile() {
                   />
                   <p style={{
                     fontSize: '10px',
-                    color: 'rgba(251, 251, 251, 0.5)',
+                    color: P.ink(0.5),
                     textAlign: 'center',
                     marginTop: '10px',
                     marginBottom: 0
@@ -1167,7 +1184,7 @@ export default function UserProfile() {
                       style={{
                         background: 'none',
                         border: 'none',
-                        color: '#FFD41C',
+                        color: P.accent,
                         fontWeight: 700,
                         cursor: sendingDeactivationOtp ? 'not-allowed' : 'pointer',
                         textDecoration: 'underline',
@@ -1186,9 +1203,9 @@ export default function UserProfile() {
                     style={{
                       flex: 1,
                       padding: '12px',
-                      background: 'rgba(251, 251, 251, 0.1)',
-                      color: 'rgba(251, 251, 251, 0.7)',
-                      border: '1px solid rgba(251, 251, 251, 0.2)',
+                      background: P.ink(0.1),
+                      color: P.ink(0.7),
+                      border: `1px solid ${P.ink(0.2)}`,
                       borderRadius: '10px',
                       fontSize: '13px',
                       fontWeight: 600,
@@ -1264,7 +1281,7 @@ export default function UserProfile() {
 
             <p style={{
               fontSize: '13px',
-              color: 'rgba(251, 251, 251, 0.7)',
+              color: P.ink(0.7),
               marginBottom: '16px',
               lineHeight: '1.6',
               flex: 1
@@ -1293,7 +1310,7 @@ export default function UserProfile() {
               </p>
               <p style={{
                 fontSize: '12px',
-                color: 'rgba(251, 251, 251, 0.7)',
+                color: P.ink(0.7),
                 margin: 0,
                 lineHeight: '1.5'
               }}>
@@ -1362,7 +1379,7 @@ export default function UserProfile() {
           </h4>
           <ul style={{
             fontSize: '13px',
-            color: 'rgba(251, 251, 251, 0.7)',
+            color: P.ink(0.7),
             margin: 0,
             paddingLeft: '20px',
             lineHeight: '1.6'
@@ -1382,13 +1399,13 @@ export default function UserProfile() {
       {/* Header */}
       <div style={{
         marginBottom: '30px',
-        borderBottom: '2px solid rgba(255,212,28,0.2)',
+        borderBottom: `2px solid ${P.tint(0.2)}`,
         paddingBottom: '20px'
       }}>
         <h2 style={{
           fontSize: '24px',
           fontWeight: 'bold',
-          color: '#FFD41C',
+          color: P.accent,
           margin: '0 0 8px 0',
           display: 'flex',
           alignItems: 'center',
@@ -1416,15 +1433,15 @@ export default function UserProfile() {
           style={{
             padding: '12px 24px',
             background: activeTab === 'profile'
-              ? 'rgba(255, 212, 28, 0.15)'
-              : 'rgba(30, 35, 71, 0.4)',
+              ? P.tint(0.15)
+              : P.tabIdleBg,
             border: activeTab === 'profile'
-              ? '2px solid rgba(255, 212, 28, 0.4)'
-              : '2px solid rgba(255, 212, 28, 0.1)',
+              ? `2px solid ${P.tint(0.4)}`
+              : `2px solid ${P.tint(0.1)}`,
             borderRadius: '12px',
             color: activeTab === 'profile'
-              ? '#FFD41C'
-              : 'rgba(251, 251, 251, 0.7)',
+              ? P.accent
+              : P.ink(0.7),
             fontSize: '14px',
             fontWeight: activeTab === 'profile' ? 700 : 600,
             cursor: 'pointer',
@@ -1442,15 +1459,15 @@ export default function UserProfile() {
           style={{
             padding: '12px 24px',
             background: activeTab === 'security'
-              ? 'rgba(255, 212, 28, 0.15)'
-              : 'rgba(30, 35, 71, 0.4)',
+              ? P.tint(0.15)
+              : P.tabIdleBg,
             border: activeTab === 'security'
-              ? '2px solid rgba(255, 212, 28, 0.4)'
-              : '2px solid rgba(255, 212, 28, 0.1)',
+              ? `2px solid ${P.tint(0.4)}`
+              : `2px solid ${P.tint(0.1)}`,
             borderRadius: '12px',
             color: activeTab === 'security'
-              ? '#FFD41C'
-              : 'rgba(251, 251, 251, 0.7)',
+              ? P.accent
+              : P.ink(0.7),
             fontSize: '14px',
             fontWeight: activeTab === 'security' ? 700 : 600,
             cursor: 'pointer',
@@ -1491,7 +1508,7 @@ export default function UserProfile() {
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: '#1E2347',
+              background: P.surface,
               borderRadius: '16px',
               maxWidth: '440px',
               width: '100%',
@@ -1524,7 +1541,7 @@ export default function UserProfile() {
                   style={{
                     background: 'none',
                     border: 'none',
-                    color: 'rgba(251, 251, 251, 0.7)',
+                    color: P.ink(0.7),
                     cursor: 'pointer',
                     padding: '4px'
                   }}
@@ -1552,7 +1569,7 @@ export default function UserProfile() {
               
               <p style={{
                 fontSize: '15px',
-                color: 'rgba(251, 251, 251, 0.9)',
+                color: P.ink(0.9),
                 marginBottom: '12px',
                 lineHeight: '1.6',
                 fontWeight: 600
@@ -1562,7 +1579,7 @@ export default function UserProfile() {
               
               <p style={{
                 fontSize: '14px',
-                color: 'rgba(251, 251, 251, 0.6)',
+                color: P.ink(0.6),
                 marginBottom: 0,
                 lineHeight: '1.5'
               }}>
@@ -1573,7 +1590,7 @@ export default function UserProfile() {
             {/* Footer */}
             <div style={{
               padding: '16px 32px 32px',
-              borderTop: '1px solid rgba(255, 212, 28, 0.1)'
+              borderTop: `1px solid ${P.tint(0.1)}`
             }}>
               <button
                 onClick={resetPinForm}
@@ -1621,7 +1638,7 @@ export default function UserProfile() {
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: '#1E2347',
+              background: P.surface,
               borderRadius: '16px',
               maxWidth: '460px',
               width: '100%',
@@ -1655,7 +1672,7 @@ export default function UserProfile() {
                   style={{
                     background: 'none',
                     border: 'none',
-                    color: 'rgba(251, 251, 251, 0.7)',
+                    color: P.ink(0.7),
                     cursor: deactivating ? 'not-allowed' : 'pointer',
                     padding: '4px',
                     opacity: deactivating ? 0.5 : 1
@@ -1705,18 +1722,18 @@ export default function UserProfile() {
                 <p style={{
                   fontSize: '15px',
                   fontWeight: 600,
-                  color: '#FBFBFB',
+                  color: P.ink(1),
                   marginBottom: '8px'
                 }}>
                   Check your email
                 </p>
                 <p style={{
                   fontSize: '13px',
-                  color: 'rgba(251, 251, 251, 0.7)',
+                  color: P.ink(0.7),
                   lineHeight: '1.5'
                 }}>
                   We sent a 6-digit verification code to<br />
-                  <strong style={{ color: '#FFD41C' }}>{userData?.email}</strong>
+                  <strong style={{ color: P.accent }}>{userData?.email}</strong>
                 </p>
               </div>
 
@@ -1725,7 +1742,7 @@ export default function UserProfile() {
                   display: 'block',
                   fontSize: '13px',
                   fontWeight: 700,
-                  color: '#FBFBFB',
+                  color: P.ink(1),
                   marginBottom: '8px',
                   textAlign: 'center'
                 }}>
@@ -1744,10 +1761,10 @@ export default function UserProfile() {
                   style={{
                     width: '100%',
                     padding: '16px',
-                    background: 'rgba(251, 251, 251, 0.05)',
-                    border: '2px solid rgba(255, 212, 28, 0.3)',
+                    background: P.ink(0.05),
+                    border: `2px solid ${P.tint(0.3)}`,
                     borderRadius: '10px',
-                    color: 'rgba(251, 251, 251, 0.9)',
+                    color: P.ink(0.9),
                     fontSize: '28px',
                     fontWeight: 700,
                     letterSpacing: '0.5em',
@@ -1760,7 +1777,7 @@ export default function UserProfile() {
 
               <p style={{
                 fontSize: '12px',
-                color: 'rgba(251, 251, 251, 0.5)',
+                color: P.ink(0.5),
                 textAlign: 'center',
                 marginTop: '16px',
                 marginBottom: 0
@@ -1772,7 +1789,7 @@ export default function UserProfile() {
                   style={{
                     background: 'none',
                     border: 'none',
-                    color: '#FFD41C',
+                    color: P.accent,
                     fontWeight: 700,
                     cursor: sendingDeactivationOtp ? 'not-allowed' : 'pointer',
                     textDecoration: 'underline',
@@ -1789,7 +1806,7 @@ export default function UserProfile() {
               display: 'flex',
               gap: '12px',
               padding: '16px 32px 32px',
-              borderTop: '1px solid rgba(255, 212, 28, 0.1)'
+              borderTop: `1px solid ${P.tint(0.1)}`
             }}>
               <button
                 onClick={handleCancelDeactivation}
@@ -1797,9 +1814,9 @@ export default function UserProfile() {
                 style={{
                   flex: 1,
                   padding: '14px',
-                  background: 'rgba(251, 251, 251, 0.1)',
-                  color: 'rgba(251, 251, 251, 0.7)',
-                  border: '1px solid rgba(251, 251, 251, 0.2)',
+                  background: P.ink(0.1),
+                  color: P.ink(0.7),
+                  border: `1px solid ${P.ink(0.2)}`,
                   borderRadius: '10px',
                   fontSize: '14px',
                   fontWeight: 600,
@@ -1947,7 +1964,7 @@ export default function UserProfile() {
             width: 70px !important;
             height: 70px !important;
             font-size: 28px !important;
-            box-shadow: 0 0 0 4px rgba(255,212,28,0.2) !important;
+            box-shadow: 0 0 0 4px ${P.tint(0.2)} !important;
           }
 
           .profile-name {
@@ -1967,6 +1984,7 @@ export default function UserProfile() {
 // Info Field Component
 function InfoField({ label, value, highlight, fullWidth }) {
   const { theme } = useTheme();
+  const P = useProfileColors();
   const getHighlightColor = () => {
     if (highlight === 'success') return { bg: 'rgba(34, 197, 94, 0.15)', border: 'rgba(34, 197, 94, 0.3)', color: '#22C55E' };
     if (highlight === 'error') return { bg: 'rgba(239, 68, 68, 0.15)', border: 'rgba(239, 68, 68, 0.3)', color: '#EF4444' };
@@ -1985,7 +2003,7 @@ function InfoField({ label, value, highlight, fullWidth }) {
         marginBottom: '8px',
         fontSize: '11px',
         fontWeight: 700,
-        color: 'rgba(255,212,28,0.8)',
+        color: P.tint(0.8),
         textTransform: 'uppercase',
         letterSpacing: '0.5px'
       }}>
@@ -1994,7 +2012,7 @@ function InfoField({ label, value, highlight, fullWidth }) {
       <div style={{
         padding: '12px 16px',
         background: highlightStyle ? highlightStyle.bg : theme.bg.tertiary,
-        border: `1px solid ${highlightStyle ? highlightStyle.border : 'rgba(255,212,28,0.1)'}`,
+        border: `1px solid ${highlightStyle ? highlightStyle.border : '${P.tint(0.1)}'}`,
         borderRadius: '8px',
         color: highlightStyle ? highlightStyle.color : theme.text.primary,
         fontSize: '15px',
