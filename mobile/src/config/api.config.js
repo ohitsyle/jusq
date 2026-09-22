@@ -13,7 +13,11 @@ const DEFAULT_PORT = 3000;
 
 // Default server (AWS) - used when no custom IP is configured.
 // This is the live production server the web app also points to.
-const DEFAULT_SERVER_URL = 'http://18.143.27.105:3000/api';
+const DEFAULT_SERVER_URL = 'https://nucash.me/api';
+
+// Plain-HTTP addresses the production server used before https://nucash.me.
+// A phone that saved one of them goes back to the default (see below).
+const RETIRED_SERVER_IPS = ['18.143.27.105', '54.251.11.39'];
 
 // Development/Production API URLs — all point to AWS by default
 const API_URLS = {
@@ -41,6 +45,11 @@ export const getStoredServerURL = async () => {
     const storedIP = await AsyncStorage.getItem(SERVER_URL_KEY);
     const storedPort = await AsyncStorage.getItem(SERVER_PORT_KEY);
 
+    if (storedIP && RETIRED_SERVER_IPS.includes(storedIP)) {
+      await AsyncStorage.multiRemove([SERVER_URL_KEY, SERVER_PORT_KEY]);
+      console.log(`🔁 Forgot old server ${storedIP}; using ${DEFAULT_SERVER_URL}`);
+      return null;
+    }
     if (storedIP) {
       const port = storedPort || DEFAULT_PORT;
       return `http://${storedIP}:${port}/api`;

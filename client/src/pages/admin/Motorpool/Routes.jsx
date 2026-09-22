@@ -60,7 +60,7 @@ function LocationMapPicker({ location, onLocationChange, onConfirm, pointLabel, 
       label: pointLabel,
       title: `Point ${pointLabel}`,
       icon: {
-        url: `http://maps.google.com/mapfiles/ms/icons/${iconColor}.png`
+        url: `https://maps.google.com/mapfiles/ms/icons/${iconColor}.png`
       },
       position: location.latitude && location.longitude
         ? { lat: location.latitude, lng: location.longitude }
