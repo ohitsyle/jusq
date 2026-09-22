@@ -1,6 +1,6 @@
 // src/pages/admin/Treasury/TreasuryDashboard.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Home } from 'lucide-react';
+import { Home, UserPlus } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
@@ -209,7 +209,7 @@ export default function TreasuryDashboard() {
             className="w-14 h-14 rounded-full flex items-center justify-center text-2xl flex-shrink-0"
             style={{ background: isDarkMode ? 'rgba(255,212,28,0.2)' : 'rgba(59,130,246,0.2)' }}
           >
-            👤
+            <UserPlus className="w-7 h-7" style={{ color: theme.accent.primary }} />
           </div>
           <div className="text-left">
             <h3 style={{ color: theme.accent.primary }} className="text-base font-bold m-0">Register New User</h3>

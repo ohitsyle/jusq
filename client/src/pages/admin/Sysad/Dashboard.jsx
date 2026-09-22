@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { toast } from 'react-toastify';
-import { Users, UserCheck, UserX, Shield, GraduationCap, Briefcase, Clock, Plus, CreditCard, Search, Check, Loader2, AlertCircle, X, ArrowRight, CheckCircle, ClipboardList, Home, Server, Wrench, FileDown, CalendarClock } from 'lucide-react';
+import { Users, UserCheck, UserX, Shield, GraduationCap, Briefcase, Clock, Plus, CreditCard, Search, Check, Loader2, AlertCircle, X, ArrowRight, CheckCircle, ClipboardList, Home, Server, Wrench, FileDown, CalendarClock, UserPlus } from 'lucide-react';
 import { convertToHexLittleEndian } from '../../../utils/rfidConverter';
 import AddUserModal from './AddUserModal';
 
@@ -207,7 +207,7 @@ export default function SysadDashboard() {
             style={{ background: isDarkMode ? 'rgba(255,212,28,0.2)' : 'rgba(59,130,246,0.2)' }}
             className="w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0 text-2xl"
           >
-            👤
+            <UserPlus className="w-7 h-7" style={{ color: theme.accent.primary }} />
           </div>
           <div>
             <p style={{ color: theme.accent.primary }} className="font-bold text-base m-0">Add User</p>

@@ -3,6 +3,7 @@
 
 import React from 'react';
 import { useTheme } from '../../context/ThemeContext';
+import { Sun, Moon } from 'lucide-react';
 
 export default function ThemeToggle() {
   const { isDarkMode, toggleTheme } = useTheme();
@@ -21,8 +22,7 @@ export default function ThemeToggle() {
         alignItems: 'center',
         justifyContent: 'center',
         cursor: 'pointer',
-        transition: 'all 0.3s ease',
-        fontSize: '18px'
+        transition: 'all 0.3s ease'
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.background = isDarkMode ? 'rgba(255, 212, 28, 0.25)' : 'rgba(24, 29, 64, 0.15)';
@@ -33,7 +33,9 @@ export default function ThemeToggle() {
         e.currentTarget.style.transform = 'scale(1) rotate(0deg)';
       }}
     >
-      {isDarkMode ? '☀️' : '🌙'}
+      {isDarkMode
+        ? <Sun style={{ width: 20, height: 20, color: '#FFD41C' }} />
+        : <Moon style={{ width: 19, height: 19, color: '#181D40' }} />}
     </button>
   );
 }

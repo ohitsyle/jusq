@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useTheme } from "../../context/ThemeContext";
 import { AppContext } from "../../context/AppContext";
 import ThemeToggle from "../common/ThemeToggle";
+import { User, LogOut } from 'lucide-react';
 
 export default function Header() {
   const { theme, isDarkMode } = useTheme();
@@ -297,7 +298,7 @@ export default function Header() {
                   e.currentTarget.style.color = theme.text.primary;
                 }}
               >
-                <span style={{ fontSize: '16px' }}>👤</span>
+                <User style={{ width: 16, height: 16 }} />
                 <span>Manage Account</span>
               </button>
 
@@ -334,7 +335,7 @@ export default function Header() {
                   e.currentTarget.style.background = 'transparent';
                 }}
               >
-                <span style={{ fontSize: '16px' }}>🚪</span>
+                <LogOut style={{ width: 16, height: 16 }} />
                 <span>Logout</span>
               </button>
             </div>

@@ -4,6 +4,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import ThemeToggle from '../common/ThemeToggle';
+import { User, LogOut } from 'lucide-react';
 
 export default function Header({ adminData, onLogout, onOpenProfile }) {
   const { theme, isDarkMode } = useTheme();
@@ -262,7 +263,7 @@ export default function Header({ adminData, onLogout, onOpenProfile }) {
                   e.currentTarget.style.color = theme.text.primary;
                 }}
               >
-                <span style={{ fontSize: '16px' }}>👤</span>
+                <User style={{ width: 16, height: 16 }} />
                 <span>Manage Profile</span>
               </button>
 
@@ -299,7 +300,7 @@ export default function Header({ adminData, onLogout, onOpenProfile }) {
                   e.currentTarget.style.background = 'transparent';
                 }}
               >
-                <span style={{ fontSize: '16px' }}>🚪</span>
+                <LogOut style={{ width: 16, height: 16 }} />
                 <span>Logout</span>
               </button>
             </div>
