@@ -481,13 +481,10 @@ router.get('/transfers', async (req, res) => {
     }
 
     const limit = forExport ? 5000 : 1000;
-    const [rows, totals] = await Promise.all([
+    const [rows, totalCount] = await Promise.all([
       Transaction.find(filter).sort({ createdAt: -1 }).limit(limit)
         .select('transactionId amount status createdAt userId schoolUId transferPeerSchoolId').lean(),
-      Transaction.aggregate([
-        { $match: filter },
-        { $group: { _id: null, count: { $sum: 1 }, total: { $sum: '$amount' }, senders: { $addToSet: '$userId' }, receivers: { $addToSet: '$transferPeerSchoolId' } } }
-      ])
+      Transaction.countDocuments(filter)
     ]);
 
     // Names for both sides. The sender is found by account, or by the school ID
@@ -514,14 +511,6 @@ router.get('/transfers', async (req, res) => {
       };
     });
 
-    const t = totals[0];
-    const summary = {
-      count: t?.count || 0,
-      total: round2(t?.total || 0),
-      senders: t?.senders.length || 0,
-      receivers: t?.receivers.length || 0
-    };
-
     if (forExport) {
       const admin = await Admin.findById(req.authAdmin?.id).select('firstName lastName adminId role').lean();
       logManualExport({
@@ -536,7 +525,8 @@ router.get('/transfers', async (req, res) => {
       }).catch(() => {});
     }
 
-    res.json({ success: true, transfers, summary, truncated: summary.count > transfers.length });
+    // totalCount: every match, so the page can say when it shows only the latest rows
+    res.json({ success: true, transfers, totalCount });
   } catch (error) {
     console.error('❌ Accounting transfers error:', error);
     res.status(500).json({ success: false, message: 'Could not load transfers' });

@@ -1,10 +1,10 @@
 // src/pages/admin/Accounting/Transfers.jsx
 // Accounting: every Send Money transfer between students/employees — who sent
-// how much to whom, with totals for the chosen dates. Read-only. Clicking a
+// how much to whom. Read-only. Clicking a
 // school ID narrows the list to that person's transfers (sent and received).
 import React, { useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
-import { ArrowLeftRight, ArrowRight, Search, Download, Users, Wallet, Hash, UserCheck, Inbox, X } from 'lucide-react';
+import { ArrowLeftRight, ArrowRight, Search, Download, Inbox, X } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { exportToCSV } from '../../../utils/csvExport';
@@ -20,8 +20,7 @@ const roleLabel = (r) => (r === 'employee' ? 'Employee' : r === 'student' ? 'Stu
 export default function Transfers() {
   const { theme, isDarkMode } = useTheme();
   const [transfers, setTransfers] = useState([]);
-  const [summary, setSummary] = useState({ count: 0, total: 0, senders: 0, receivers: 0 });
-  const [truncated, setTruncated] = useState(false);
+  const [totalCount, setTotalCount] = useState(0); // all matches; the list holds the latest 1,000
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [searchInput, setSearchInput] = useState('');
@@ -56,8 +55,7 @@ export default function Transfers() {
       const data = await api.get(`/admin/accounting/transfers?${query()}`);
       if (id !== latestRequest.current) return; // a newer search already answered
       setTransfers(data?.transfers || []);
-      setSummary(data?.summary || { count: 0, total: 0, senders: 0, receivers: 0 });
-      setTruncated(!!data?.truncated);
+      setTotalCount(data?.totalCount || 0);
     } catch {
       if (!silent) toast.error('Failed to load transfers');
     } finally {
@@ -107,13 +105,6 @@ export default function Transfers() {
   const pageRows = transfers.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
   const inputStyle = { background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary };
 
-  const cards = [
-    { label: 'Transfers', value: summary.count.toLocaleString(), Icon: Hash },
-    { label: 'Total sent', value: peso(summary.total), Icon: Wallet },
-    { label: 'People who sent', value: summary.senders.toLocaleString(), Icon: Users },
-    { label: 'People who received', value: summary.receivers.toLocaleString(), Icon: UserCheck }
-  ];
-
   const Person = ({ p }) => (
     <div className="text-left min-w-0">
       <div style={{ color: theme.text.primary }} className="font-semibold truncate">{p.name}</div>
@@ -139,18 +130,6 @@ export default function Transfers() {
           <p style={{ color: theme.text.secondary }} className="text-[13px] m-0">
             Money students and employees send each other • Refreshes every 30s
           </p>
-        </div>
-
-        {/* Summary for the current filters */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-          {cards.map(({ label, value, Icon }) => (
-            <div key={label} style={{ background: theme.bg.card, borderColor: `rgba(${baseColor}, 0.2)` }} className="rounded-xl border p-4">
-              <div style={{ color: theme.text.secondary }} className="text-xs font-semibold flex items-center gap-1.5 mb-1">
-                <Icon className="w-3.5 h-3.5" /> {label}
-              </div>
-              <div style={{ color: theme.text.primary }} className="text-xl font-extrabold">{loading ? '…' : value}</div>
-            </div>
-          ))}
         </div>
 
         {/* Actions bar */}
@@ -184,7 +163,7 @@ export default function Transfers() {
 
             <button
               onClick={handleExport}
-              disabled={exporting || summary.count === 0}
+              disabled={exporting || transfers.length === 0}
               style={{ background: 'rgba(16,185,129,0.15)', color: '#10B981', borderColor: 'rgba(16,185,129,0.3)' }}
               className="px-4 py-2 rounded-xl font-semibold text-sm border flex items-center gap-2 hover:opacity-80 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -248,8 +227,8 @@ export default function Transfers() {
 
             <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4" style={{ background: theme.bg.secondary, borderTop: `1px solid rgba(${baseColor}, 0.2)` }}>
               <div style={{ color: theme.text.secondary, fontSize: '13px' }}>
-                {truncated
-                  ? `Showing the latest ${transfers.length.toLocaleString()} of ${summary.count.toLocaleString()} — pick dates to see older ones`
+                {totalCount > transfers.length
+                  ? `Showing the latest ${transfers.length.toLocaleString()} of ${totalCount.toLocaleString()} — pick dates to see older ones`
                   : `Page ${page} of ${totalPages} (${transfers.length.toLocaleString()} total)`}
               </div>
               {totalPages > 1 && (
