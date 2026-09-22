@@ -1,6 +1,7 @@
 // src/screens/ScannerModeScreen.js
-// SECRET testing tool: turns the phone into an RFID scanner for the web kiosk
-// or a Treasury Cash-In window. Reads a real card via NFC and relays its UID
+// SECRET testing tool: turns the phone into an RFID scanner for the web kiosk,
+// a Treasury Cash-In window or System Admin's Add New User form. Reads a real
+// card via NFC and relays its UID
 // through the server; the page reacts as if the card was tapped on a USB
 // reader.
 // Reached by tapping the NUCash logo 7x on the login screen.
@@ -9,7 +10,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Animated, Easing } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Nfc, ArrowLeft, CheckCircle2, XCircle, Send, Wifi, Monitor, Wallet } from 'lucide-react-native';
+import { Nfc, ArrowLeft, CheckCircle2, XCircle, Send, Wifi, Monitor, Wallet, UserPlus } from 'lucide-react-native';
 import NFCService from '../services/NFCService';
 import api from '../services/api';
 
@@ -20,8 +21,24 @@ const TEXT = '#FBFBFB';
 const MUTED = 'rgba(251,251,251,0.6)';
 const PREFS_KEY = 'scanner_mode_prefs'; // { target }
 const TARGETS = {
-  kiosk: { label: 'Kiosk', Icon: Monitor, name: 'kiosk' },
-  treasury: { label: 'Treasury cash-in', Icon: Wallet, name: 'Treasury' },
+  kiosk: {
+    label: 'Kiosk', Icon: Monitor, name: 'kiosk',
+    ready: 'Open the kiosk page on your laptop, then tap the button and hold a card to the back of the phone.',
+    sent: 'The kiosk should react within a second or two.',
+    footer: 'Relays through the NUCash server — kiosk must be on its idle screen',
+  },
+  treasury: {
+    label: 'Treasury', Icon: Wallet, name: 'Treasury',
+    ready: 'On the laptop, open Treasury → Cash-In so it waits for a card, then tap the button and hold a card to the back of the phone.',
+    sent: 'The Cash-In window should show the student within a second or two.',
+    footer: 'Relays through the NUCash server — Cash-In must be waiting for a card',
+  },
+  sysad: {
+    label: 'Sysad', Icon: UserPlus, name: 'Sysad',
+    ready: 'On the laptop, open Manage Users → Add New User, then tap the button and hold the new user\'s card to the back of the phone.',
+    sent: 'The card should fill in on the Add New User form within a second or two.',
+    footer: 'Relays through the NUCash server — Add New User must be open',
+  },
 };
 
 export default function ScannerModeScreen({ navigation }) {
@@ -125,11 +142,7 @@ export default function ScannerModeScreen({ navigation }) {
               <Nfc size={64} color={YELLOW} />
             </Animated.View>
             <Text style={styles.big}>Ready to scan</Text>
-            <Text style={styles.hint}>
-              {target === 'treasury'
-                ? 'On the laptop, open Treasury → Cash-In so it waits for a card, then tap the button and hold a card to the back of the phone.'
-                : 'Open the kiosk page on your laptop, then tap the button and hold a card to the back of the phone.'}
-            </Text>
+            <Text style={styles.hint}>{dest.ready}</Text>
           </>
         )}
 
@@ -158,9 +171,7 @@ export default function ScannerModeScreen({ navigation }) {
             </View>
             <Text style={styles.big}>Sent to {dest.name}!</Text>
             <Text style={styles.uid}>{uid}</Text>
-            <Text style={styles.hint}>
-              {target === 'treasury' ? 'The Cash-In window should show the student within a second or two.' : 'The kiosk should react within a second or two.'}
-            </Text>
+            <Text style={styles.hint}>{dest.sent}</Text>
           </>
         )}
 
@@ -189,11 +200,7 @@ export default function ScannerModeScreen({ navigation }) {
         </TouchableOpacity>
         <View style={styles.netRow}>
           <Wifi size={12} color={MUTED} />
-          <Text style={styles.netText}>
-            {target === 'treasury'
-              ? 'Relays through the NUCash server — Cash-In must be waiting for a card'
-              : 'Relays through the NUCash server — kiosk must be on its idle screen'}
-          </Text>
+          <Text style={styles.netText}>{dest.footer}</Text>
         </View>
       </View>
     </SafeAreaView>

@@ -60,6 +60,10 @@ export default function AddUserModal({ theme, isDarkMode, onClose, onSuccess }) 
   const [schoolIdStatus, setSchoolIdStatus] = useState(null);
   const [validationError, setValidationError] = useState(null);
   const rfidInputRef = useRef(null);
+  // A phone reads the chip ID in the stored format already, so its taps skip
+  // the USB-reader conversion (which would scramble longer 7-byte IDs).
+  const [rfidFromPhone, setRfidFromPhone] = useState(false);
+  const storedRfid = (value = formData.rfidUId) => (rfidFromPhone ? value.trim() : normalizeRfidHex(value.trim()));
 
   useEffect(() => {
     if (rfidInputRef.current) {
@@ -72,34 +76,54 @@ export default function AddUserModal({ theme, isDarkMode, onClose, onSuccess }) 
   const emailTimer = useRef(null);
   const schoolIdTimer = useRef(null);
 
+  // Is this card free? (debounced; `cardId` is already in the stored format)
+  const checkRfid = (cardId, delay = 300) => {
+    if (rfidTimer.current) clearTimeout(rfidTimer.current);
+    rfidTimer.current = setTimeout(async () => {
+      if (cardId.length < 8) return;
+      setCheckingRfid(true);
+      try {
+        const response = await api.get(`/admin/sysad/users/check-rfid?rfidUId=${encodeURIComponent(cardId)}`);
+        setRfidStatus(response.available === true ? 'available' : 'taken');
+        setRfidOwner(response.owner || null);
+      } catch (error) {
+        console.error('RFID check error:', error);
+        setRfidStatus(null);
+      } finally {
+        setCheckingRfid(false);
+      }
+    }, delay);
+  };
+
   const handleRfidChange = async (e) => {
     const value = e.target.value.toUpperCase();
+    setRfidFromPhone(false); // typed or USB reader
     setFormData({ ...formData, rfidUId: value });
     setRfidStatus(null);
     setRfidOwner(null);
     setValidationError(null);
 
     if (!value.trim()) return;
-
-    // Debounce the check
-    if (rfidTimer.current) clearTimeout(rfidTimer.current);
-    rfidTimer.current = setTimeout(async () => {
-      const normalizedRfid = normalizeRfidHex(value.trim());
-      if (normalizedRfid.length >= 8) {
-        setCheckingRfid(true);
-        try {
-          const response = await api.get(`/admin/sysad/users/check-rfid?rfidUId=${normalizedRfid}`);
-          setRfidStatus(response.available === true ? 'available' : 'taken');
-          setRfidOwner(response.owner || null);
-        } catch (error) {
-          console.error('RFID check error:', error);
-          setRfidStatus(null);
-        } finally {
-          setCheckingRfid(false);
-        }
-      }
-    }, 300);
+    checkRfid(normalizeRfidHex(value.trim()));
   };
+
+  // Testing aid (no UI): while this form is open, pick up taps sent from the
+  // NUCash app's hidden Scanner Mode set to "Sysad".
+  useEffect(() => {
+    const t = setInterval(async () => {
+      try {
+        const r = await api.get('/admin/sysad/scanner/latest');
+        if (!r?.uid) return;
+        setRfidFromPhone(true);
+        setFormData((prev) => ({ ...prev, rfidUId: r.uid }));
+        setRfidStatus(null);
+        setRfidOwner(null);
+        setValidationError(null);
+        checkRfid(r.uid, 0);
+      } catch { /* keep listening */ }
+    }, 1200);
+    return () => clearInterval(t);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleEmailChange = async (e) => {
     const value = e.target.value;
@@ -211,7 +235,7 @@ export default function AddUserModal({ theme, isDarkMode, onClose, onSuccess }) 
 
       const payload = {
         ...formData,
-        rfidUId: normalizeRfidHex(formData.rfidUId.trim()),
+        rfidUId: storedRfid(),
         schoolUId: cleanSchoolId(formData.schoolUId), // strip formatting dashes
         pin: temporaryPin,
         // If it's an admin user, use the adminRole as the actual role
@@ -350,7 +374,7 @@ export default function AddUserModal({ theme, isDarkMode, onClose, onSuccess }) 
                 value={formData.rfidUId}
                 onChange={handleRfidChange}
                 onBlur={() => {
-                  if (formData.rfidUId.trim()) {
+                  if (formData.rfidUId.trim() && !rfidFromPhone) {
                     const converted = normalizeRfidHex(formData.rfidUId.trim());
                     setFormData(prev => ({ ...prev, rfidUId: converted }));
                   }
@@ -394,7 +418,7 @@ export default function AddUserModal({ theme, isDarkMode, onClose, onSuccess }) 
             )}
             {formData.rfidUId && !rfidStatus && (
               <p style={{ color: theme.text.tertiary }} className="text-xs mt-1">
-                Will be stored as: <span className="font-mono">{normalizeRfidHex(formData.rfidUId)}</span>
+                Will be stored as: <span className="font-mono">{storedRfid()}</span>
               </p>
             )}
           </div>

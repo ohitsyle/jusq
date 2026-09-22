@@ -68,10 +68,10 @@ function cardKey(req) {
 
 // ---- phone-as-scanner relay (for testing without a USB RFID reader) --------
 // A phone in the app's hidden Scanner Mode reads a card via NFC and POSTs the
-// UID here, picking the kiosk or a Treasury Cash-In window as the destination
-// (see utils/scanRelay.js).
+// UID here, picking the kiosk, a Treasury Cash-In window or System Admin's
+// Add New User form as the destination (see utils/scanRelay.js).
 
-/** POST /api/kiosk/relay  { uid, target?: 'kiosk' | 'treasury' } */
+/** POST /api/kiosk/relay  { uid, target?: 'kiosk' | 'treasury' | 'sysad' } */
 router.post('/relay', (req, res) => {
   if (limited(req.ip, 'relay', 60, 60 * 1000)) {
     return res.status(429).json({ error: 'Too many scans. Please wait a moment.' });

@@ -18,6 +18,7 @@ import { checkMaintenanceMode, getMaintenanceStatus, setMaintenanceMode } from '
 import { logAdminAction, logMaintenanceMode, logStudentDeactivation, logAutoExportConfigChange, logManualExport } from '../utils/logger.js';
 import { extractAdminInfo } from '../middlewares/extractAdminInfo.js';
 import { requireAdminAuthForMutations } from '../middlewares/requireAdminAuth.js';
+import { takeScan } from '../utils/scanRelay.js';
 
 // Apply admin info extraction middleware to all sysad routes
 router.use(extractAdminInfo);
@@ -293,6 +294,15 @@ router.get('/users/metrics', async (req, res) => {
  * GET /api/admin/sysad/users/check-rfid
  * Check if RFID is available
  */
+/**
+ * GET /api/admin/sysad/scanner/latest -> { uid | null }
+ * Testing aid: a tap sent from the app's hidden Scanner Mode to "Sysad".
+ * Add New User polls this while it is open; each tap is handed out once.
+ */
+router.get('/scanner/latest', (req, res) => {
+  res.json({ uid: takeScan('sysad') });
+});
+
 router.get('/users/check-rfid', async (req, res) => {
   try {
     const { rfidUId } = req.query;

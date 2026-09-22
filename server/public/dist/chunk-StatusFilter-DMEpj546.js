@@ -1,1 +1,0 @@
-import{j as s,F as r}from"./app-index-BDjvhKbM.js";function o({value:t,onChange:e,options:l,label:a="Status"}){return s.jsx(r,{label:a,value:t,onChange:e,defaultValue:"",options:[{value:"",label:"All"},...l]})}export{o as S};

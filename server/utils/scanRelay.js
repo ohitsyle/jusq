@@ -4,9 +4,10 @@
 // the page waiting for a card picks it up once.
 //   kiosk    — the registration kiosk page (not signed in)
 //   treasury — a Treasury Cash-In window waiting for a card (Treasury login)
+//   sysad    — System Admin's Add New User form (System Admin login)
 
 const SCAN_TTL_MS = 15 * 1000;
-const slots = { kiosk: null, treasury: null }; // target -> { uid, at }
+const slots = { kiosk: null, treasury: null, sysad: null }; // target -> { uid, at }
 
 export const RELAY_TARGETS = Object.keys(slots);
 
