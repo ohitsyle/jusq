@@ -2,7 +2,7 @@
 // Updated with two-column categorized cards for metadata
 import React from 'react';
 import { useTheme } from '../../context/ThemeContext';
-import { X } from 'lucide-react';
+import { X, ClipboardList, Clock } from 'lucide-react';
 
 export default function LogDetailModal({ log, onClose }) {
   const { theme, isDarkMode } = useTheme();
@@ -74,24 +74,24 @@ export default function LogDetailModal({ log, onClose }) {
         className="relative rounded-2xl shadow-2xl border w-full max-w-2xl max-h-[85vh] overflow-hidden animate-fadeIn"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
+        {/* Header — plain, like the other detail windows (accent title, divider) */}
         <div
-          style={{
-            background: `linear-gradient(135deg, ${theme.accent.primary} 0%, ${isDarkMode ? '#B8860B' : '#2563EB'} 100%)`
-          }}
+          style={{ borderBottom: `2px solid ${theme.border.secondary}` }}
           className="px-6 py-5 flex items-center justify-between"
         >
           <div>
-            <h3 className="text-xl font-bold text-white flex items-center gap-2">
-              📋 Log Details
+            <h3 style={{ color: theme.accent.primary }} className="text-xl font-bold flex items-center gap-2 m-0">
+              <ClipboardList className="w-5 h-5" /> Log Details
             </h3>
-            <p className="text-white/70 text-sm mt-1 font-mono">
+            <p style={{ color: theme.text.tertiary }} className="text-sm mt-1 font-mono">
               {log.eventId || log._id}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-white/80 hover:text-white transition-colors"
+            aria-label="Close"
+            style={{ color: theme.text.secondary }}
+            className="hover:opacity-70 transition-opacity"
           >
             <X className="w-6 h-6" />
           </button>
@@ -121,8 +121,8 @@ export default function LogDetailModal({ log, onClose }) {
             >
               {log.status || 'success'}
             </span>
-            <span style={{ color: theme.text.secondary }} className="text-sm">
-              🕒 {new Date(log.timestamp).toLocaleString('en-US', {
+            <span style={{ color: theme.text.secondary }} className="text-sm inline-flex items-center gap-1.5">
+              <Clock className="w-4 h-4" /> {new Date(log.timestamp).toLocaleString('en-US', {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric',
