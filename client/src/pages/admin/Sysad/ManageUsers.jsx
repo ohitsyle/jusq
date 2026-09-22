@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
-import { Search, Download, Plus, Edit, Trash2, Users, UserCheck, UserX, Shield, GraduationCap, Briefcase, X, Check, Loader2, CreditCard, AlertCircle, CheckCircle, XCircle, AlertTriangle, Info } from 'lucide-react';
+import { Search, Download, Plus, Edit, Trash2, Users, UserCheck, UserX, Shield, GraduationCap, Briefcase, X, Check, Loader2, CreditCard, AlertCircle, CheckCircle, XCircle, AlertTriangle, Info, Link2, Wallet, KeyRound, Ban } from 'lucide-react';
 import { exportToCSV, downloadServerExport } from '../../../utils/csvExport';
 import { convertToHexLittleEndian } from '../../../utils/rfidConverter';
 import { toast } from 'react-toastify';
@@ -374,7 +374,18 @@ export default function ManageUsers() {
                         {user.email || 'N/A'}
                       </td>
                       <td className="p-4">
-                        <RoleBadge role={user.role} isDarkMode={isDarkMode} />
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <RoleBadge role={user.role} isDarkMode={isDarkMode} />
+                          {(user.linkedUserId || user.linkedAdminId) && (
+                            <span
+                              title={user.linkedUserId ? 'Has their own NUCash employee wallet' : "This is an admin's own wallet"}
+                              style={{ background: isDarkMode ? 'rgba(59,130,246,0.15)' : 'rgba(59,130,246,0.1)', color: '#3B82F6' }}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase"
+                            >
+                              <Link2 className="w-3 h-3" /> {user.linkedUserId ? 'Wallet' : 'Admin'}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="p-4">
                         <DeactivatedBadge isDeactivated={user.isDeactivated} />
@@ -574,6 +585,26 @@ function EditUserModal({ theme, isDarkMode, user, onClose, onSuccess, onResetPin
   const [submitting, setSubmitting] = useState(false);
 
   const [validationError, setValidationError] = useState(null);
+  const isAdminRow = user._type === 'admin';
+  const isAdminsWallet = !isAdminRow && !!user.linkedAdminId;
+  const [cardInput, setCardInput] = useState('');
+  const [linking, setLinking] = useState(false);
+
+  const linkCard = async () => {
+    const rfidUId = convertToHexLittleEndian(cardInput.trim());
+    if (!rfidUId) { setValidationError('Tap or enter their NU ID card'); return; }
+    setLinking(true);
+    setValidationError(null);
+    try {
+      const r = await api.post(`/admin/sysad/users/${user._id}/link-wallet`, { rfidUId });
+      toast.success(r.message || 'Employee wallet linked');
+      onSuccess();
+    } catch (error) {
+      setValidationError(error.message || 'Could not link the card');
+    } finally {
+      setLinking(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -723,15 +754,52 @@ function EditUserModal({ theme, isDarkMode, user, onClose, onSuccess, onResetPin
                     This is your own account. To change your PIN, go to Profile → Security Settings.
                   </p>
                 )}
-                {onResetPin && !isSelf && !isProtected && (
+                {isAdminsWallet && (
+                  <p style={{ color: theme.text.secondary }} className="text-xs flex items-start gap-1.5 w-full">
+                    <Link2 className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ color: '#3B82F6' }} />
+                    This is an admin's own NUCash wallet. Its PIN and email follow the admin account — reset the admin's PIN to reset both.
+                  </p>
+                )}
+                {isAdminRow && !isProtected && user.linkedUserId && (
+                  <p style={{ color: theme.text.secondary }} className="text-xs flex items-center gap-1.5 w-full">
+                    <Wallet className="w-3.5 h-3.5" style={{ color: '#10B981' }} /> Has their own NUCash employee wallet (one login opens both).
+                  </p>
+                )}
+                {isAdminRow && !isProtected && !isSelf && !user.linkedUserId && (
+                  <div className="w-full mb-1">
+                    <p style={{ color: theme.text.secondary }} className="text-xs mb-2">
+                      No NUCash wallet yet. Tap or enter their NU ID card to give them an employee wallet (uses their current PIN).
+                    </p>
+                    <div className="flex gap-2">
+                      <input
+                        value={cardInput}
+                        onChange={(e) => setCardInput(e.target.value.toUpperCase())}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); linkCard(); } }}
+                        placeholder="Scan or enter RFID..."
+                        style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#FFFFFF', color: theme.text.primary, borderColor: theme.border.primary }}
+                        className="flex-1 px-3 py-2 rounded-lg border text-sm font-mono focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={linkCard}
+                        disabled={linking || !cardInput.trim()}
+                        style={{ background: 'rgba(59,130,246,0.15)', color: '#3B82F6', borderColor: 'rgba(59,130,246,0.3)' }}
+                        className="px-4 py-2 rounded-lg hover:opacity-80 transition-all text-xs font-semibold border inline-flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        {linking ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Link2 className="w-3.5 h-3.5" />} Link NU ID card
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {onResetPin && !isSelf && !isProtected && !isAdminsWallet && (
                   <button
                     type="button"
                     onClick={onResetPin}
                     title="Issue a new temporary PIN and email it; they re-activate their account"
                     style={{ background: 'rgba(245,158,11,0.15)', color: '#F59E0B', borderColor: 'rgba(245,158,11,0.3)' }}
-                    className="px-4 py-2 rounded-lg hover:opacity-80 transition-all text-xs font-semibold border"
+                    className="px-4 py-2 rounded-lg hover:opacity-80 transition-all text-xs font-semibold border inline-flex items-center gap-1.5"
                   >
-                    🔑 Reset PIN
+                    <KeyRound className="w-3.5 h-3.5" /> Reset PIN
                   </button>
                 )}
                 {onToggleStatus && !isSelf && !isProtected && (
@@ -743,9 +811,9 @@ function EditUserModal({ theme, isDarkMode, user, onClose, onSuccess, onResetPin
                       color: user.isDeactivated ? '#10B981' : '#EF4444',
                       borderColor: user.isDeactivated ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'
                     }}
-                    className="px-4 py-2 rounded-lg hover:opacity-80 transition-all text-xs font-semibold border"
+                    className="px-4 py-2 rounded-lg hover:opacity-80 transition-all text-xs font-semibold border inline-flex items-center gap-1.5"
                   >
-                    {user.isDeactivated ? '✅ Undeactivate' : '🚫 Deactivate'}
+                    {user.isDeactivated ? <><CheckCircle className="w-3.5 h-3.5" /> Undeactivate</> : <><Ban className="w-3.5 h-3.5" /> Deactivate</>}
                   </button>
                 )}
               </div>

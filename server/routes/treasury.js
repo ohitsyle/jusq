@@ -635,6 +635,20 @@ router.post('/cash-in', async (req, res) => {
       });
     }
 
+    // Conflict of interest: a treasurer can't load money into their own wallet
+    if (user.linkedAdminId && String(user.linkedAdminId) === String(req.authAdmin?.id)) {
+      logAdminAction({
+        adminId: req.authAdmin?.adminId || req.adminId, adminName: req.adminName || req.adminInfo?.adminName || 'Treasury Admin',
+        adminRole: 'treasury', department: 'treasury', action: 'Self Cash-In Blocked',
+        description: `tried to cash in ₱${amount} to their own NUCash wallet`, targetEntity: 'user',
+        targetId: String(user._id), crudOperation: 'security', severity: 'warning', ipAddress: req.ip
+      }).catch(() => {});
+      return res.status(403).json({
+        success: false,
+        message: "You can't cash in to your own wallet. Please ask another Treasury staff member."
+      });
+    }
+
     // Check if user is active
     if (!user.isActive) {
       return res.status(400).json({

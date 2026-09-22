@@ -299,8 +299,17 @@ router.get('/users/check-rfid', async (req, res) => {
     if (!rfidUId) {
       return res.status(400).json({ success: false, message: 'RFID is required' });
     }
-    const existing = await User.findOne({ rfidUId });
-    res.json({ success: true, available: !existing });
+    const existing = await User.findOne({ rfidUId }).select('firstName lastName schoolUId email linkedAdminId').lean();
+    res.json({
+      success: true,
+      available: !existing,
+      owner: existing ? {
+        name: `${existing.firstName} ${existing.lastName}`.trim(),
+        schoolUId: existing.schoolUId,
+        email: existing.email,
+        linked: !!existing.linkedAdminId
+      } : null
+    });
   } catch (error) {
     console.error('❌ Check RFID error:', error);
     res.status(500).json({ success: false, message: error.message });
@@ -379,18 +388,40 @@ router.post('/users', async (req, res) => {
       return res.status(400).json({ success: false, message: 'PIN must be exactly 6 digits' });
     }
 
-    // For regular users, RFID is required
-    if (!isAdminRole && !rfidUId) {
+    // RFID (their NU ID card) is required for everyone: admins get their own
+    // employee wallet with it.
+    if (!rfidUId) {
       return res.status(400).json({
         success: false,
-        message: 'RFID is required for student/employee accounts'
+        message: isAdminRole
+          ? "The admin's NU ID card (RFID) is required — it becomes their NUCash employee wallet"
+          : 'RFID is required for student/employee accounts'
       });
     }
 
+    // An admin whose card already has a wallet (registered earlier at the
+    // Treasury or kiosk) gets that wallet linked instead of a new one — if it
+    // is really theirs (same school ID or email) and not linked to someone else.
+    const cardOwner = isAdminRole ? await User.findOne({ rfidUId }) : null;
+    if (cardOwner) {
+      if (cardOwner.linkedAdminId) {
+        return res.status(400).json({ success: false, message: 'This ID card is already linked to another admin account' });
+      }
+      const sameId = String(cardOwner.schoolUId) === String(schoolUId);
+      const sameEmail = String(cardOwner.email).toLowerCase() === email.toLowerCase();
+      if (!sameId && !sameEmail) {
+        return res.status(400).json({
+          success: false,
+          message: `This ID card belongs to ${cardOwner.firstName} ${cardOwner.lastName} (${cardOwner.schoolUId}), whose school ID and email don't match this admin`
+        });
+      }
+    }
+
     // Check if email already exists in both User and Admin collections
+    // (the admin's own wallet being linked may share it)
     const existingUserEmail = await User.findOne({ email: email.toLowerCase() });
     const existingAdminEmail = await Admin.findOne({ email: email.toLowerCase() });
-    if (existingUserEmail || existingAdminEmail) {
+    if (existingAdminEmail || (existingUserEmail && String(existingUserEmail._id) !== String(cardOwner?._id))) {
       return res.status(400).json({
         success: false,
         message: 'Email already registered'
@@ -400,7 +431,7 @@ router.post('/users', async (req, res) => {
     // Check if School ID already exists in both collections
     const existingUserSchoolId = await User.findOne({ schoolUId });
     const existingAdminSchoolId = await Admin.findOne({ schoolUId });
-    if (existingUserSchoolId || existingAdminSchoolId) {
+    if (existingAdminSchoolId || (existingUserSchoolId && String(existingUserSchoolId._id) !== String(cardOwner?._id))) {
       return res.status(400).json({
         success: false,
         message: 'School ID already registered'
@@ -413,19 +444,49 @@ router.post('/users', async (req, res) => {
       const lastAdmin = await Admin.findOne().sort({ adminId: -1 });
       const adminId = lastAdmin ? lastAdmin.adminId + 1 : 1000;
 
+      const cleanEmail = email.trim().toLowerCase();
+      let wallet = cardOwner;
+      let createdWallet = false;
+      const walletBefore = cardOwner ? { email: cardOwner.email } : null;
+      if (!wallet) {
+        // New employee wallet; it is switched on when the admin activates
+        const lastUser = await User.findOne().sort({ userId: -1 });
+        wallet = new User({
+          userId: lastUser ? lastUser.userId + 1 : 100000,
+          schoolUId, rfidUId,
+          firstName: firstName.trim(), lastName: lastName.trim(),
+          middleName: middleName ? middleName.trim() : '',
+          email: cleanEmail, pin, role: 'employee', balance: 0,
+          isActive: false, isDeactivated: false
+        });
+        await wallet.save();
+        createdWallet = true;
+      }
+
       const admin = new Admin({
         adminId,
         schoolUId,
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         middleName: middleName ? middleName.trim() : '',
-        email: email.trim().toLowerCase(),
+        email: cleanEmail,
         pin,
         role,
-        isActive: false
+        isActive: false,
+        linkedUserId: wallet._id
       });
 
-      await admin.save();
+      try {
+        await admin.save();
+        // Codes and receipts go to one inbox: the admin's work email.
+        // The existing wallet keeps its own PIN until the admin activates.
+        await User.updateOne({ _id: wallet._id }, { $set: { linkedAdminId: admin._id, email: cleanEmail } });
+      } catch (e) {
+        if (createdWallet) await User.deleteOne({ _id: wallet._id });
+        else await User.updateOne({ _id: wallet._id }, { $set: { linkedAdminId: null, email: walletBefore.email } });
+        await Admin.deleteOne({ _id: admin._id }).catch(() => {});
+        throw e;
+      }
 
       // Log action
       await SystemLog.create({
@@ -444,7 +505,7 @@ router.post('/users', async (req, res) => {
         targetEntity: 'user',
         targetId: admin._id?.toString(),
         crudOperation: 'crud_create',
-        changes: { schoolUId, firstName, lastName, email, role },
+        changes: { schoolUId, firstName, lastName, email, role, wallet: createdWallet ? 'created' : 'linked existing' },
         ipAddress: req.ip
       }).catch(() => {});
 
@@ -465,8 +526,11 @@ router.post('/users', async (req, res) => {
 
       res.status(201).json({
         success: true,
-        message: 'Admin account created successfully',
+        message: createdWallet
+          ? 'Admin account and NUCash employee wallet created'
+          : `Admin account created and linked to ${wallet.firstName}'s existing NUCash wallet`,
         emailSent,
+        walletLinked: !createdWallet,
         user: {
           adminId: admin.adminId,
           schoolUId: admin.schoolUId,
@@ -581,6 +645,12 @@ router.put('/users/:userId', async (req, res) => {
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    if (String(user.linkedAdminId || '') === String(req.authAdmin?.id)) {
+      return res.status(403).json({ success: false, message: "You can't edit your own NUCash wallet from the admin side" });
+    }
+    if (user.linkedAdminId && email && email.toLowerCase() !== user.email) {
+      return res.status(400).json({ success: false, message: "This wallet belongs to an admin — its email follows the admin account" });
     }
 
     // Check email uniqueness if changed
@@ -698,12 +768,19 @@ router.delete('/users/:userId', async (req, res) => {
       role: user.role || (isAdmin ? 'admin' : 'user')
     };
 
-    // Permanently delete the user from appropriate collection
+    if (!isAdmin && String(user.linkedAdminId || '') === String(req.authAdmin?.id)) {
+      return res.status(403).json({ success: false, message: "You can't delete your own NUCash wallet" });
+    }
+
+    // Permanently delete the user from appropriate collection. A linked
+    // partner account stays (an ex-admin is still an employee), just unlinked.
     if (isAdmin) {
       const Admin = (await import('../models/Admin.js')).default;
       await Admin.findByIdAndDelete(userId);
+      if (user.linkedUserId) await User.updateOne({ _id: user.linkedUserId }, { $set: { linkedAdminId: null } });
     } else {
       await User.findByIdAndDelete(userId);
+      if (user.linkedAdminId) await Admin.updateOne({ _id: user.linkedAdminId }, { $set: { linkedUserId: null } });
     }
 
     // Log action
@@ -767,6 +844,9 @@ router.patch('/users/:userId/toggle-status', async (req, res) => {
     }
     if (isAdmin && String(user._id) === String(req.authAdmin?.id)) {
       return res.status(400).json({ success: false, message: "You can't deactivate your own account" });
+    }
+    if (!isAdmin && String(user.linkedAdminId || '') === String(req.authAdmin?.id)) {
+      return res.status(400).json({ success: false, message: "You can't deactivate or reactivate your own NUCash wallet" });
     }
 
     // Toggle isDeactivated for Users and Admins
@@ -835,6 +915,84 @@ router.patch('/users/:userId/toggle-status', async (req, res) => {
 });
 
 /**
+ * POST /api/admin/sysad/users/:adminId/link-wallet  { rfidUId }
+ * Give an existing admin their NUCash employee wallet. A new wallet uses the
+ * admin's current PIN at once; a wallet the card already has is linked (if
+ * the school ID or email matches) and switches to the admin's PIN.
+ */
+router.post('/users/:adminId/link-wallet', async (req, res) => {
+  try {
+    const rfidUId = String(req.body?.rfidUId || '').trim().toUpperCase();
+    if (!rfidUId) return res.status(400).json({ success: false, message: 'Tap or enter the NU ID card' });
+    const admin = await Admin.findById(req.params.adminId);
+    if (!admin) return res.status(404).json({ success: false, message: 'Admin not found' });
+    if (admin.linkedUserId) return res.status(400).json({ success: false, message: 'This admin already has a NUCash wallet' });
+    if (String(admin._id) === String(req.authAdmin?.id)) {
+      return res.status(403).json({ success: false, message: 'Ask another System Admin to link your own card' });
+    }
+    const { PROTECTED_SYSAD_EMAIL } = await import('../models/Admin.js');
+    if (admin.email?.toLowerCase() === PROTECTED_SYSAD_EMAIL) {
+      return res.status(400).json({ success: false, message: 'The built-in system account has no personal wallet' });
+    }
+
+    const { sessionCutoff } = await import('../utils/linkedAccounts.js');
+    let wallet = await User.findOne({ rfidUId });
+    let created = false;
+    if (wallet) {
+      if (wallet.linkedAdminId) return res.status(400).json({ success: false, message: 'This ID card is already linked to another admin account' });
+      const sameId = String(wallet.schoolUId) === String(admin.schoolUId);
+      const sameEmail = String(wallet.email).toLowerCase() === admin.email.toLowerCase();
+      if (!sameId && !sameEmail) {
+        return res.status(400).json({ success: false, message: `This ID card belongs to ${wallet.firstName} ${wallet.lastName} (${wallet.schoolUId}), whose school ID and email don't match this admin` });
+      }
+      const emailTaken = await User.findOne({ email: admin.email, _id: { $ne: wallet._id } }).lean();
+      if (emailTaken) return res.status(400).json({ success: false, message: "Another NUCash account already uses this admin's email" });
+      // Same inbox and the admin's PIN from now on; its old sessions end
+      await User.updateOne({ _id: wallet._id }, { $set: {
+        linkedAdminId: admin._id, email: admin.email, pin: admin.pin, pinChangedAt: new Date(), sessionsValidAfter: sessionCutoff(),
+        ...(admin.isActive && !wallet.isDeactivated ? { isActive: true } : {})
+      } });
+    } else {
+      const clash = await User.findOne({ $or: [{ email: admin.email }, { schoolUId: admin.schoolUId }] }).lean();
+      if (clash) {
+        return res.status(400).json({ success: false, message: `${clash.firstName} ${clash.lastName} already has a NUCash wallet with a different card (${clash.rfidUId}) — use that card` });
+      }
+      const lastUser = await User.findOne().sort({ userId: -1 });
+      wallet = await User.create({
+        userId: lastUser ? lastUser.userId + 1 : 100000,
+        schoolUId: admin.schoolUId, rfidUId,
+        firstName: admin.firstName, lastName: admin.lastName, middleName: admin.middleName || '',
+        email: admin.email, pin: admin.pin, role: 'employee', balance: 0,
+        isActive: !!admin.isActive, isDeactivated: false, linkedAdminId: admin._id
+      });
+      created = true;
+    }
+    admin.linkedUserId = wallet._id;
+    await admin.save();
+
+    const { sendEmail } = await import('../services/emailService.js');
+    sendEmail({
+      to: admin.email,
+      subject: 'Your NUCash employee wallet is ready',
+      html: `<p>Hi ${admin.firstName},</p><p>Your NU ID card is now linked to your NUCash admin account as your <b>employee wallet</b>. Sign in with your usual email and PIN, then choose <b>My Wallet</b> — or switch from the profile menu at any time.</p><p>${created ? 'Your wallet starts at ₱0.' : 'Your existing wallet and balance were kept; it now uses your admin PIN.'}</p><p>If you didn't expect this, contact ITSO.</p>`
+    }).catch(() => {});
+
+    logAdminAction({
+      adminId: req.adminId || 'sysad', adminName: req.adminName || req.adminInfo?.adminName || 'System Admin', adminRole: 'sysad',
+      department: 'system', action: 'Wallet Linked',
+      description: `${created ? 'created' : 'linked an existing'} NUCash wallet for admin ${admin.firstName} ${admin.lastName} (${admin.role})`,
+      targetEntity: 'admin', targetId: String(admin._id), crudOperation: 'crud_update',
+      changes: { walletId: String(wallet._id), created }, ipAddress: req.ip
+    }).catch(() => {});
+
+    res.json({ success: true, created, message: created ? 'Employee wallet created and linked' : `Linked ${wallet.firstName}'s existing wallet` });
+  } catch (error) {
+    console.error('❌ Link wallet error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
  * POST /api/admin/sysad/users/:userId/reset-pin
  * PIN rescue for locked-out students, employees and admins. Issues a fresh
  * 6-digit temporary PIN, flips the account back to "needs activation" so the
@@ -868,6 +1026,9 @@ router.post('/users/:userId/reset-pin', async (req, res) => {
     if (account.isDeactivated) {
       return res.status(400).json({ success: false, message: 'Account is deactivated — reactivate it before resetting the PIN' });
     }
+    if (!isAdmin && account.linkedAdminId) {
+      return res.status(400).json({ success: false, message: "This wallet uses its admin account's PIN — reset the admin account's PIN instead" });
+    }
 
     const crypto = (await import('crypto')).default;
     const tempPin = crypto.randomInt(100000, 999999).toString();
@@ -877,7 +1038,12 @@ router.post('/users/:userId/reset-pin', async (req, res) => {
       // Admin PINs are stored hashed; the admin login and activation both accept bcrypt.
       const bcrypt = (await import('bcrypt')).default;
       const Admin = (await import('../models/Admin.js')).default;
-      await Admin.updateOne({ _id: account._id }, { $set: { pin: await bcrypt.hash(tempPin, 10), isActive: false, resetOtp: '', resetOtpExpireAt: 0 } });
+      const hashed = await bcrypt.hash(tempPin, 10);
+      await Admin.updateOne({ _id: account._id }, { $set: { pin: hashed, isActive: false, resetOtp: '', resetOtpExpireAt: 0, sessionsValidAfter: new Date() } });
+      // Their own wallet waits for the same re-activation (unless it's deactivated)
+      if (account.linkedUserId) {
+        await User.updateOne({ _id: account.linkedUserId, isDeactivated: { $ne: true } }, { $set: { pin: hashed, isActive: false, sessionsValidAfter: new Date() } });
+      }
     } else {
       await User.findByIdAndUpdate(account._id, { $set: { pin: tempPin, isActive: false, sessionsValidAfter: new Date() } });
     }
@@ -1010,6 +1176,9 @@ router.post('/transfer-card', async (req, res) => {
     
     if (!user) {
       return res.status(404).json({ success: false, message: 'No user found with old RFID' });
+    }
+    if (!isAdmin && String(user.linkedAdminId || '') === String(req.authAdmin?.id)) {
+      return res.status(403).json({ success: false, message: "You can't move your own NUCash wallet to a new card — ask another System Admin" });
     }
 
     // Check if new RFID is already in use (check both models)

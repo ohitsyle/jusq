@@ -5,6 +5,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import ThemeToggle from '../common/ThemeToggle';
 import { User, LogOut } from 'lucide-react';
+import SwitchAccountItem from './SwitchAccountItem';
 
 export default function TreasuryHeader({ adminData, onLogout, onOpenProfile }) {
   const { theme, isDarkMode } = useTheme();
@@ -162,6 +163,7 @@ export default function TreasuryHeader({ adminData, onLogout, onOpenProfile }) {
               </div>
 
               {/* Menu Items */}
+              <SwitchAccountItem onDone={() => setShowDropdown(false)} />
               <button
                 onClick={() => { setShowDropdown(false); onOpenProfile(); }}
                 style={{ width: '100%', padding: '12px 16px', background: 'transparent', border: 'none', color: theme.text.primary, fontSize: '14px', fontWeight: 600, textAlign: 'left', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 0.2s ease' }}

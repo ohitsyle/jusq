@@ -12,6 +12,7 @@ import UserConcern from '../models/UserConcern.js';
 import Shuttle from '../models/Shuttle.js'; 
 
 import bcrypt from 'bcrypt';
+import { copyPinToAdmin, adminOf, issueAdminSession } from '../utils/linkedAccounts.js';
 
 // JWT verification middleware
 const getJWTSecret = () => process.env.JWT_SECRET || 'nucash_secret_2025';
@@ -162,6 +163,7 @@ const verifyUserToken = async (req, res, next) => {
     }
 
     req.user = user;
+    req.tokenClaims = decoded; // e.g. viaAdmin: session opened through the admin login
     next();
   } catch (error) {
     if (error.name === 'JsonWebTokenError') {
@@ -179,11 +181,41 @@ const verifyUserToken = async (req, res, next) => {
 // device that made the change) stays valid.
 const revokeUserSessions = () => new Date(Math.floor(Date.now() / 1000) * 1000);
 
-const issueUserToken = (user) => jwt.sign(
-  { id: user._id, role: user.role, userId: user.userId },
+const issueUserToken = (user, viaAdmin) => jwt.sign(
+  { id: user._id, role: user.role, userId: user.userId, ...(viaAdmin ? { viaAdmin } : {}) },
   getJWTSecret(),
   { expiresIn: '24h' }
 );
+
+/**
+ * POST /api/user/switch-to-admin
+ * From an admin's own wallet back to their admin dashboard. Only for wallet
+ * sessions that were opened through that admin's login (token claim
+ * viaAdmin), so a wallet signed in some other way can't reach admin pages.
+ */
+router.post('/switch-to-admin', verifyUserToken, async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user.linkedAdminId || req.tokenClaims?.viaAdmin !== String(user.linkedAdminId)) {
+      return res.status(403).json({ error: 'Please sign in with your admin account to open the admin dashboard.' });
+    }
+    const admin = await adminOf(user);
+    if (!admin || admin.isDeactivated || admin.isActive === false) {
+      return res.status(403).json({ error: 'Your admin account is not active. Please contact ITSO.' });
+    }
+    const session = issueAdminSession(admin);
+    const { logAdminAction } = await import('../utils/logger.js');
+    logAdminAction({
+      adminId: admin.adminId, adminName: `${admin.firstName} ${admin.lastName}`.trim(), adminRole: admin.role,
+      department: admin.role, action: 'Switched to Admin', description: 'returned to the admin dashboard from their wallet',
+      targetEntity: 'admin', targetId: String(admin._id), crudOperation: 'account_switch', ipAddress: req.ip
+    }).catch(() => {});
+    res.json({ success: true, ...session });
+  } catch (error) {
+    console.error('Switch to admin error:', error);
+    res.status(500).json({ error: 'Could not open the admin dashboard. Please try again.' });
+  }
+});
 
 /**
  * GET /api/user/balance
@@ -1202,6 +1234,7 @@ router.post('/change-pin', verifyUserToken, async (req, res) => {
     // A new PIN signs out every other phone and browser; this device gets a fresh token.
     user.sessionsValidAfter = revokeUserSessions();
     await user.save();
+    await copyPinToAdmin(user); // an admin's own wallet shares the admin PIN
 
     // Clear OTP
     pinChangeOtpStore.delete(user.email);
@@ -1211,7 +1244,7 @@ router.post('/change-pin', verifyUserToken, async (req, res) => {
     return res.json({
       success: true,
       message: 'PIN changed successfully',
-      token: issueUserToken(user)
+      token: issueUserToken(user, req.tokenClaims?.viaAdmin)
     });
   } catch (error) {
     console.error('Error changing PIN:', error);

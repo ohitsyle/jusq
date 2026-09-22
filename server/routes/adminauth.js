@@ -8,6 +8,7 @@ import jwt from 'jsonwebtoken';
 import Admin from '../models/Admin.js';
 import nodemailer from 'nodemailer';
 import { logLogin, logLogout, logAdminAction } from '../utils/logger.js';
+import { sessionCutoff, copyPinToWallet, walletOf, walletUnavailable, issueWalletSession, issueAdminSession } from '../utils/linkedAccounts.js';
 
 const router = express.Router();
 
@@ -20,27 +21,32 @@ const otpStore = new Map();
 // ============================================================================
 // Middleware: Authenticate Admin JWT Token
 // ============================================================================
-function authenticateAdmin(req, res, next) {
-  try {
-    const authHeader = req.headers.authorization;
-
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({
-        error: 'No token provided'
-      });
-    }
-
-    const token = authHeader.substring(7);
-
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.admin = decoded;
-    next();
-  } catch (error) {
-    console.error('❌ Token verification error:', error);
-    return res.status(401).json({
-      error: 'Invalid or expired token'
-    });
+// Also confirms the account is still usable and the token wasn't issued
+// before a sign-out-everywhere (same rules as middlewares/requireAdminAuth).
+async function authenticateAdmin(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'No token provided' });
   }
+  let decoded;
+  try {
+    decoded = jwt.verify(authHeader.substring(7), JWT_SECRET);
+  } catch (error) {
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
+  try {
+    const admin = decoded.id ? await Admin.findById(decoded.id).select('isActive isDeactivated sessionsValidAfter').lean() : null;
+    if (!admin || admin.isDeactivated || admin.isActive === false) {
+      return res.status(401).json({ error: 'Account no longer active. Please log in again.' });
+    }
+    if (admin.sessionsValidAfter && (decoded.iat || 0) * 1000 < new Date(admin.sessionsValidAfter).getTime()) {
+      return res.status(401).json({ error: 'You were signed out because your PIN was changed on another device. Please sign in again.', signedOut: true });
+    }
+  } catch (error) {
+    return res.status(500).json({ error: 'Authentication check failed' });
+  }
+  req.admin = decoded;
+  next();
 }
 
 // Email transporter configuration
@@ -51,6 +57,10 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASSWORD || 'your-app-password'
   }
 });
+// EMAIL_DISABLED=1 (test servers): log instead of sending
+if (process.env.EMAIL_DISABLED === '1') {
+  transporter.sendMail = async (opts) => { const code = String(opts.text || opts.html || '').match(/\b\d{6}\b/); console.log('[EMAIL_DISABLED] would send:', opts.to, '|', opts.subject, code ? `| code ${code[0]}` : ''); return { messageId: 'disabled' }; };
+}
 
 // ============================================================================
 // POST /api/admin-auth/login
@@ -390,7 +400,7 @@ router.post('/reset-password', async (req, res) => {
 
     if (storedOtp.otp !== otp) {
       console.log('❌ Invalid OTP for:', email);
-      return res.status(401).json({
+      return res.status(400).json({
         error: 'Invalid OTP'
       });
     }
@@ -399,9 +409,11 @@ router.post('/reset-password', async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPin = await bcrypt.hash(newPin, salt);
 
-    // Update PIN
+    // Update PIN (and the linked wallet's); every device signs in again
     admin.pin = hashedPin;
+    admin.sessionsValidAfter = new Date();
     await admin.save();
+    await copyPinToWallet(admin);
 
     // Clear OTP
     otpStore.delete(email.toLowerCase());
@@ -594,7 +606,7 @@ router.post('/change-password', authenticateAdmin, async (req, res) => {
 
     if (!isValidOldPin) {
       console.log('❌ Old PIN incorrect for:', admin.email);
-      return res.status(401).json({
+      return res.status(400).json({
         error: 'Old PIN is incorrect'
       });
     }
@@ -618,8 +630,8 @@ router.post('/change-password', authenticateAdmin, async (req, res) => {
     }
 
     if (storedOtp.otp !== otp) {
-      console.log('❌ Invalid OTP for:', admin.email, '(Expected:', storedOtp.otp, 'Got:', otp, ')');
-      return res.status(401).json({
+      console.log('❌ Invalid OTP for:', admin.email);
+      return res.status(400).json({
         error: 'Invalid OTP'
       });
     }
@@ -628,15 +640,19 @@ router.post('/change-password', authenticateAdmin, async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPin = await bcrypt.hash(newPin, salt);
 
-    // Update PIN
+    // Update PIN; other devices are signed out, this one gets a fresh token.
+    // The linked employee wallet (if any) gets the same PIN.
     admin.pin = hashedPin;
+    admin.sessionsValidAfter = sessionCutoff();
     await admin.save();
+    await copyPinToWallet(admin);
 
     // Clear OTP
     otpStore.delete(admin.email);
 
     res.json({
-      message: 'PIN changed successfully'
+      message: 'PIN changed successfully',
+      token: issueAdminSession(admin).token
     });
 
     console.log(`🔐 PIN changed for admin: ${admin.email}`);
@@ -645,6 +661,40 @@ router.post('/change-password', authenticateAdmin, async (req, res) => {
     res.status(500).json({
       error: 'Failed to change password. Please try again.'
     });
+  }
+});
+
+// ============================================================================
+// POST /api/admin/auth/switch-to-wallet
+// Open this admin's own employee wallet (no PIN — they're signed in as the admin)
+// ============================================================================
+router.post('/switch-to-wallet', authenticateAdmin, async (req, res) => {
+  try {
+    const admin = await Admin.findById(req.admin.id);
+    if (!admin?.linkedUserId) {
+      return res.status(404).json({ error: 'No NUCash wallet is linked to this admin account.' });
+    }
+    const wallet = await walletOf(admin);
+    const why = walletUnavailable(wallet);
+    if (why) {
+      const msg = {
+        deactivated: 'Your NUCash wallet is deactivated. Please visit ITSO.',
+        locked: 'Your NUCash wallet is locked for a few minutes after 3 wrong PINs.',
+        inactive: 'Your NUCash wallet is not active yet.',
+        missing: 'Your NUCash wallet could not be found. Please contact ITSO.'
+      }[why];
+      return res.status(403).json({ error: msg, reason: why });
+    }
+    const session = issueWalletSession(wallet, admin);
+    logAdminAction({
+      adminId: admin.adminId, adminName: `${admin.firstName} ${admin.lastName}`.trim(), adminRole: admin.role,
+      department: admin.role, action: 'Switched to Wallet', description: 'opened their NUCash employee wallet',
+      targetEntity: 'user', targetId: String(wallet._id), crudOperation: 'account_switch', ipAddress: req.ip
+    }).catch(() => {});
+    res.json({ success: true, ...session });
+  } catch (error) {
+    console.error('❌ Switch to wallet error:', error);
+    res.status(500).json({ error: 'Could not open your wallet. Please try again.' });
   }
 });
 
@@ -666,7 +716,9 @@ router.get('/me', authenticateAdmin, async (req, res) => {
     console.log('✅ Profile found for:', admin.email);
 
     res.json({
+      _id: admin._id,
       adminId: admin.adminId,
+      linkedUserId: admin.linkedUserId || null,
       firstName: admin.firstName,
       lastName: admin.lastName,
       middleName: admin.middleName,

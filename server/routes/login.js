@@ -12,6 +12,7 @@ import bcrypt from 'bcrypt';
 import nodemailer from 'nodemailer';
 import Driver from '../models/Driver.js';
 import { issueActivationToken } from './activation.js';
+import { walletOf, walletUnavailable, issueWalletSession, copyPinToAdmin } from '../utils/linkedAccounts.js';
 import { normalizePhMobile, escapeRegex } from '../utils/phone.js';
 import Merchant from '../models/Merchant.js';
 import User from '../models/User.js';
@@ -198,6 +199,7 @@ router.post('/', async (req, res) => {
           accountId: admin._id.toString(),
           accountType: 'admin',
           activationToken: issueActivationToken(admin, 'admin'),
+          hasLinkedWallet: !!admin.linkedUserId,
           email: admin.email,
           fullName: `${admin.firstName} ${admin.lastName}`,
           message: 'Account activation required'
@@ -231,14 +233,27 @@ router.post('/', async (req, res) => {
         // Continue with login even if logging fails
       }
 
+      // Admins with their own employee wallet choose where to go next (the
+      // web shows a chooser; the app opens the wallet). The wallet session is
+      // prepared here so choosing it needs no second PIN.
+      let linkedWallet = null;
+      if (admin.linkedUserId) {
+        const wallet = await walletOf(admin);
+        const why = walletUnavailable(wallet);
+        linkedWallet = why ? { unavailable: why } : issueWalletSession(wallet, admin);
+      }
+
       return res.json({
         token,
+        _id: admin._id.toString(),
         role: admin.role || 'admin',
         adminId: admin.adminId,
         name: adminName,
         email: admin.email,
         firstName: admin.firstName,
-        lastName: admin.lastName
+        lastName: admin.lastName,
+        linkedUserId: admin.linkedUserId ? String(admin.linkedUserId) : null,
+        ...(linkedWallet ? { linkedWallet } : {})
       });
     }
 
@@ -390,6 +405,9 @@ const getTransporter = () => {
         pass: process.env.EMAIL_PASSWORD || 'your-app-password'
       }
     });
+    if (process.env.EMAIL_DISABLED === '1') {
+      _transporter.sendMail = async (opts) => { const code = String(opts.text || opts.html || '').match(/\b\d{6}\b/); console.log('[EMAIL_DISABLED] would send:', opts.to, '|', opts.subject, code ? `| code ${code[0]}` : ''); return { messageId: 'disabled' }; };
+    }
   }
   return _transporter;
 };
@@ -613,8 +631,10 @@ router.post('/reset-pin', async (req, res) => {
     user.pin = hashedPin;
     user.pinChangedAt = new Date();
     // Forgot-PIN reset signs out every device still logged in with the old PIN.
+    // An admin's own wallet shares the admin PIN, so that changes too.
     user.sessionsValidAfter = new Date();
     await user.save();
+    await copyPinToAdmin(user);
 
     // Clear OTP
     userOtpStore.delete(normalizedEmail);

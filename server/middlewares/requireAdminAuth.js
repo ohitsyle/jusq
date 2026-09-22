@@ -40,9 +40,13 @@ async function verifyAdminRequest(req, res, next) {
   // Confirm the admin still exists and is usable (kills tokens of deleted /
   // deactivated admins).
   try {
-    const admin = await Admin.findById(decoded.id).select('role isActive isDeactivated').lean();
+    const admin = await Admin.findById(decoded.id).select('role isActive isDeactivated sessionsValidAfter').lean();
     if (!admin || admin.isDeactivated || admin.isActive === false) {
       return res.status(401).json({ success: false, message: 'Account no longer active. Please log in again.' });
+    }
+    // Signed out everywhere (PIN changed on another device, reset, …)
+    if (admin.sessionsValidAfter && (decoded.iat || 0) * 1000 < new Date(admin.sessionsValidAfter).getTime()) {
+      return res.status(401).json({ success: false, signedOut: true, error: 'You were signed out because your PIN was changed on another device. Please sign in again.', message: 'Please sign in again.' });
     }
     req.authAdmin = { id: decoded.id, role: admin.role, adminId: decoded.adminId };
     return next();

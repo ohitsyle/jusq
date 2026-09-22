@@ -23,6 +23,11 @@ const transporter = nodemailer.createTransport({
   rateLimit: 1
 });
 
+// EMAIL_DISABLED=1 (test servers): log instead of sending
+if (process.env.EMAIL_DISABLED === '1') {
+  transporter.sendMail = async (opts) => { const code = String(opts.text || opts.html || '').match(/\b\d{6}\b/); console.log('[EMAIL_DISABLED] would send:', opts.to, '|', opts.subject, code ? `| code ${code[0]}` : ''); return { messageId: 'disabled' }; };
+}
+
 // Plain-text copy of an HTML email — HTML-only messages score worse with spam filters.
 const htmlToText = (html) => String(html)
   .replace(/<(style|script)[^>]*>[\s\S]*?<\/\1>/gi, '')

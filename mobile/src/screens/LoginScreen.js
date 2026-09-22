@@ -155,8 +155,13 @@ export default function LoginScreen({ navigation }) {
       if (res && res.data && res.data.token) {
         try {
           const started = await startSession(navigation, res.data);
-          if (!started) {
-            setError('Unknown account type. Please contact support.');
+          if (started !== true) {
+            setError({
+              'admin-only': 'Admin tools are on the NUCash website. Ask ITSO to link your NU ID card to use your wallet here.',
+              'wallet-deactivated': 'Your NUCash wallet is deactivated. Please visit ITSO.',
+              'wallet-locked': 'Your NUCash wallet is locked for a few minutes after 3 wrong PINs.',
+              'wallet-inactive': 'Your NUCash wallet is not active yet.',
+            }[started] || 'Unknown account type. Please contact support.');
             setPin('');
             shakeError();
           }
@@ -184,6 +189,7 @@ export default function LoginScreen({ navigation }) {
           email: data.email,
           fullName: data.fullName,
           activationToken: data.activationToken,
+          hasLinkedWallet: !!data.hasLinkedWallet,
         });
         return;
       }

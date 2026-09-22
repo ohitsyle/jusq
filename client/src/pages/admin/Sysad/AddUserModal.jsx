@@ -7,7 +7,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../../../utils/api';
 import { toast } from 'react-toastify';
-import { Plus, X, Check, Loader2, CreditCard, AlertCircle, GraduationCap, Briefcase, Shield } from 'lucide-react';
+import { Plus, X, Check, Loader2, CreditCard, AlertCircle, GraduationCap, Briefcase, Shield, Link2 } from 'lucide-react';
 import { convertToHexLittleEndian } from '../../../utils/rfidConverter';
 
 const normalizeRfidHex = convertToHexLittleEndian;
@@ -55,6 +55,7 @@ export default function AddUserModal({ theme, isDarkMode, onClose, onSuccess }) 
   const [checkingEmail, setCheckingEmail] = useState(false);
   const [checkingSchoolId, setCheckingSchoolId] = useState(false);
   const [rfidStatus, setRfidStatus] = useState(null); // 'available', 'taken', null
+  const [rfidOwner, setRfidOwner] = useState(null); // who already has this card (name, schoolUId, email, linked)
   const [emailStatus, setEmailStatus] = useState(null);
   const [schoolIdStatus, setSchoolIdStatus] = useState(null);
   const [validationError, setValidationError] = useState(null);
@@ -75,6 +76,7 @@ export default function AddUserModal({ theme, isDarkMode, onClose, onSuccess }) 
     const value = e.target.value.toUpperCase();
     setFormData({ ...formData, rfidUId: value });
     setRfidStatus(null);
+    setRfidOwner(null);
     setValidationError(null);
 
     if (!value.trim()) return;
@@ -88,6 +90,7 @@ export default function AddUserModal({ theme, isDarkMode, onClose, onSuccess }) 
         try {
           const response = await api.get(`/admin/sysad/users/check-rfid?rfidUId=${normalizedRfid}`);
           setRfidStatus(response.available === true ? 'available' : 'taken');
+          setRfidOwner(response.owner || null);
         } catch (error) {
           console.error('RFID check error:', error);
           setRfidStatus(null);
@@ -168,16 +171,14 @@ export default function AddUserModal({ theme, isDarkMode, onClose, onSuccess }) 
 
     const isAdminRole = formData.role === 'admin';
 
-    // Validate RFID (only required for non-admin users)
-    if (!isAdminRole) {
-      if (!formData.rfidUId.trim()) {
-        setValidationError('RFID is required for student/employee accounts');
-        return;
-      }
-      if (rfidStatus === 'taken') {
-        setValidationError('This RFID is already registered to another user');
-        return;
-      }
+    // Everyone needs their card: admins get an employee wallet with it
+    if (!formData.rfidUId.trim()) {
+      setValidationError(isAdminRole ? "Tap the admin's NU ID card — it becomes their NUCash employee wallet" : 'RFID is required for student/employee accounts');
+      return;
+    }
+    if (rfidStatus === 'taken' && !linksOwnWallet) {
+      setValidationError(rfidOwner ? `This card already belongs to ${rfidOwner.name} (${rfidOwner.schoolUId})` : 'This RFID is already registered to another user');
+      return;
     }
 
     if (!formData.firstName || !formData.lastName || !formData.email || !formData.schoolUId) {
@@ -185,14 +186,14 @@ export default function AddUserModal({ theme, isDarkMode, onClose, onSuccess }) 
       return;
     }
 
-    // Validate email status
-    if (emailStatus === 'taken') {
+    // Validate email status (the wallet being linked may already use it)
+    if (emailStatus === 'taken' && !(linksOwnWallet && sameEmail)) {
       setValidationError('This email is already registered');
       return;
     }
 
     // Validate school ID status
-    if (schoolIdStatus === 'taken') {
+    if (schoolIdStatus === 'taken' && !(linksOwnWallet && sameSchoolId)) {
       setValidationError('This School ID is already registered');
       return;
     }
@@ -210,7 +211,7 @@ export default function AddUserModal({ theme, isDarkMode, onClose, onSuccess }) 
 
       const payload = {
         ...formData,
-        rfidUId: isAdminRole ? undefined : normalizeRfidHex(formData.rfidUId.trim()),
+        rfidUId: normalizeRfidHex(formData.rfidUId.trim()),
         schoolUId: cleanSchoolId(formData.schoolUId), // strip formatting dashes
         pin: temporaryPin,
         // If it's an admin user, use the adminRole as the actual role
@@ -221,11 +222,11 @@ export default function AddUserModal({ theme, isDarkMode, onClose, onSuccess }) 
       const response = await api.post('/admin/sysad/users', payload);
 
       // Show success notification with email status
-      const accountType = isAdminRole ? 'Admin' : 'User';
+      const accountType = isAdminRole ? (response.walletLinked ? 'Admin created and their wallet linked' : 'Admin and employee wallet created') : 'User created';
       if (response.emailSent) {
-        toast.success(`${accountType} created! Temporary PIN sent to ${formData.email}`);
+        toast.success(`${accountType}! Temporary PIN sent to ${formData.email}`);
       } else {
-        toast.warning(`${accountType} created but email failed. Temporary PIN: ${temporaryPin}`);
+        toast.warning(`${accountType}, but the email failed. Temporary PIN: ${temporaryPin}`);
       }
 
       onSuccess();
@@ -235,6 +236,15 @@ export default function AddUserModal({ theme, isDarkMode, onClose, onSuccess }) 
       setSubmitting(false);
     }
   };
+
+  // Creating an admin whose card already has their own wallet: it gets linked
+  const sameEmail = !!rfidOwner && rfidOwner.email?.toLowerCase() === formData.email.trim().toLowerCase();
+  const sameSchoolId = !!rfidOwner && String(rfidOwner.schoolUId) === cleanSchoolId(formData.schoolUId);
+  const linksOwnWallet = formData.role === 'admin' && !!rfidOwner && !rfidOwner.linked && (sameEmail || sameSchoolId);
+  const emailIsWallets = emailStatus === 'taken' && linksOwnWallet && sameEmail;
+  const schoolIdIsWallets = schoolIdStatus === 'taken' && linksOwnWallet && sameSchoolId;
+  const emailBlocked = emailStatus === 'taken' && !emailIsWallets;
+  const schoolIdBlocked = schoolIdStatus === 'taken' && !schoolIdIsWallets;
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" onClick={onClose}>
@@ -322,12 +332,16 @@ export default function AddUserModal({ theme, isDarkMode, onClose, onSuccess }) 
             </div>
           )}
 
-          {/* RFID Field - Only show for non-admin users */}
-          {formData.role !== 'admin' && (
+          {/* RFID Field — admins too: their NU ID card becomes their employee wallet */}
           <div>
             <label style={{ color: theme.text.secondary }} className="block text-xs font-semibold uppercase mb-2">
-              RFID Tag <span className="text-red-500">*</span>
+              {formData.role === 'admin' ? 'NU ID Card (RFID)' : 'RFID Tag'} <span className="text-red-500">*</span>
             </label>
+            {formData.role === 'admin' && (
+              <p style={{ color: theme.text.tertiary }} className="text-xs -mt-1 mb-2">
+                Admins get their own NUCash employee wallet on this card — one login opens both.
+              </p>
+            )}
             <div className="relative">
               <CreditCard style={{ color: theme.text.tertiary }} className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5" />
               <input
@@ -345,7 +359,7 @@ export default function AddUserModal({ theme, isDarkMode, onClose, onSuccess }) 
                 style={{
                   background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB',
                   color: theme.text.primary,
-                  borderColor: rfidStatus === 'taken' ? '#EF4444' : rfidStatus === 'available' ? '#10B981' : theme.border.primary
+                  borderColor: rfidStatus === 'taken' ? (linksOwnWallet ? '#3B82F6' : '#EF4444') : rfidStatus === 'available' ? '#10B981' : theme.border.primary
                 }}
                 className="w-full pl-10 pr-10 py-2.5 rounded-xl border text-sm focus:outline-none font-mono"
               />
@@ -356,11 +370,24 @@ export default function AddUserModal({ theme, isDarkMode, onClose, onSuccess }) 
                 <Check className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />
               )}
               {rfidStatus === 'taken' && !checkingRfid && (
-                <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-red-500" />
+                linksOwnWallet
+                  ? <Link2 className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-blue-500" />
+                  : <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-red-500" />
               )}
             </div>
-            {rfidStatus === 'taken' && (
-              <p className="text-red-500 text-xs mt-1">This RFID is already registered to another user</p>
+            {rfidStatus === 'taken' && linksOwnWallet && (
+              <p className="text-blue-500 text-xs mt-1">
+                {rfidOwner.name} already has a NUCash wallet on this card — it will be linked (balance kept).
+              </p>
+            )}
+            {rfidStatus === 'taken' && !linksOwnWallet && (
+              <p className="text-red-500 text-xs mt-1">
+                {rfidOwner?.linked
+                  ? 'This card is already linked to another admin account'
+                  : rfidOwner
+                    ? `This card belongs to ${rfidOwner.name} (${rfidOwner.schoolUId})${formData.role === 'admin' ? " — the school ID or email doesn't match" : ''}`
+                    : 'This RFID is already registered to another user'}
+              </p>
             )}
             {rfidStatus === 'available' && (
               <p className="text-green-500 text-xs mt-1">RFID is available</p>
@@ -371,7 +398,6 @@ export default function AddUserModal({ theme, isDarkMode, onClose, onSuccess }) 
               </p>
             )}
           </div>
-          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -417,7 +443,7 @@ export default function AddUserModal({ theme, isDarkMode, onClose, onSuccess }) 
                 style={{
                   background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB',
                   color: theme.text.primary,
-                  borderColor: emailStatus === 'taken' ? '#EF4444' : emailStatus === 'available' ? '#10B981' : theme.border.primary
+                  borderColor: emailBlocked ? '#EF4444' : emailStatus === 'available' || emailIsWallets ? '#10B981' : theme.border.primary
                 }}
                 className="w-full px-4 pr-10 py-2.5 rounded-xl border text-sm focus:outline-none"
                 required
@@ -428,12 +454,15 @@ export default function AddUserModal({ theme, isDarkMode, onClose, onSuccess }) 
               {emailStatus === 'available' && !checkingEmail && (
                 <Check className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />
               )}
-              {emailStatus === 'taken' && !checkingEmail && (
+              {emailBlocked && !checkingEmail && (
                 <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-red-500" />
               )}
             </div>
-            {emailStatus === 'taken' && (
+            {emailBlocked && (
               <p className="text-red-500 text-xs mt-1">This email is already registered</p>
+            )}
+            {emailIsWallets && (
+              <p className="text-blue-500 text-xs mt-1">Matches their existing wallet</p>
             )}
             {emailStatus === 'available' && (
               <p className="text-green-500 text-xs mt-1">Email is available</p>
@@ -453,7 +482,7 @@ export default function AddUserModal({ theme, isDarkMode, onClose, onSuccess }) 
                 style={{
                   background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB',
                   color: theme.text.primary,
-                  borderColor: schoolIdStatus === 'taken' ? '#EF4444' : schoolIdStatus === 'available' ? '#10B981' : theme.border.primary
+                  borderColor: schoolIdBlocked ? '#EF4444' : schoolIdStatus === 'available' || schoolIdIsWallets ? '#10B981' : theme.border.primary
                 }}
                 className="w-full px-4 pr-10 py-2.5 rounded-xl border text-sm focus:outline-none transition-all font-mono"
                 required
@@ -464,12 +493,15 @@ export default function AddUserModal({ theme, isDarkMode, onClose, onSuccess }) 
               {schoolIdStatus === 'available' && !checkingSchoolId && (
                 <Check className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />
               )}
-              {schoolIdStatus === 'taken' && !checkingSchoolId && (
+              {schoolIdBlocked && !checkingSchoolId && (
                 <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-red-500" />
               )}
             </div>
-            {schoolIdStatus === 'taken' && (
+            {schoolIdBlocked && (
               <p className="text-red-500 text-xs mt-1">This ID is already registered</p>
+            )}
+            {schoolIdIsWallets && (
+              <p className="text-blue-500 text-xs mt-1">Matches their existing wallet</p>
             )}
             {schoolIdStatus === 'available' && (
               <p className="text-green-500 text-xs mt-1">ID is available</p>

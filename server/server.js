@@ -74,10 +74,12 @@ const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/nucash';
 mongoose.connect(mongoUri)
   .then(() => {
     console.log('✅ MongoDB connected');
-    // Initialize auto-export cron job after DB connection
-    initializeAutoExportCron();
-    // Initialize deactivation scheduler cron job
-    initializeDeactivationCron(getSystemConfig, setSchedulerExecuted);
+    // Scheduled jobs (auto-export, semester deactivation). DISABLE_JOBS=1 on
+    // test copies of the server so they never act on the real database.
+    if (process.env.DISABLE_JOBS !== '1') {
+      initializeAutoExportCron();
+      initializeDeactivationCron(getSystemConfig, setSchedulerExecuted);
+    }
   })
   .catch(e => console.error('❌ MongoDB connection error:', e));
 

@@ -6,8 +6,18 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Replaces the whole screen history, so Back can't return to sign-in or
-// activation. Returns false for a role the app doesn't handle.
+// activation. Returns true, false for a role the app doesn't handle, or a
+// reason string for an admin who has no usable wallet in the app.
+const ADMIN_ROLES = ['sysad', 'treasury', 'accounting', 'motorpool', 'marketing'];
+
 export async function startSession(navigation, data) {
+  // An admin with their own NUCash employee wallet: admin pages are
+  // website-only, so the app opens the wallet (the login prepared it).
+  if (data.linkedWallet?.token) {
+    data = { token: data.linkedWallet.token, ...data.linkedWallet.user };
+  } else if (ADMIN_ROLES.includes(data.role)) {
+    return data.linkedWallet?.unavailable ? `wallet-${data.linkedWallet.unavailable}` : 'admin-only';
+  }
   const { role } = data;
   const open = (name, params) => navigation.reset({ index: 0, routes: [{ name, params }] });
   if (!['driver', 'merchant', 'student', 'employee'].includes(role)) return false;

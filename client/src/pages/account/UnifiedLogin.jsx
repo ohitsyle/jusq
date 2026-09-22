@@ -1,6 +1,7 @@
 import React, { useState, useContext, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppContext } from '../../context/AppContext';
+import { PENDING_KEY } from '../../utils/accountSwitch';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -204,7 +205,7 @@ export default function UnifiedLogin() {
 
         // Short-lived pass proving this browser just signed in with the temporary PIN
         try { sessionStorage.setItem('nucash_activation', JSON.stringify({ accountId: data.accountId, token: data.activationToken })); } catch { /* private mode */ }
-        const activationUrl = `/activate?accountId=${data.accountId}&accountType=${data.accountType || detectedRole}&email=${encodeURIComponent(data.email || email)}&fullName=${encodeURIComponent(data.fullName || '')}`;
+        const activationUrl = `/activate?accountId=${data.accountId}&accountType=${data.accountType || detectedRole}&email=${encodeURIComponent(data.email || email)}&fullName=${encodeURIComponent(data.fullName || '')}${data.hasLinkedWallet ? '&wallet=1' : ''}`;
         console.log('🔗 Activation URL:', activationUrl);
         navigate(activationUrl);
         return;
@@ -243,9 +244,16 @@ export default function UnifiedLogin() {
         willUseConfig: actualConfig.tokenKey
       });
 
+      // Admin with their own NUCash wallet: choose where to go (no second PIN)
+      if (isAdminResponse && data.linkedWallet?.token) {
+        sessionStorage.setItem(PENDING_KEY, JSON.stringify({ admin: data, wallet: data.linkedWallet }));
+        navigate('/choose-account', { replace: true });
+        return;
+      }
+
       // The server returns user data at the root level for all roles
-      // Extract only the relevant user information (excluding the token)
-      const { token, ...userDataWithoutToken } = data;
+      // Extract only the relevant user information (excluding the tokens)
+      const { token, linkedWallet, ...userDataWithoutToken } = data;
       const userData = userDataWithoutToken;
 
       // Validate userData before storing

@@ -171,6 +171,8 @@ export default function ProfilePage() {
         throw new Error(data.error || 'Failed to change password');
       }
 
+      // Other devices were signed out; keep this browser signed in
+      if (data.token) localStorage.setItem('adminToken', data.token);
       setStep(3);
       setError('');
     } catch (err) {

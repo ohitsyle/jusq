@@ -6,6 +6,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { FileText, ChevronDown, AlertTriangle, ArrowRight, LockKeyhole, Eye, EyeOff, Check, X, Lightbulb, Mail } from "lucide-react";
+import { PENDING_KEY, startAdminSession } from '../../utils/accountSwitch';
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
 
@@ -113,6 +114,8 @@ export default function AccountActivation() {
   const accountType = searchParams.get("accountType") || "user";
   const email = searchParams.get("email") || "";
   const fullName = searchParams.get("fullName") || "";
+  // An admin with their own NUCash wallet activates both at once
+  const hasWallet = searchParams.get("wallet") === "1";
 
   // Determine if this is an admin or user
   const isAdmin = ["admin", "motorpool", "treasury", "accounting", "merchant"].includes(accountType);
@@ -308,24 +311,19 @@ export default function AccountActivation() {
 
         const loginData = await loginResponse.json();
 
+        if (loginResponse.ok && loginData.token && loginData.linkedWallet?.token) {
+          sessionStorage.setItem(PENDING_KEY, JSON.stringify({ admin: loginData, wallet: loginData.linkedWallet }));
+          window.location.href = '/choose-account';
+          return;
+        }
+
         if (loginResponse.ok && loginData.token) {
           // Determine if admin or user login
-          const isAdminRole = loginData.role && ['motorpool', 'merchant', 'treasury', 'accounting', 'sysad', 'cafeteria', 'bookstore', 'printshop'].includes(loginData.role);
+          const isAdminRole = ['motorpool', 'merchant', 'treasury', 'accounting', 'marketing', 'sysad'].includes(loginData.role);
 
           if (isAdminRole) {
-            localStorage.setItem('adminToken', loginData.token);
-            localStorage.setItem('adminData', JSON.stringify(loginData));
-            const redirectMap = {
-              motorpool: '/admin/motorpool',
-              merchant: '/admin/merchant',
-              treasury: '/admin/treasury',
-              accounting: '/admin/accounting',
-              sysad: '/admin/sysad',
-              cafeteria: '/admin/merchant',
-              bookstore: '/admin/merchant',
-              printshop: '/admin/merchant'
-            };
-            window.location.href = redirectMap[loginData.role] || '/admin';
+            const { token: _t, linkedWallet: _w, ...adminData } = loginData;
+            window.location.href = startAdminSession(adminData, loginData.token);
           } else {
             localStorage.setItem('userToken', loginData.token);
             localStorage.setItem('userData', JSON.stringify(loginData));
@@ -383,7 +381,16 @@ export default function AccountActivation() {
     navigate("/login");
   };
 
-  const terms = TERMS_CONTENT[termsType];
+  const terms = isAdmin && hasWallet
+    ? {
+        title: "Administrator Terms & NUCash User Agreement",
+        sections: [
+          ...TERMS_CONTENT.admin.sections,
+          { title: "Your NUCash Employee Wallet", content: "Your admin account comes with your own NUCash employee wallet on your NU ID card. The NUCash User Agreement below applies to it." },
+          ...TERMS_CONTENT.user.sections.map((sec) => ({ ...sec, title: `Wallet ${sec.title}` }))
+        ]
+      }
+    : TERMS_CONTENT[termsType];
   const stepLabels = ["Terms", "PIN", "Verify", "Done"];
 
   return (
@@ -643,7 +650,7 @@ export default function AccountActivation() {
                     color: scrolledToBottom ? '#FBFBFB' : 'rgba(251, 251, 251, 0.4)',
                     lineHeight: '1.5'
                   }}>
-                    I have read and agree to the {isAdmin ? "Administrator" : "User"} Terms and Conditions
+                    I have read and agree to the {isAdmin && hasWallet ? "Administrator Terms and the NUCash User Agreement" : `${isAdmin ? "Administrator" : "User"} Terms and Conditions`}
                   </span>
                 </label>
 
@@ -694,7 +701,9 @@ export default function AccountActivation() {
                   <LockKeyhole size={22} style={{ flexShrink: 0 }} /> Set Your New PIN
                 </h2>
                 <p style={{ color: 'rgba(251, 251, 251, 0.6)', fontSize: '13px', margin: '8px 0 0 0' }}>
-                  Create a secure 6-digit PIN for your account
+                  {hasWallet
+                    ? 'This PIN opens both your admin account and your NUCash wallet'
+                    : 'Create a secure 6-digit PIN for your account'}
                 </p>
               </div>
 

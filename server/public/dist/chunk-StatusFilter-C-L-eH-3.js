@@ -1,0 +1,1 @@
+import{j as s,F as r}from"./app-index-M317rZsF.js";function o({value:t,onChange:e,options:l,label:a="Status"}){return s.jsx(r,{label:a,value:t,onChange:e,defaultValue:"",options:[{value:"",label:"All"},...l]})}export{o as S};

@@ -128,9 +128,20 @@ function CardHeader({ Icon, color, title, subtitle }) {
 }
 
 export default function ActivationScreen({ navigation, route }) {
-  const { accountId, accountType = 'user', email = '', fullName = '', activationToken } = route.params || {};
+  const { accountId, accountType = 'user', email = '', fullName = '', activationToken, hasLinkedWallet = false } = route.params || {};
   const isAdmin = accountType === 'admin';
-  const terms = TERMS_CONTENT[isAdmin ? 'admin' : 'user'];
+  // An admin with their own NUCash wallet activates both at once
+  const withWallet = isAdmin && hasLinkedWallet;
+  const terms = withWallet
+    ? {
+        title: 'Administrator Terms & NUCash User Agreement',
+        sections: [
+          ...TERMS_CONTENT.admin.sections,
+          { title: 'Your NUCash Employee Wallet', content: 'Your admin account comes with your own NUCash employee wallet on your NU ID card. The NUCash User Agreement below applies to it.' },
+          ...TERMS_CONTENT.user.sections.map((sec) => ({ ...sec, title: `Wallet ${sec.title}` })),
+        ],
+      }
+    : TERMS_CONTENT[isAdmin ? 'admin' : 'user'];
 
   const [step, setStep] = useState('terms');
   const [loading, setLoading] = useState(false);
@@ -210,7 +221,7 @@ export default function ActivationScreen({ navigation, route }) {
       // Signed in straight away with the PIN just set
       try {
         const res = await api.post('/login', { emailOrUsername: email, password: newPin });
-        if (res.data?.token && await startSession(navigation, res.data)) return;
+        if (res.data?.token && (await startSession(navigation, res.data)) === true) return;
       } catch (loginErr) {
         console.log('Auto sign-in after activation failed:', loginErr?.message);
       }
@@ -343,7 +354,7 @@ export default function ActivationScreen({ navigation, route }) {
                         {termsAccepted && <Check size={14} color={C.bg2} strokeWidth={3.5} />}
                       </View>
                       <Text style={[s.checkText, { color: scrolledToBottom ? C.text : C.text40 }]}>
-                        I have read and agree to the {isAdmin ? 'Administrator' : 'User'} Terms and Conditions
+                        I have read and agree to the {withWallet ? 'Administrator Terms and the NUCash User Agreement' : `${isAdmin ? 'Administrator' : 'User'} Terms and Conditions`}
                       </Text>
                     </Pressable>
 
@@ -363,7 +374,7 @@ export default function ActivationScreen({ navigation, route }) {
                     Icon={LockKeyhole}
                     color={C.blue}
                     title="Set Your New PIN"
-                    subtitle={<Text style={s.cardSub}>Create a secure 6-digit PIN for your account</Text>}
+                    subtitle={<Text style={s.cardSub}>{withWallet ? 'This PIN opens both your admin account and your NUCash wallet' : 'Create a secure 6-digit PIN for your account'}</Text>}
                   />
                   <View style={s.cardBody}>
                     <Text style={s.fieldLabel}>NEW PIN</Text>

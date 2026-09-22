@@ -5,6 +5,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import ThemeToggle from '../common/ThemeToggle';
 import { User, LogOut } from 'lucide-react';
+import SwitchAccountItem from './SwitchAccountItem';
 
 export default function Header({ adminData, onLogout, onOpenProfile }) {
   const { theme, isDarkMode } = useTheme();
@@ -234,6 +235,7 @@ export default function Header({ adminData, onLogout, onOpenProfile }) {
               </div>
 
               {/* Menu Items */}
+              <SwitchAccountItem onDone={() => setShowDropdown(false)} />
               <button
                 onClick={() => {
                   setShowDropdown(false);

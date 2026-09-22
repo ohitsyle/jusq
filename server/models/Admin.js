@@ -100,6 +100,21 @@ const AdminSchema = new mongoose.Schema({
   lastLogin: {
     type: Date,
     default: null
+  },
+
+  // The admin's own NUCash employee wallet (User), so staff can ride and pay
+  // like any employee. One login (this admin's email + PIN) opens both; the
+  // PINs are kept in sync. See utils/linkedAccounts.js.
+  linkedUserId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+
+  // Tokens issued before this time are rejected (PIN changed, reset, …)
+  sessionsValidAfter: {
+    type: Date,
+    default: null
   }
 }, {
   timestamps: true // Adds createdAt and updatedAt automatically

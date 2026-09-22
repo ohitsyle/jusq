@@ -113,6 +113,8 @@ const UserSchema = new mongoose.Schema({
   transferPinFails: { type: Number, default: 0 },       // consecutive wrong PINs
   transferLockedUntil: { type: Date, default: null },   // set after 3 wrong PINs
   sessionsValidAfter: { type: Date, default: null },    // logins issued before this are rejected
+  // Set when this is an admin's own employee wallet (see utils/linkedAccounts.js)
+  linkedAdminId: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin', default: null },
 
   // OTP Reset System
   resetOtp: {

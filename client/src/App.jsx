@@ -7,6 +7,7 @@ import { ToastContainer } from 'react-toastify'; // aliased to NotifyHost (theme
 import { useMaintenanceMode } from './hooks/useMaintenanceMode.js';
 
 import UnifiedLogin from './pages/account/UnifiedLogin';
+import ChooseAccount from './pages/account/ChooseAccount';
 const Kiosk = lazy(() => import('./pages/kiosk/Kiosk'));
 import AccountActivation from './pages/account/AccountActivation';
 
@@ -241,6 +242,7 @@ function AppContent() {
       {/* Public self-service registration kiosk */}
       <Route path="/kiosk" element={<Kiosk />} />
       <Route path="/activate" element={<AccountActivation />} />
+      <Route path="/choose-account" element={<ChooseAccount />} />
       <Route path="/maintenance" element={<MaintenanceMode />} />
       
       {/* Legal Pages */}

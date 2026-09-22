@@ -4,6 +4,7 @@
 import express from 'express';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
+import { activateWalletWithAdmin } from '../utils/linkedAccounts.js';
 
 const router = express.Router();
 
@@ -55,6 +56,10 @@ async function requireActivationPass(req, res, next) {
   }
   if (account.isActive) {
     return res.status(409).json({ error: 'This account is already activated. Please sign in with your PIN.', alreadyActive: true });
+  }
+  // An admin's own wallet is activated together with the admin account
+  if (accountType === 'user' && account.linkedAdminId) {
+    return res.status(409).json({ error: 'This wallet is activated together with your admin account. Please sign in with your admin email.', restart: true });
   }
   req.activation = { Model, account };
   next();
@@ -216,6 +221,8 @@ router.post('/verify-otp', requireActivationPass, async (req, res) => {
     );
     otpFails.delete(key);
     lastOtpSent.delete(key);
+    // The admin's own employee wallet switches on too, with the same new PIN
+    if (req.body.accountType === 'admin') await activateWalletWithAdmin(updated);
     console.log(`✅ Account activated for ${updated.email}`);
 
     res.json({
