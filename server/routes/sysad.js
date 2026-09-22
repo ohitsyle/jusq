@@ -1292,6 +1292,10 @@ router.post('/auto-export', async (req, res) => {
 router.post('/manual-export', async (req, res) => {
   try {
     const { type, startDate, endDate } = req.body;
+    // Transactions belong to Treasury / Accounting (see utils/exportScopes.js)
+    if (type === 'transactions' || type === 'merchants') {
+      return res.status(403).json({ error: 'System Admin cannot export this data type' });
+    }
 
     const start = new Date(startDate);
     const end = new Date(endDate);

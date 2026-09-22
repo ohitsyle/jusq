@@ -4,6 +4,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import ThemeToggle from '../common/ThemeToggle';
+import { Shield } from 'lucide-react';
 
 export default function SysadHeader({ adminData, onLogout, onOpenProfile }) {
   const { theme, isDarkMode } = useTheme();
@@ -108,7 +109,7 @@ export default function SysadHeader({ adminData, onLogout, onOpenProfile }) {
           borderRadius: '20px',
           border: `1px solid ${sysadAccentBorder}`
         }}>
-          <span style={{ fontSize: '12px' }}>🛡️</span>
+          <Shield style={{ width: 13, height: 13, color: sysadAccent }} />
           <span style={{ fontSize: '12px', fontWeight: 600, color: sysadAccent }}>SYSTEM ADMIN</span>
         </div>
 
@@ -180,7 +181,7 @@ export default function SysadHeader({ adminData, onLogout, onOpenProfile }) {
                 <div style={{ fontSize: '14px', fontWeight: 700, color: theme.text.primary, marginBottom: '4px' }}>{getFullName()}</div>
                 <div style={{ fontSize: '12px', color: theme.text.secondary }}>{adminData?.email || 'sysad@nu.edu.ph'}</div>
                 <div style={{ fontSize: '10px', color: sysadAccent, textTransform: 'uppercase', fontWeight: 600, marginTop: '6px', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <span>🛡️</span> System Administrator
+                  <Shield style={{ width: 12, height: 12 }} /> System Administrator
                 </div>
               </div>
 

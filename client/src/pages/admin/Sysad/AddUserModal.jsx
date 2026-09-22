@@ -7,7 +7,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../../../utils/api';
 import { toast } from 'react-toastify';
-import { Plus, X, Check, Loader2, CreditCard, AlertCircle } from 'lucide-react';
+import { Plus, X, Check, Loader2, CreditCard, AlertCircle, GraduationCap, Briefcase, Shield } from 'lucide-react';
 import { convertToHexLittleEndian } from '../../../utils/rfidConverter';
 
 const normalizeRfidHex = convertToHexLittleEndian;
@@ -267,9 +267,9 @@ export default function AddUserModal({ theme, isDarkMode, onClose, onSuccess }) 
             <label style={{ color: theme.text.secondary }} className="block text-xs font-semibold uppercase mb-2">User Role *</label>
             <div className="grid grid-cols-3 gap-2">
               {[
-                { value: 'student', label: 'Student', icon: '🎓' },
-                { value: 'employee', label: 'Employee', icon: '👔' },
-                { value: 'admin', label: 'Admin', icon: '🛡️' }
+                { value: 'student', label: 'Student', Icon: GraduationCap },
+                { value: 'employee', label: 'Employee', Icon: Briefcase },
+                { value: 'admin', label: 'Admin', Icon: Shield }
               ].map((option) => (
                 <button
                   key={option.value}
@@ -286,7 +286,7 @@ export default function AddUserModal({ theme, isDarkMode, onClose, onSuccess }) 
                   }}
                   className="py-3 rounded-xl border font-semibold text-sm transition-all hover:opacity-90 flex items-center justify-center gap-2"
                 >
-                  <span>{option.icon}</span> {option.label}
+                  <option.Icon className="w-4 h-4" /> {option.label}
                 </button>
               ))}
             </div>

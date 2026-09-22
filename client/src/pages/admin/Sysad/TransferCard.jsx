@@ -5,7 +5,7 @@ import { toast } from 'react-toastify';
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
-import { CreditCard, ArrowRight, Search, AlertTriangle, CheckCircle, Loader2, User, RefreshCw, Users, Download } from 'lucide-react';
+import { CreditCard, ArrowRight, Search, AlertTriangle, CheckCircle, Loader2, User, RefreshCw, Users, Download, GraduationCap, Briefcase } from 'lucide-react';
 import { convertToHexLittleEndian } from '../../../utils/rfidConverter';
 import { FilterSelect } from '../../../components/shared/ThemedControls';
 
@@ -217,25 +217,25 @@ function TransferModal({ isOpen, onClose, selectedUser }) {
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
-                  className="py-2.5 rounded-xl border font-semibold capitalize"
+                  className="py-2.5 rounded-xl border font-semibold capitalize inline-flex items-center justify-center gap-2"
                   style={{
-                    background: selectedUser?.role === 'student' || selectedUser?.userType === 'student' ? accentColor : 'rgba(15, 18, 39, 0.5)',
-                    color: selectedUser?.role === 'student' || selectedUser?.userType === 'student' ? '#1E1D40' : theme.text.primary,
+                    background: selectedUser?.role === 'student' || selectedUser?.userType === 'student' ? accentColor : (isDarkMode ? 'rgba(15, 18, 39, 0.5)' : '#F9FAFB'),
+                    color: selectedUser?.role === 'student' || selectedUser?.userType === 'student' ? (isDarkMode ? '#1E1D40' : '#FFFFFF') : theme.text.primary,
                     borderColor: accentColor
                   }}
                 >
-                  🎓 Student
+                  <GraduationCap className="w-4 h-4" /> Student
                 </button>
                 <button
                   type="button"
-                  className="py-2.5 rounded-xl border font-semibold capitalize"
+                  className="py-2.5 rounded-xl border font-semibold capitalize inline-flex items-center justify-center gap-2"
                   style={{
-                    background: selectedUser?.role === 'employee' || selectedUser?.userType === 'employee' ? accentColor : 'rgba(15, 18, 39, 0.5)',
-                    color: selectedUser?.role === 'employee' || selectedUser?.userType === 'employee' ? '#1E1D40' : theme.text.primary,
+                    background: selectedUser?.role === 'employee' || selectedUser?.userType === 'employee' ? accentColor : (isDarkMode ? 'rgba(15, 18, 39, 0.5)' : '#F9FAFB'),
+                    color: selectedUser?.role === 'employee' || selectedUser?.userType === 'employee' ? (isDarkMode ? '#1E1D40' : '#FFFFFF') : theme.text.primary,
                     borderColor: accentColor
                   }}
                 >
-                  👔 Employee
+                  <Briefcase className="w-4 h-4" /> Employee
                 </button>
               </div>
               {/* Display admin roles if applicable */}

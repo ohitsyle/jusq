@@ -9,7 +9,8 @@ export const ROLE_EXPORT_TYPES = {
   merchant: ['Merchants', 'Phones', 'Logs', 'Concerns'],
   treasury: ['Transactions', 'Cash-Ins', 'Merchants', 'Logs', 'Concerns'],
   accounting: ['Transactions', 'Cash-Ins', 'Balances', 'Merchants', 'Logs'],
-  sysad: ['Transactions', 'Users', 'Merchants', 'Admins', 'Logs', 'Concerns'],
+  // Transactions and merchants belong to Treasury / Accounting, not System Admin.
+  sysad: ['Users', 'Admins', 'Logs', 'Concerns'],
   marketing: ['Campaigns', 'Logs'],
 };
 

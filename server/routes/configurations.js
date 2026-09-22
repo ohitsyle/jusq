@@ -349,6 +349,10 @@ router.post('/manual-export', async (req, res) => {
     }
 
     const role = req.authAdmin?.role || req.adminRole;
+    // Only the data this role may export (403, not 401 — the web app treats 401 as "signed out")
+    if (!filterTypesForRole([exportType], role).length) {
+      return res.status(403).json({ error: 'Your role cannot export this data type' });
+    }
     const { csv, count } = await exportByType(exportType, {}, role, metaFromReq(req, role));
     const fileName = `${exportType}_export_${new Date().toISOString().split('T')[0]}.csv`;
 
@@ -423,8 +427,8 @@ router.post('/manual-export-all', async (req, res) => {
     const role = req.authAdmin?.role || req.adminRole;
     const meta = metaFromReq(req, role, dateRange);
 
-    // Export each type and add to ZIP with date filtering
-    for (const type of exportTypes) {
+    // Export each type this role may export and add to ZIP with date filtering
+    for (const type of filterTypesForRole(exportTypes, role)) {
       try {
         const { csv, count } = await exportByType(type, dateFilter, role, meta);
         const fileName = `${type}_export_${new Date().toISOString().split('T')[0]}.csv`;

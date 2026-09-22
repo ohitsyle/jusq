@@ -5,18 +5,17 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { toast } from 'react-toastify';
-import { Settings, Shield, Download, Calendar, Clock, Power, AlertTriangle, CheckCircle, X, Loader2, Archive, FileText, RefreshCw, Users } from 'lucide-react';
+import { Settings, Shield, Download, Calendar, Clock, Power, AlertTriangle, CheckCircle, X, Loader2, Archive, FileText, RefreshCw, Users, Package, FolderOpen, MousePointerClick, BarChart3 } from 'lucide-react';
 import ScheduleExportModal from '../../../components/modals/ScheduleExportModal';
 import { ThemedDateInput, ThemedTimeInput } from '../../../components/shared/ThemedControls';
 
-// Sysad-specific export types
+// Sysad-specific export types (transactions and merchants are Treasury /
+// Accounting data — the server refuses them for sysad too)
 const SYSAD_EXPORT_TYPES = [
-  { value: 'Transactions', icon: '💳', label: 'Transactions' },
-  { value: 'Users', icon: '👥', label: 'Users' },
-  { value: 'Merchants', icon: '🏪', label: 'Merchants' },
-  { value: 'Admins', icon: '👤', label: 'Admins' },
-  { value: 'Logs', icon: '📋', label: 'System Logs' },
-  { value: 'Concerns', icon: '💬', label: 'All Concerns' }
+  { value: 'Users', label: 'Users' },
+  { value: 'Admins', label: 'Admins' },
+  { value: 'Logs', label: 'System Logs' },
+  { value: 'Concerns', label: 'All Concerns' }
 ];
 
 export default function SysadConfigPage() {
@@ -419,21 +418,21 @@ export default function SysadConfigPage() {
           {/* Current Settings Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div style={{ background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB', borderColor: theme.border.primary }} className="p-4 rounded-xl border">
-              <div className="text-2xl mb-2">📅</div>
+              <Calendar className="w-6 h-6 mb-2" style={{ color: accentColor }} />
               <div style={{ color: theme.text.secondary }} className="text-xs font-semibold uppercase mb-1">Frequency</div>
               <div style={{ color: theme.text.primary }} className="font-bold">
                 {configurations.autoExport?.frequency?.charAt(0).toUpperCase() + configurations.autoExport?.frequency?.slice(1) || 'Not set'}
               </div>
             </div>
             <div style={{ background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB', borderColor: theme.border.primary }} className="p-4 rounded-xl border">
-              <div className="text-2xl mb-2">🕐</div>
+              <Clock className="w-6 h-6 mb-2" style={{ color: accentColor }} />
               <div style={{ color: theme.text.secondary }} className="text-xs font-semibold uppercase mb-1">Export Time</div>
               <div style={{ color: theme.text.primary }} className="font-bold">
                 {configurations.autoExport?.time || 'Not set'}
               </div>
             </div>
             <div style={{ background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB', borderColor: theme.border.primary }} className="p-4 rounded-xl border">
-              <div className="text-2xl mb-2">📦</div>
+              <Package className="w-6 h-6 mb-2" style={{ color: accentColor }} />
               <div style={{ color: theme.text.secondary }} className="text-xs font-semibold uppercase mb-1">Data Types</div>
               <div style={{ color: theme.text.primary }} className="font-bold">
                 {configurations.autoExport?.exportTypes?.length || 0} selected
@@ -443,18 +442,18 @@ export default function SysadConfigPage() {
 
           {/* Manual Export Button */}
           <div style={{ background: 'rgba(16,185,129,0.1)', borderColor: 'rgba(16,185,129,0.3)' }} className="p-6 rounded-xl border-2 border-dashed text-center">
-            <div className="text-4xl mb-3">📦</div>
+            <Package className="w-10 h-10 mx-auto mb-3" style={{ color: '#10B981' }} />
             <h4 style={{ color: theme.text.primary }} className="font-bold text-lg mb-2">Export System Data Now</h4>
             <p style={{ color: theme.text.secondary }} className="text-sm mb-4">
-              Download a complete ZIP file with all system data: transactions, users, merchants, admins, logs, and concerns.
+              Download a ZIP file with system data: users, admins, logs, and concerns.
             </p>
             <button
               onClick={() => setShowExportModal(true)}
               disabled={saving}
               style={{ background: '#10B981', color: '#FFFFFF' }}
-              className="px-8 py-3 rounded-xl font-bold hover:opacity-90 transition disabled:opacity-50"
+              className="px-8 py-3 rounded-xl font-bold hover:opacity-90 transition disabled:opacity-50 inline-flex items-center gap-2"
             >
-              {saving ? '⏳ Exporting...' : '📥 Download System Data (ZIP)'}
+              {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Exporting...</> : <><Download className="w-4 h-4" /> Download System Data (ZIP)</>}
             </button>
           </div>
         </div>
@@ -527,7 +526,7 @@ export default function SysadConfigPage() {
           {/* Export List */}
           {filteredExports.length === 0 ? (
             <div className="text-center py-10" style={{ color: theme.text.muted }}>
-              <div className="text-4xl mb-3 opacity-30">📂</div>
+              <FolderOpen className="w-10 h-10 mx-auto mb-3 opacity-30" />
               <p>No exports yet</p>
               <p className="text-xs mt-1">Configure auto-export or trigger a manual export</p>
             </div>
@@ -541,7 +540,9 @@ export default function SysadConfigPage() {
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-1">
-                      <span className="text-lg">{exp.source === 'auto' ? '🔄' : '👆'}</span>
+                      {exp.source === 'auto'
+                        ? <RefreshCw className="w-4 h-4" style={{ color: '#3B82F6' }} />
+                        : <MousePointerClick className="w-4 h-4" style={{ color: '#A855F7' }} />}
                       <span style={{ color: accentColor }} className="font-bold">
                         {exp.exportType || 'System Export'}
                       </span>
@@ -555,23 +556,23 @@ export default function SysadConfigPage() {
                         {exp.source === 'auto' ? 'AUTO' : 'MANUAL'}
                       </span>
                     </div>
-                    <div style={{ color: theme.text.secondary }} className="text-sm flex gap-4">
-                      <span>📅 {new Date(exp.exportedAt || exp.timestamp || exp.createdAt).toLocaleDateString()}</span>
-                      <span>🕐 {new Date(exp.exportedAt || exp.timestamp || exp.createdAt).toLocaleTimeString()}</span>
-                      {exp.fileName && <span>📄 {exp.fileName}</span>}
-                      {exp.recordCount && <span>📊 {exp.recordCount} records</span>}
+                    <div style={{ color: theme.text.secondary }} className="text-sm flex flex-wrap gap-x-4 gap-y-1">
+                      <span className="inline-flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" />{new Date(exp.exportedAt || exp.timestamp || exp.createdAt).toLocaleDateString()}</span>
+                      <span className="inline-flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" />{new Date(exp.exportedAt || exp.timestamp || exp.createdAt).toLocaleTimeString()}</span>
+                      {exp.fileName && <span className="inline-flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" />{exp.fileName}</span>}
+                      {exp.recordCount && <span className="inline-flex items-center gap-1.5"><BarChart3 className="w-3.5 h-3.5" />{exp.recordCount} records</span>}
                     </div>
                   </div>
                   {exp.status === 'success' ? (
                     <button
                       onClick={() => handleDownloadExport(exp._id)}
-                      className="px-4 py-2 rounded-lg text-sm font-bold bg-green-500/20 text-green-500 border border-green-500/30 hover:bg-green-500/30 transition"
+                      className="px-4 py-2 rounded-lg text-sm font-bold bg-green-500/20 text-green-500 border border-green-500/30 hover:bg-green-500/30 transition inline-flex items-center gap-2"
                     >
-                      📥 Download
+                      <Download className="w-4 h-4" /> Download
                     </button>
                   ) : (
-                    <span className="px-4 py-2 rounded-lg text-sm font-bold bg-red-500/20 text-red-500 border border-red-500/30">
-                      ✗ Failed
+                    <span className="px-4 py-2 rounded-lg text-sm font-bold bg-red-500/20 text-red-500 border border-red-500/30 inline-flex items-center gap-1.5">
+                      <X className="w-4 h-4" /> Failed
                     </span>
                   )}
                 </div>
@@ -623,7 +624,7 @@ export default function SysadConfigPage() {
             className="p-4 rounded-xl border mb-5"
           >
             <p style={{ color: theme.text.secondary }} className="text-sm leading-relaxed">
-              <span style={{ color: '#EF4444' }} className="font-bold">⚠️ What this does: </span>
+              <span style={{ color: '#EF4444' }} className="font-bold inline-flex items-center gap-1 align-text-bottom"><AlertTriangle className="w-4 h-4" /> What this does: </span>
               At the scheduled date and time, <span style={{ color: theme.text.primary }} className="font-bold">all student accounts will be deactivated</span>. Students will no longer be able to log in, pay, or use their NUCash balance until an administrator reactivates them. Useful at the end of a semester or school year. <span style={{ color: '#EF4444' }} className="font-semibold">Accounts must be reactivated one by one — this cannot be undone in bulk.</span>
             </p>
           </div>
@@ -964,11 +965,11 @@ function DateRangeModal({ theme, isDarkMode, dateRange, setDateRange, customStar
 
         <div className="p-6 space-y-3">
           {[
-            { value: 'all', label: '📅 All Time', desc: 'Export all records' },
-            { value: '24hr', label: '🕐 Last 24 Hours', desc: 'Records from the past day' },
-            { value: 'week', label: '📆 This Week', desc: 'Records from the past 7 days' },
-            { value: 'month', label: '📊 This Month', desc: 'Records from current month' },
-            { value: 'custom', label: '🎯 Custom Range', desc: 'Choose specific dates' }
+            { value: 'all', label: 'All Time', desc: 'Export all records' },
+            { value: '24hr', label: 'Last 24 Hours', desc: 'Records from the past day' },
+            { value: 'week', label: 'This Week', desc: 'Records from the past 7 days' },
+            { value: 'month', label: 'This Month', desc: 'Records from current month' },
+            { value: 'custom', label: 'Custom Range', desc: 'Choose specific dates' }
           ].map((option) => (
             <label
               key={option.value}
@@ -1023,9 +1024,9 @@ function DateRangeModal({ theme, isDarkMode, dateRange, setDateRange, customStar
               onClick={onExport}
               disabled={loading}
               style={{ background: '#10B981', color: '#FFFFFF' }}
-              className="flex-1 py-3 rounded-xl font-bold hover:opacity-90 transition disabled:opacity-50"
+              className="flex-1 py-3 rounded-xl font-bold hover:opacity-90 transition disabled:opacity-50 inline-flex items-center justify-center gap-2"
             >
-              {loading ? '⏳ Exporting...' : '📥 Export Now'}
+              {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Exporting...</> : <><Download className="w-4 h-4" /> Export Now</>}
             </button>
             <button
               onClick={onCancel}

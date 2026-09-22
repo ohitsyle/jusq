@@ -35,10 +35,15 @@ input, textarea, select, button {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* No transform here: a transformed input is painted above the absolutely
+   positioned icon inside it (search magnifier, card icon), hiding the icon
+   while you type. The glow follows the theme accent. */
 input:focus, textarea:focus, select:focus {
   outline: none;
-  transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(255, 212, 28, 0.2);
+}
+[data-theme="light"] input:focus, [data-theme="light"] textarea:focus, [data-theme="light"] select:focus {
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.18);
 }
 
 button:active {
