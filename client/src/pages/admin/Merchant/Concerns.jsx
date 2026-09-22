@@ -6,6 +6,7 @@ import api from '../../../utils/api';
 import { toast } from 'react-toastify';
 import SearchBar from '../../../components/shared/SearchBar';
 import StatusFilter from '../../../components/shared/StatusFilter';
+import { FilterSelect } from '../../../components/shared/ThemedControls';
 import DateRangeFilter from '../../../components/shared/DateRangeFilter';
 import ExportButton from '../../../components/shared/ExportButton';
 import { exportToCSV, downloadServerExport } from '../../../utils/csvExport';
@@ -361,18 +362,6 @@ export default function MerchantConcerns() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-5">
-        <button onClick={() => setActiveTab('all')} style={{ padding: '10px 20px', background: activeTab === 'all' ? 'rgba(255,212,28,0.2)' : 'transparent', border: `2px solid ${activeTab === 'all' ? theme.accent.primary : 'rgba(255,212,28,0.3)'}`, borderRadius: '8px', color: activeTab === 'all' ? theme.accent.primary : theme.text.secondary, fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>
-          All ({concerns.length})
-        </button>
-        <button onClick={() => setActiveTab('assistance')} style={{ padding: '10px 20px', background: activeTab === 'assistance' ? 'rgba(59,130,246,0.2)' : 'transparent', border: `2px solid ${activeTab === 'assistance' ? '#3B82F6' : 'rgba(59,130,246,0.3)'}`, borderRadius: '8px', color: activeTab === 'assistance' ? '#3B82F6' : theme.text.secondary, fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>
-          🆘 Assistance ({concerns.filter(c => c.submissionType === 'assistance' || !c.submissionType).length})
-        </button>
-        <button onClick={() => setActiveTab('feedback')} style={{ padding: '10px 20px', background: activeTab === 'feedback' ? 'rgba(34,197,94,0.2)' : 'transparent', border: `2px solid ${activeTab === 'feedback' ? '#22C55E' : 'rgba(34,197,94,0.3)'}`, borderRadius: '8px', color: activeTab === 'feedback' ? '#22C55E' : theme.text.secondary, fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>
-          💬 Feedback ({concerns.filter(c => c.submissionType === 'feedback').length})
-        </button>
-      </div>
-
       {/* Actions Bar */}
       <div
         style={{
@@ -383,14 +372,24 @@ export default function MerchantConcerns() {
       >
         <div className="flex flex-wrap gap-3 items-center">
           <SearchBar value={searchQuery} onChange={setSearchQuery} placeholder="Search by ID, user, subject..." />
+          <FilterSelect
+            label="Type"
+            value={activeTab}
+            onChange={setActiveTab}
+            options={[
+              { value: 'all', label: 'All', count: concerns.length },
+              { value: 'assistance', label: 'Assistance', count: concerns.filter(c => c.submissionType === 'assistance' || !c.submissionType).length },
+              { value: 'feedback', label: 'Feedback', count: concerns.filter(c => c.submissionType === 'feedback').length }
+            ]}
+          />
           {activeTab !== 'feedback' && (
             <StatusFilter
               value={statusFilter}
               onChange={setStatusFilter}
               options={[
-                { value: 'pending', label: 'Pending' },
-                { value: 'in_progress', label: 'In Progress' },
-                { value: 'resolved', label: 'Resolved' }
+                { value: 'pending', label: 'Pending', color: '#F59E0B' },
+                { value: 'in_progress', label: 'In Progress', color: '#3B82F6' },
+                { value: 'resolved', label: 'Resolved', color: '#10B981' }
               ]}
             />
           )}

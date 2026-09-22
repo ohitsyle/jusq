@@ -159,6 +159,108 @@ export function ThemedSelect({ value, onChange, children, style = {}, className 
   );
 }
 
+// ---------- FilterSelect -----------------------------------------------------
+// Compact toolbar filter: "Status: All ▾". Replaces rows of toggle buttons so
+// filter bars stay on one tidy line. The outline turns accent whenever a
+// non-default choice is picked, so it's obvious the list is filtered.
+//   options: [{ value, label, color?, count? }]  (color = status dot)
+//   onChange(value) — receives the value itself
+
+export function FilterSelect({ label, value, onChange, options, defaultValue, className = '' }) {
+  const [open, setOpen] = useState(false);
+  const [hi, setHi] = useState(0);
+  const wrapRef = useRef(null);
+  const popRef = useRef(null);
+  const c = usePopupColors();
+  useClickOutside([wrapRef, popRef], () => setOpen(false));
+  const pos = useFixedPopupPos(wrapRef, open, Math.min(320, options.length * 38 + 12), 200);
+
+  const selIndex = Math.max(0, options.findIndex((o) => String(o.value) === String(value)));
+  const selected = options[selIndex];
+  const base = defaultValue !== undefined ? defaultValue : options[0]?.value;
+  const active = String(value) !== String(base);
+  const { theme, isDarkMode, accent } = c;
+
+  useEffect(() => { if (open) setHi(selIndex); }, [open]); // eslint-disable-line
+
+  const pick = (opt) => {
+    setOpen(false);
+    if (String(opt.value) !== String(value)) onChange && onChange(opt.value);
+  };
+
+  const onKeyDown = (e) => {
+    if (!open && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) { e.preventDefault(); setOpen(true); return; }
+    if (!open) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); setHi((i) => Math.min(options.length - 1, i + 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setHi((i) => Math.max(0, i - 1)); }
+    else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(options[hi]); }
+    else if (e.key === 'Tab') setOpen(false);
+  };
+
+  const dot = (color) => <span style={{ width: 8, height: 8, borderRadius: 999, background: color, flexShrink: 0 }} />;
+
+  return (
+    <div ref={wrapRef} className={`relative inline-block ${className}`}>
+      <button
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        onKeyDown={onKeyDown}
+        style={{
+          background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F9FAFB',
+          borderColor: active ? accent : theme.border.primary,
+          boxShadow: active ? `0 0 0 1px ${accent}` : 'none',
+          color: theme.text.primary,
+        }}
+        className="h-[38px] px-3 rounded-xl border text-[13px] font-semibold flex items-center gap-2 whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-opacity-50"
+      >
+        {label && <span style={{ color: theme.text.tertiary, fontWeight: 500 }}>{label}:</span>}
+        {selected?.color && dot(selected.color)}
+        <span style={{ color: active ? accent : theme.text.primary }}>{selected?.label}</span>
+        {selected?.count != null && <span style={{ color: theme.text.tertiary, fontWeight: 500 }}>({selected.count})</span>}
+        <ChevronDown style={{ width: 14, height: 14, flexShrink: 0, transition: 'transform 0.15s', transform: open ? 'rotate(180deg)' : 'none', color: accent }} />
+      </button>
+
+      {open && pos && createPortal(
+        <div
+          ref={popRef}
+          role="listbox"
+          aria-label={label}
+          style={popupStyle(c, pos, { minWidth: Math.max(pos.width, 170), maxHeight: 320, overflowY: 'auto', padding: 4 })}
+        >
+          {options.map((opt, i) => {
+            const isSel = i === selIndex;
+            return (
+              <div
+                key={`${opt.value}-${i}`}
+                role="option"
+                aria-selected={isSel}
+                onClick={() => pick(opt)}
+                onMouseEnter={() => setHi(i)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 8,
+                  fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
+                  background: isSel ? accent : i === hi ? c.hoverBg : 'transparent',
+                  color: isSel ? c.onAccent : theme.text.primary,
+                }}
+              >
+                {opt.color && dot(opt.color)}
+                <span style={{ flex: 1 }}>{opt.label}</span>
+                {opt.count != null && (
+                  <span style={{ fontSize: 11, fontWeight: 700, opacity: isSel ? 0.85 : 0.6 }}>{opt.count}</span>
+                )}
+                {isSel && <Check style={{ width: 14, height: 14 }} />}
+              </div>
+            );
+          })}
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
+
 // ---------- ThemedDateInput --------------------------------------------------
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];

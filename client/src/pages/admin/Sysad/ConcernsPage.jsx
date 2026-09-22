@@ -8,7 +8,8 @@ import api from '../../../utils/api';
 import { toast } from 'react-toastify';
 import { exportToCSV, downloadServerExport } from '../../../utils/csvExport';
 import { X, Loader2, Send, CheckCircle, MessageCircle, FileText, Clock, AlertCircle, Search, Download, MessageSquare } from 'lucide-react';
-import { ThemedDateInput } from '../../../components/shared/ThemedControls';
+import { ThemedDateInput, FilterSelect } from '../../../components/shared/ThemedControls';
+import StatusFilter from '../../../components/shared/StatusFilter';
 
 export default function SysadConcernsPage() {
   const { theme, isDarkMode } = useTheme();
@@ -368,27 +369,6 @@ export default function SysadConcernsPage() {
         className="rounded-xl border-2 p-4 mb-5"
       >
         <div className="flex flex-wrap gap-3 items-center">
-          {/* Tab Filter - Pill Group */}
-          <div className="flex gap-1 p-1 rounded-xl" style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F3F4F6' }}>
-            {[
-              { value: 'all', label: `All (${concerns.length})` },
-              { value: 'assistance', label: `🆘 Assistance (${concerns.filter(c => c.submissionType === 'assistance' || !c.submissionType).length})` },
-              { value: 'feedback', label: `💬 Feedback (${concerns.filter(c => c.submissionType === 'feedback').length})` }
-            ].map(tab => (
-              <button
-                key={tab.value}
-                onClick={() => setActiveTab(tab.value)}
-                style={{
-                  background: activeTab === tab.value ? theme.accent.primary : 'transparent',
-                  color: activeTab === tab.value ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.secondary
-                }}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80 whitespace-nowrap"
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
           {/* Search */}
           <div className="relative flex-1 min-w-[180px] max-w-[280px]">
             <Search style={{ color: theme.text.tertiary }} className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" />
@@ -402,28 +382,27 @@ export default function SysadConcernsPage() {
             />
           </div>
 
-          {/* Status Filter - Pill Group */}
+          <FilterSelect
+            label="Type"
+            value={activeTab}
+            onChange={setActiveTab}
+            options={[
+              { value: 'all', label: 'All', count: concerns.length },
+              { value: 'assistance', label: 'Assistance', count: concerns.filter(c => c.submissionType === 'assistance' || !c.submissionType).length },
+              { value: 'feedback', label: 'Feedback', count: concerns.filter(c => c.submissionType === 'feedback').length }
+            ]}
+          />
+
           {activeTab !== 'feedback' && (
-            <div className="flex gap-1 p-1 rounded-xl" style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F3F4F6' }}>
-              {[
-                { value: '', label: 'All' },
-                { value: 'pending', label: 'Pending' },
-                { value: 'in_progress', label: 'In Progress' },
-                { value: 'resolved', label: 'Resolved' }
-              ].map(opt => (
-                <button
-                  key={opt.value}
-                  onClick={() => setStatusFilter(opt.value)}
-                  style={{
-                    background: statusFilter === opt.value ? theme.accent.primary : 'transparent',
-                    color: statusFilter === opt.value ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.secondary
-                  }}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80 whitespace-nowrap"
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
+            <StatusFilter
+              value={statusFilter}
+              onChange={setStatusFilter}
+              options={[
+                { value: 'pending', label: 'Pending', color: '#F59E0B' },
+                { value: 'in_progress', label: 'In Progress', color: '#3B82F6' },
+                { value: 'resolved', label: 'Resolved', color: '#10B981' }
+              ]}
+            />
           )}
 
           {/* Date Range */}

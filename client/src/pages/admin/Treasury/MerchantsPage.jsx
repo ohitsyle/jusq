@@ -5,6 +5,7 @@ import api from '../../../utils/api';
 import { toast } from 'react-toastify';
 import { Search, X, Store, TrendingUp, Calendar, Clock, DollarSign, Users, Truck, RefreshCw, Download } from 'lucide-react';
 import { downloadServerExport } from '../../../utils/csvExport';
+import { FilterSelect } from '../../../components/shared/ThemedControls';
 
 export default function MerchantsPage() {
   const { theme, isDarkMode } = useTheme();
@@ -173,26 +174,16 @@ export default function MerchantsPage() {
               />
             </div>
 
-            {/* Status Filter - Segmented Control */}
-            <div className="flex gap-1 p-1 rounded-xl" style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F3F4F6' }}>
-              {[
+            <FilterSelect
+              label="Status"
+              value={statusFilter}
+              onChange={setStatusFilter}
+              options={[
                 { value: 'all', label: 'All' },
-                { value: 'active', label: 'Active' },
-                { value: 'inactive', label: 'Inactive' }
-              ].map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => setStatusFilter(option.value)}
-                  style={{
-                    background: statusFilter === option.value ? theme.accent.primary : 'transparent',
-                    color: statusFilter === option.value ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.secondary
-                  }}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80 capitalize"
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
+                { value: 'active', label: 'Active', color: '#10B981' },
+                { value: 'inactive', label: 'Inactive', color: '#EF4444' }
+              ]}
+            />
           </div>
         </div>
       </div>

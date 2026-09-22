@@ -11,7 +11,7 @@ import StatusFilter from '../../../components/shared/StatusFilter';
 import DateRangeFilter from '../../../components/shared/DateRangeFilter';
 import ConcernDetailModal from '../../../components/modals/ConcernDetailModal';
 import { exportToCSV, prepareDataForExport, downloadServerExport } from '../../../utils/csvExport';
-import { ThemedSelect } from '../../../components/shared/ThemedControls';
+import { ThemedSelect, FilterSelect } from '../../../components/shared/ThemedControls';
 
 export default function ConcernsList() {
     const { theme, isDarkMode } = useTheme();
@@ -213,58 +213,6 @@ export default function ConcernsList() {
           </p>
         </div>
 
-        {/* Tabs */}
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
-          <button
-            onClick={() => setActiveTab('all')}
-            style={{
-              padding: '10px 20px',
-              background: activeTab === 'all' ? 'rgba(255,212,28,0.2)' : 'transparent',
-              border: `2px solid ${activeTab === 'all' ? '#FFD41C' : 'rgba(255,212,28,0.3)'}`,
-              borderRadius: '8px',
-              color: activeTab === 'all' ? '#FFD41C' : 'rgba(251,251,251,0.6)',
-              fontSize: '13px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}
-          >
-            All ({concerns.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('assistance')}
-            style={{
-              padding: '10px 20px',
-              background: activeTab === 'assistance' ? 'rgba(59,130,246,0.2)' : 'transparent',
-              border: `2px solid ${activeTab === 'assistance' ? '#3B82F6' : 'rgba(59,130,246,0.3)'}`,
-              borderRadius: '8px',
-              color: activeTab === 'assistance' ? '#3B82F6' : 'rgba(251,251,251,0.6)',
-              fontSize: '13px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}
-          >
-            🆘 Assistance ({concerns.filter(c => c.submissionType === 'assistance').length})
-          </button>
-          <button
-            onClick={() => setActiveTab('feedback')}
-            style={{
-              padding: '10px 20px',
-              background: activeTab === 'feedback' ? 'rgba(34,197,94,0.2)' : 'transparent',
-              border: `2px solid ${activeTab === 'feedback' ? '#22C55E' : 'rgba(34,197,94,0.3)'}`,
-              borderRadius: '8px',
-              color: activeTab === 'feedback' ? '#22C55E' : 'rgba(251,251,251,0.6)',
-              fontSize: '13px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}
-          >
-            💬 Feedback ({concerns.filter(c => c.submissionType === 'feedback').length})
-          </button>
-        </div>
-
         <div className="rounded-xl border-2 p-4" style={{ background: isDarkMode ? 'rgba(15,18,39,0.8)' : theme.bg.card, borderColor: theme.accent.primary }}>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
           <SearchBar
@@ -272,14 +220,24 @@ export default function ConcernsList() {
             onChange={setSearchQuery}
             placeholder="Search by ID, user, title, category, or status..."
           />
+          <FilterSelect
+            label="Type"
+            value={activeTab}
+            onChange={setActiveTab}
+            options={[
+              { value: 'all', label: 'All', count: concerns.length },
+              { value: 'assistance', label: 'Assistance', count: concerns.filter(c => c.submissionType === 'assistance').length },
+              { value: 'feedback', label: 'Feedback', count: concerns.filter(c => c.submissionType === 'feedback').length }
+            ]}
+          />
           <StatusFilter
             value={statusFilter}
             onChange={setStatusFilter}
             label="Status"
             options={[
-              { value: 'pending', label: 'Pending' },
-              { value: 'in_progress', label: 'In Progress' },
-              { value: 'resolved', label: 'Resolved' },
+              { value: 'pending', label: 'Pending', color: '#F59E0B' },
+              { value: 'in_progress', label: 'In Progress', color: '#3B82F6' },
+              { value: 'resolved', label: 'Resolved', color: '#10B981' },
               { value: 'closed', label: 'Closed' }
             ]}
           />

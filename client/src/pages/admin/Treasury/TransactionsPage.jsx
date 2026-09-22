@@ -6,7 +6,7 @@ import { toast } from 'react-toastify';
 import { Search, Download, ClipboardList } from 'lucide-react';
 import TransactionTable from '../../../components/TreasuryDashboard/TransactionTable';
 import { exportToCSV, downloadServerExport } from '../../../utils/csvExport';
-import { ThemedDateInput } from '../../../components/shared/ThemedControls';
+import { ThemedDateInput, FilterSelect } from '../../../components/shared/ThemedControls';
 
 export default function TransactionsPage() {
   const { theme, isDarkMode } = useTheme();
@@ -134,27 +134,17 @@ export default function TransactionsPage() {
                 />
               </div>
 
-              {/* Type Filter - Selection Buttons */}
-              <div className="flex gap-1 p-1 rounded-xl" style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F3F4F6' }}>
-                {[
+              <FilterSelect
+                label="Type"
+                value={filterType}
+                onChange={(v) => { setFilterType(v); setCurrentPage(1); }}
+                options={[
                   { value: '', label: 'All' },
-                  { value: 'credit', label: 'Cash-In' },
-                  { value: 'debit', label: 'Payment' },
-                  { value: 'refunded', label: 'Refunded' }
-                ].map((option) => (
-                  <button
-                    key={option.value}
-                    onClick={() => { setFilterType(option.value); setCurrentPage(1); }}
-                    style={{
-                      background: filterType === option.value ? theme.accent.primary : 'transparent',
-                      color: filterType === option.value ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.secondary
-                    }}
-                    className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
+                  { value: 'credit', label: 'Cash-In', color: '#10B981' },
+                  { value: 'debit', label: 'Payment', color: '#3B82F6' },
+                  { value: 'refunded', label: 'Refunded', color: '#F59E0B' }
+                ]}
+              />
 
               {/* Date Range Filters */}
               <div className="flex gap-2 items-center">
@@ -166,7 +156,7 @@ export default function TransactionsPage() {
                     color: theme.text.primary, 
                     borderColor: theme.border.primary 
                   }}
-                  className="px-3 py-1.5 rounded-xl border text-xs focus:outline-none"
+                  className="h-[38px] px-3 rounded-xl border text-[13px] focus:outline-none"
                   max={endDate || new Date().toLocaleDateString('en-CA')}
                 />
                 <span style={{ color: theme.text.tertiary }} className="text-xs">to</span>
@@ -178,7 +168,7 @@ export default function TransactionsPage() {
                     color: theme.text.primary, 
                     borderColor: theme.border.primary 
                   }}
-                  className="px-3 py-1.5 rounded-xl border text-xs focus:outline-none"
+                  className="h-[38px] px-3 rounded-xl border text-[13px] focus:outline-none"
                   min={startDate || undefined} max={new Date().toLocaleDateString('en-CA')}
                 />
               </div>

@@ -5,6 +5,7 @@ import { useTheme } from '../../context/ThemeContext';
 import api from '../../utils/api';
 import { toast } from 'react-toastify';
 import { Search, X, Clock, CheckCircle, AlertCircle, Loader2, ClipboardList, FileText, MessageSquare } from 'lucide-react';
+import { FilterSelect } from '../../components/shared/ThemedControls';
 
 export default function UserConcerns() {
   const { theme, isDarkMode } = useTheme();
@@ -195,23 +196,17 @@ export default function UserConcerns() {
         {/* Divider */}
         <div style={{ background: theme.border.primary }} className="hidden sm:block w-px h-8" />
 
-        {/* Status Filter */}
-        <div className="flex gap-2 flex-wrap">
-          {['all', 'pending', 'in_progress', 'resolved'].map((status) => (
-            <button
-              key={status}
-              onClick={() => setStatusFilter(status)}
-              style={{
-                background: statusFilter === status ? theme.accent.primary : (isDarkMode ? 'rgba(30,35,71,0.8)' : '#F9FAFB'),
-                color: statusFilter === status ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.primary,
-                borderColor: theme.border.primary
-              }}
-              className="px-3 py-2 rounded-lg font-semibold text-xs border hover:opacity-80 transition"
-            >
-              {status === 'in_progress' ? 'In Progress' : status.charAt(0).toUpperCase() + status.slice(1)}
-            </button>
-          ))}
-        </div>
+        <FilterSelect
+          label="Status"
+          value={statusFilter}
+          onChange={setStatusFilter}
+          options={[
+            { value: 'all', label: 'All' },
+            { value: 'pending', label: 'Pending', color: '#F59E0B' },
+            { value: 'in_progress', label: 'In Progress', color: '#3B82F6' },
+            { value: 'resolved', label: 'Resolved', color: '#10B981' }
+          ]}
+        />
       </div>
 
       {/* Results Count */}

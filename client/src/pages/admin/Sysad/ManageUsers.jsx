@@ -9,6 +9,7 @@ import { exportToCSV, downloadServerExport } from '../../../utils/csvExport';
 import { convertToHexLittleEndian } from '../../../utils/rfidConverter';
 import { toast } from 'react-toastify';
 import AddUserModal from './AddUserModal';
+import { FilterSelect } from '../../../components/shared/ThemedControls';
 
 // Confirmation Modal Component
 function ConfirmModal({ isOpen, onClose, onConfirm, title, message, confirmText = 'Confirm', cancelText = 'Cancel', type = 'warning' }) {
@@ -261,74 +262,38 @@ export default function ManageUsers() {
               />
             </div>
 
-            {/* Role Filter - Selection Buttons */}
-            <div className="flex gap-1 p-1 rounded-xl" style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F3F4F6' }}>
-              {[
+            <FilterSelect
+              label="Role"
+              value={roleFilter}
+              onChange={(v) => { setRoleFilter(v); setCurrentPage(1); }}
+              options={[
                 { value: 'all', label: 'All' },
                 { value: 'student', label: 'Students' },
                 { value: 'employee', label: 'Employees' },
                 { value: 'admin', label: 'Admins' }
-              ].map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => { setRoleFilter(option.value); setCurrentPage(1); }}
-                  style={{
-                    background: roleFilter === option.value ? theme.accent.primary : 'transparent',
-                    color: roleFilter === option.value ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.secondary
-                  }}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Status Filter - Selection Buttons */}
-            <div className="flex gap-1 p-1 rounded-xl" style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F3F4F6' }}>
-              {[
-                { value: 'all', label: 'All', color: null },
+              ]}
+            />
+            <FilterSelect
+              label="Status"
+              value={statusFilter}
+              onChange={(v) => { setStatusFilter(v); setCurrentPage(1); }}
+              options={[
+                { value: 'all', label: 'All' },
                 { value: 'active', label: 'Active', color: '#10B981' },
                 { value: 'inactive', label: 'Inactive', color: '#EF4444' },
                 { value: 'deactivated', label: 'Deactivated', color: '#F97316' }
-              ].map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => { setStatusFilter(option.value); setCurrentPage(1); }}
-                  style={{
-                    background: statusFilter === option.value
-                      ? (option.color || theme.accent.primary)
-                      : 'transparent',
-                    color: statusFilter === option.value
-                      ? (option.color ? '#FFFFFF' : (isDarkMode ? '#181D40' : '#FFFFFF'))
-                      : theme.text.secondary
-                  }}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Sort - Selection Buttons */}
-            <div className="flex gap-1 p-1 rounded-xl" style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F3F4F6' }}>
-              {[
+              ]}
+            />
+            <FilterSelect
+              label="Sort"
+              value={sortBy}
+              onChange={(v) => { setSortBy(v); setCurrentPage(1); }}
+              options={[
                 { value: 'createdAt', label: 'Date' },
                 { value: 'lastName', label: 'Name' },
                 { value: 'role', label: 'Role' }
-              ].map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => { setSortBy(option.value); setCurrentPage(1); }}
-                  style={{
-                    background: sortBy === option.value ? theme.accent.primary : 'transparent',
-                    color: sortBy === option.value ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.secondary
-                  }}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
+              ]}
+            />
 
             {/* Export CSV Button - Now at the END of left section */}
             <button

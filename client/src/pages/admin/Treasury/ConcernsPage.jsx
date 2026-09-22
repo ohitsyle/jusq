@@ -6,7 +6,8 @@ import api from '../../../utils/api';
 import { toast } from 'react-toastify';
 import { Search, Download, MessageSquare, Clock, Loader2, CheckCircle } from 'lucide-react';
 import { exportToCSV, downloadServerExport } from '../../../utils/csvExport';
-import { ThemedDateInput } from '../../../components/shared/ThemedControls';
+import { ThemedDateInput, FilterSelect } from '../../../components/shared/ThemedControls';
+import StatusFilter from '../../../components/shared/StatusFilter';
 
 export default function ConcernsPage() {
   const { theme, isDarkMode } = useTheme();
@@ -289,18 +290,6 @@ export default function ConcernsPage() {
           </div>
         </div>
 
-        <div className="flex gap-2 mb-5">
-          <button onClick={() => setActiveTab('all')} style={{ padding: '10px 20px', background: activeTab === 'all' ? 'rgba(255,212,28,0.2)' : 'transparent', border: `2px solid ${activeTab === 'all' ? theme.accent.primary : 'rgba(255,212,28,0.3)'}`, borderRadius: '8px', color: activeTab === 'all' ? theme.accent.primary : theme.text.secondary, fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>
-            All ({concerns.length})
-          </button>
-          <button onClick={() => setActiveTab('assistance')} style={{ padding: '10px 20px', background: activeTab === 'assistance' ? 'rgba(59,130,246,0.2)' : 'transparent', border: `2px solid ${activeTab === 'assistance' ? '#3B82F6' : 'rgba(59,130,246,0.3)'}`, borderRadius: '8px', color: activeTab === 'assistance' ? '#3B82F6' : theme.text.secondary, fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>
-            🆘 Assistance ({concerns.filter(c => c.submissionType === 'assistance' || !c.submissionType).length})
-          </button>
-          <button onClick={() => setActiveTab('feedback')} style={{ padding: '10px 20px', background: activeTab === 'feedback' ? 'rgba(34,197,94,0.2)' : 'transparent', border: `2px solid ${activeTab === 'feedback' ? '#22C55E' : 'rgba(34,197,94,0.3)'}`, borderRadius: '8px', color: activeTab === 'feedback' ? '#22C55E' : theme.text.secondary, fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>
-            💬 Feedback ({concerns.filter(c => c.submissionType === 'feedback').length})
-          </button>
-        </div>
-
         {/* Actions Bar - Updated to match inspiration */}
         <div style={{ background: isDarkMode ? 'rgba(15,18,39,0.8)' : theme.bg.card, borderColor: theme.accent.primary }} className="rounded-xl border-2 p-4">
           <div className="flex flex-wrap gap-3 items-center justify-between">
@@ -311,24 +300,36 @@ export default function ConcernsPage() {
                 <input type="text" placeholder="Search by ID, user, subject..." value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }} style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }} className="w-full pl-10 pr-4 py-2 rounded-xl border text-sm focus:outline-none transition-all focus:ring-2 focus:ring-opacity-50" />
               </div>
 
-              {/* Status Filter - Segmented Control */}
+              <FilterSelect
+                label="Type"
+                value={activeTab}
+                onChange={(v) => { setActiveTab(v); setCurrentPage(1); }}
+                options={[
+                  { value: 'all', label: 'All', count: concerns.length },
+                  { value: 'assistance', label: 'Assistance', count: concerns.filter(c => c.submissionType === 'assistance' || !c.submissionType).length },
+                  { value: 'feedback', label: 'Feedback', count: concerns.filter(c => c.submissionType === 'feedback').length }
+                ]}
+              />
+
               {activeTab !== 'feedback' && (
-                <div className="flex gap-1 p-1 rounded-xl" style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F3F4F6' }}>
-                  {[{ value: '', label: 'All' }, { value: 'pending', label: 'Pending' }, { value: 'in_progress', label: 'In Progress' }, { value: 'resolved', label: 'Resolved' }].map((option) => (
-                    <button key={option.value} onClick={() => { setStatusFilter(option.value); setCurrentPage(1); }} style={{ background: statusFilter === option.value ? theme.accent.primary : 'transparent', color: statusFilter === option.value ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.secondary }} className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80">
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
+                <StatusFilter
+                  value={statusFilter}
+                  onChange={(v) => { setStatusFilter(v); setCurrentPage(1); }}
+                  options={[
+                    { value: 'pending', label: 'Pending', color: '#F59E0B' },
+                    { value: 'in_progress', label: 'In Progress', color: '#3B82F6' },
+                    { value: 'resolved', label: 'Resolved', color: '#10B981' }
+                  ]}
+                />
               )}
 
               {/* Date Range */}
               <div className="flex gap-2 items-center">
-                <ThemedDateInput value={startDate} onChange={(e) => { setStartDate(e.target.value); setCurrentPage(1); }} style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }} className="px-3 py-1.5 rounded-xl border text-xs focus:outline-none"
+                <ThemedDateInput value={startDate} onChange={(e) => { setStartDate(e.target.value); setCurrentPage(1); }} style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }} className="h-[38px] px-3 rounded-xl border text-[13px] focus:outline-none"
                   max={endDate || new Date().toLocaleDateString('en-CA')}
                 />
                 <span style={{ color: theme.text.tertiary }} className="text-xs">to</span>
-                <ThemedDateInput value={endDate} onChange={(e) => { setEndDate(e.target.value); setCurrentPage(1); }} style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }} className="px-3 py-1.5 rounded-xl border text-xs focus:outline-none"
+                <ThemedDateInput value={endDate} onChange={(e) => { setEndDate(e.target.value); setCurrentPage(1); }} style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }} className="h-[38px] px-3 rounded-xl border text-[13px] focus:outline-none"
                   min={startDate || undefined} max={new Date().toLocaleDateString('en-CA')}
                 />
               </div>

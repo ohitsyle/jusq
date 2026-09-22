@@ -8,12 +8,13 @@ export default function DateRangeFilter({ startDate, endDate, onStartChange, onE
   const { theme, isDarkMode } = useTheme();
 
   const inputStyle = {
-    padding: '8px 12px',
+    height: 38, // same height as the filter dropdowns and search box
+    padding: '0 12px',
     border: `1px solid ${theme.border.primary}`,
     borderRadius: '12px',
     background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F9FAFB',
     color: theme.text.primary,
-    fontSize: '12px',
+    fontSize: '13px',
     cursor: 'pointer',
     outline: 'none'
   };

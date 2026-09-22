@@ -7,6 +7,7 @@ import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { CreditCard, ArrowRight, Search, AlertTriangle, CheckCircle, Loader2, User, RefreshCw, Users, Download } from 'lucide-react';
 import { convertToHexLittleEndian } from '../../../utils/rfidConverter';
+import { FilterSelect } from '../../../components/shared/ThemedControls';
 
 // Custom Notification Modal for TransferCard
 function TransferNotificationModal({ isOpen, onClose, type, title, message }) {
@@ -732,72 +733,38 @@ export default function TransferCard() {
                   />
                 </div>
 
-                {/* Role Filter - Selection Buttons */}
-                <div className="flex gap-1 p-1 rounded-xl" style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F3F4F6' }}>
-                  {[
+                <FilterSelect
+                  label="Role"
+                  value={roleFilter}
+                  onChange={setRoleFilter}
+                  options={[
                     { value: 'all', label: 'All' },
                     { value: 'student', label: 'Students' },
                     { value: 'employee', label: 'Employees' }
-                  ].map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => setRoleFilter(option.value)}
-                      style={{
-                        background: roleFilter === option.value ? theme.accent.primary : 'transparent',
-                        color: roleFilter === option.value ? (isDarkMode ? '#181D40' : '#FFFFFF') : (isDarkMode ? 'rgba(251, 251, 251, 0.6)' : theme.text.secondary)
-                      }}
-                      className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
+                  ]}
+                />
 
-                {/* Status Filter - Selection Buttons */}
-                <div className="flex gap-1 p-1 rounded-xl" style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F3F4F6' }}>
-                  {[
-                    { value: 'all', label: 'All', color: null },
+                <FilterSelect
+                  label="Status"
+                  value={statusFilter}
+                  onChange={setStatusFilter}
+                  options={[
+                    { value: 'all', label: 'All' },
                     { value: 'active', label: 'Active', color: '#10B981' },
                     { value: 'inactive', label: 'Inactive', color: '#EF4444' }
-                  ].map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => setStatusFilter(option.value)}
-                      style={{
-                        background: statusFilter === option.value
-                          ? (option.color || theme.accent.primary)
-                          : 'transparent',
-                        color: statusFilter === option.value
-                          ? (option.color ? '#FFFFFF' : (isDarkMode ? '#181D40' : '#FFFFFF'))
-                          : (isDarkMode ? 'rgba(251, 251, 251, 0.6)' : theme.text.secondary)
-                      }}
-                      className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
+                  ]}
+                />
 
-                {/* Sort Options */}
-                <div className="flex gap-1 p-1 rounded-xl" style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F3F4F6' }}>
-                  {[
+                <FilterSelect
+                  label="Sort"
+                  value={sortBy}
+                  onChange={setSortBy}
+                  options={[
                     { value: 'createdAt', label: 'Date' },
                     { value: 'name', label: 'Name' },
                     { value: 'role', label: 'Role' }
-                  ].map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => setSortBy(option.value)}
-                      style={{
-                        background: sortBy === option.value ? theme.accent.primary : 'transparent',
-                        color: sortBy === option.value ? (isDarkMode ? '#181D40' : '#FFFFFF') : (isDarkMode ? 'rgba(251, 251, 251, 0.6)' : theme.text.secondary)
-                      }}
-                      className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
+                  ]}
+                />
               </div>
 
               {/* Right: Refresh Button */}

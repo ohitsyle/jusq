@@ -6,7 +6,7 @@ import api from '../../../utils/api';
 import { Search, Download, ClipboardList } from 'lucide-react';
 import { exportToCSV, prepareDataForExport, downloadServerExport } from '../../../utils/csvExport';
 import LogDetailModal from '../../../components/modals/LogDetailModal';
-import { ThemedDateInput } from '../../../components/shared/ThemedControls';
+import { ThemedDateInput, FilterSelect } from '../../../components/shared/ThemedControls';
 
 export default function LogsList() {
   const { theme, isDarkMode } = useTheme();
@@ -241,54 +241,25 @@ export default function LogsList() {
             />
           </div>
 
-          {/* Type Filter - Button Group */}
-          <div className="flex gap-1 p-1 rounded-xl flex-wrap" style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F3F4F6' }}>
-            <button
-              onClick={() => setTypeFilter('')}
-              style={{
-                background: typeFilter === '' ? theme.accent.primary : 'transparent',
-                color: typeFilter === '' ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.secondary
-              }}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
-            >
-              All
-            </button>
-            {getTypeOptions().map((option) => (
-              <button
-                key={option.value}
-                onClick={() => setTypeFilter(option.value)}
-                style={{
-                  background: typeFilter === option.value ? theme.accent.primary : 'transparent',
-                  color: typeFilter === option.value ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.secondary
-                }}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80 whitespace-nowrap"
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
+          <FilterSelect
+            label="Type"
+            value={typeFilter}
+            onChange={setTypeFilter}
+            options={[{ value: '', label: 'All' }, ...getTypeOptions()]}
+          />
 
-          {/* Sort Buttons - Only show for sysad */}
+          {/* Sort - only for sysad */}
           {adminData?.role === 'sysad' && (
-            <div className="flex gap-1 p-1 rounded-xl" style={{ background: isDarkMode ? 'rgba(30,35,71,0.8)' : '#F3F4F6' }}>
-              {[
+            <FilterSelect
+              label="Sort"
+              value={sortBy}
+              onChange={(v) => { setSortBy(v); setCurrentPage(1); }}
+              options={[
                 { value: 'timestamp', label: 'Date' },
                 { value: 'type', label: 'Type' },
                 { value: 'user', label: 'Admin' }
-              ].map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => { setSortBy(option.value); setCurrentPage(1); }}
-                  style={{
-                    background: sortBy === option.value ? theme.accent.primary : 'transparent',
-                    color: sortBy === option.value ? (isDarkMode ? '#181D40' : '#FFFFFF') : theme.text.secondary
-                  }}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
+              ]}
+            />
           )}
 
           {/* Date Range Filters */}
@@ -301,7 +272,7 @@ export default function LogsList() {
                 color: theme.text.primary, 
                 borderColor: theme.border.primary 
               }}
-              className="px-3 py-1.5 rounded-xl border text-xs focus:outline-none"
+              className="h-[38px] px-3 rounded-xl border text-[13px] focus:outline-none"
                   max={endDate || new Date().toLocaleDateString('en-CA')}
                 />
             <span style={{ color: theme.text.tertiary }} className="text-xs">to</span>
@@ -313,7 +284,7 @@ export default function LogsList() {
                 color: theme.text.primary, 
                 borderColor: theme.border.primary 
               }}
-              className="px-3 py-1.5 rounded-xl border text-xs focus:outline-none"
+              className="h-[38px] px-3 rounded-xl border text-[13px] focus:outline-none"
                   min={startDate || undefined} max={new Date().toLocaleDateString('en-CA')}
                 />
           </div>
