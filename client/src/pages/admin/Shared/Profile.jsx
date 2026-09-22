@@ -3,29 +3,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, CheckCircle2, ClipboardList, Eye, EyeOff, Lock, Mail, Shield, User } from 'lucide-react';
-import { useTheme } from '../../../context/ThemeContext';
+import { useTheme, useThemeColors } from '../../../context/ThemeContext';
 
-// Profile colours follow the theme: the yellow accent (dark mode) becomes the
-// blue accent in light mode, and faint white overlays become faint navy.
-function useProfileColors() {
-  const { theme, isDarkMode } = useTheme();
-  return {
-    accent: theme.accent.primary,
-    onAccent: theme.accent.secondary,
-    tint: (a) => (isDarkMode ? `rgba(255,212,28,${a})` : `rgba(59,130,246,${a})`),
-    ink: (a) => (isDarkMode ? `rgba(251,251,251,${a})` : `rgba(24,29,64,${a})`),
-    avatarBg: isDarkMode ? 'linear-gradient(135deg, #FFD41C 0%, #F59E0B 100%)' : 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
-    surface: isDarkMode ? '#1E2347' : '#FFFFFF',
-    tabIdleBg: isDarkMode ? 'rgba(30, 35, 71, 0.4)' : '#FFFFFF',
-  };
-}
 
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 export default function ProfilePage() {
     const { theme, isDarkMode } = useTheme();
-    const P = useProfileColors();
+    const P = useThemeColors();
   const [adminData, setAdminData] = useState(() => {
     const data = localStorage.getItem('adminData');
     return data ? JSON.parse(data) : null;
@@ -811,7 +797,7 @@ export default function ProfilePage() {
 // Info Field Component
 function InfoField({ label, value, highlight, fullWidth }) {
   const { theme, isDarkMode } = useTheme();
-  const P = useProfileColors();
+  const P = useThemeColors();
   const getHighlightColor = () => {
     if (highlight === 'success') return { bg: 'rgba(34, 197, 94, 0.15)', border: 'rgba(34, 197, 94, 0.3)', color: '#22C55E' };
     if (highlight === 'error') return { bg: 'rgba(239, 68, 68, 0.15)', border: 'rgba(239, 68, 68, 0.3)', color: '#EF4444' };

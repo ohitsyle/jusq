@@ -104,3 +104,21 @@ export const ThemeProvider = ({ children }) => {
     </ThemeContext.Provider>
   );
 };
+
+// Colours for components written with the dark theme's literals: the yellow
+// accent (dark) becomes the blue accent in light mode, faint white overlays
+// become faint navy, and dark insets become light grey.
+export function useThemeColors() {
+  const { theme, isDarkMode } = useTheme();
+  return {
+    accent: theme.accent.primary,
+    onAccent: theme.accent.secondary,
+    tint: (a) => (isDarkMode ? `rgba(255,212,28,${a})` : `rgba(59,130,246,${a})`),
+    ink: (a) => (isDarkMode ? `rgba(251,251,251,${a})` : `rgba(24,29,64,${a})`),
+    avatarBg: isDarkMode ? 'linear-gradient(135deg, #FFD41C 0%, #F59E0B 100%)' : 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+    surface: isDarkMode ? '#1E2347' : '#FFFFFF',
+    tabIdleBg: isDarkMode ? 'rgba(30, 35, 71, 0.4)' : '#FFFFFF',
+    fieldBg: isDarkMode ? 'rgba(15, 18, 39, 0.5)' : '#F9FAFB',
+  };
+}
+

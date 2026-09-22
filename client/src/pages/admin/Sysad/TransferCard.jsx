@@ -3,7 +3,7 @@ import { toast } from 'react-toastify';
 // Transfer RFID card data from one card to another - Table-based design like ManageUsers
 
 import React, { useState, useEffect } from 'react';
-import { useTheme } from '../../../context/ThemeContext';
+import { useTheme, useThemeColors } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { CreditCard, ArrowRight, Search, AlertTriangle, CheckCircle, Loader2, User, RefreshCw, Users, Download, GraduationCap, Briefcase } from 'lucide-react';
 import { convertToHexLittleEndian } from '../../../utils/rfidConverter';
@@ -12,6 +12,7 @@ import { FilterSelect } from '../../../components/shared/ThemedControls';
 // Custom Notification Modal for TransferCard
 function TransferNotificationModal({ isOpen, onClose, type, title, message }) {
   const { theme, isDarkMode } = useTheme();
+  const P = useThemeColors();
   if (!isOpen) return null;
 
   const configs = {
@@ -54,6 +55,7 @@ function TransferNotificationModal({ isOpen, onClose, type, title, message }) {
 // Multi-step Transfer Modal
 function TransferModal({ isOpen, onClose, selectedUser }) {
   const { theme, isDarkMode } = useTheme();
+  const P = useThemeColors();
   const [currentStep, setCurrentStep] = useState(1);
   const [newRfid, setNewRfid] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -99,7 +101,7 @@ function TransferModal({ isOpen, onClose, selectedUser }) {
       case 1:
         return (
           <div className="space-y-5">
-            <div className="p-4 rounded-xl border flex items-start gap-3" style={{ background: 'rgba(255, 212, 28, 0.1)', borderColor: 'rgba(255, 212, 28, 0.3)' }}>
+            <div className="p-4 rounded-xl border flex items-start gap-3" style={{ background: P.tint(0.1), borderColor: P.tint(0.3) }}>
               <CreditCard className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: accentColor }} />
               <div>
                 <p className="font-semibold" style={{ color: theme.text.primary }}>Scan New RFID Card</p>
@@ -126,9 +128,9 @@ function TransferModal({ isOpen, onClose, selectedUser }) {
                 }}
                 className="w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-yellow-400/50 font-mono text-lg tracking-wider"
                 style={{
-                  background: 'rgba(15, 18, 39, 0.5)',
+                  background: P.fieldBg,
                   color: theme.text.primary,
-                  borderColor: 'rgba(255, 212, 28, 0.2)'
+                  borderColor: P.tint(0.2)
                 }}
                 autoFocus
               />
@@ -146,7 +148,7 @@ function TransferModal({ isOpen, onClose, selectedUser }) {
                 onClick={handleRfidSubmit}
                 disabled={!newRfid.trim()}
                 className="flex-1 py-3 rounded-xl font-bold transition-all hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
-                style={{ background: accentColor, color: '#1E1D40' }}
+                style={{ background: accentColor, color: P.onAccent }}
               >
                 Continue →
               </button>
@@ -157,7 +159,7 @@ function TransferModal({ isOpen, onClose, selectedUser }) {
       case 2:
         return (
           <div className="space-y-4">
-            <div className="p-3 rounded-xl border flex items-center justify-between" style={{ background: 'rgba(15, 18, 39, 0.5)', borderColor: 'rgba(255, 212, 28, 0.2)' }}>
+            <div className="p-3 rounded-xl border flex items-center justify-between" style={{ background: P.fieldBg, borderColor: P.tint(0.2) }}>
               <div className="flex items-center gap-3">
                 <CreditCard className="w-5 h-5" style={{ color: accentColor }} />
                 <div>
@@ -178,9 +180,9 @@ function TransferModal({ isOpen, onClose, selectedUser }) {
                   readOnly
                   className="w-full px-3 py-2.5 rounded-xl border"
                   style={{
-                    background: 'rgba(15, 18, 39, 0.5)',
+                    background: P.fieldBg,
                     color: theme.text.primary,
-                    borderColor: 'rgba(255, 212, 28, 0.2)'
+                    borderColor: P.tint(0.2)
                   }}
                 />
               </div>
@@ -191,9 +193,9 @@ function TransferModal({ isOpen, onClose, selectedUser }) {
                   readOnly
                   className="w-full px-3 py-2.5 rounded-xl border"
                   style={{
-                    background: 'rgba(15, 18, 39, 0.5)',
+                    background: P.fieldBg,
                     color: theme.text.primary,
-                    borderColor: 'rgba(255, 212, 28, 0.2)'
+                    borderColor: P.tint(0.2)
                   }}
                 />
               </div>
@@ -204,9 +206,9 @@ function TransferModal({ isOpen, onClose, selectedUser }) {
                   readOnly
                   className="w-full px-3 py-2.5 rounded-xl border"
                   style={{
-                    background: 'rgba(15, 18, 39, 0.5)',
+                    background: P.fieldBg,
                     color: theme.text.primary,
-                    borderColor: 'rgba(255, 212, 28, 0.2)'
+                    borderColor: P.tint(0.2)
                   }}
                 />
               </div>
@@ -246,7 +248,7 @@ function TransferModal({ isOpen, onClose, selectedUser }) {
                     className="py-2.5 rounded-xl border font-semibold capitalize w-full"
                     style={{
                       background: accentColor,
-                      color: '#1E1D40',
+                      color: P.onAccent,
                       borderColor: accentColor
                     }}
                   >
@@ -264,9 +266,9 @@ function TransferModal({ isOpen, onClose, selectedUser }) {
                   readOnly
                   className="w-full px-3 py-2.5 rounded-xl border font-mono pl-10"
                   style={{
-                    background: 'rgba(15, 18, 39, 0.5)',
+                    background: P.fieldBg,
                     color: theme.text.primary,
-                    borderColor: 'rgba(255, 212, 28, 0.2)'
+                    borderColor: P.tint(0.2)
                   }}
                 />
               </div>
@@ -280,9 +282,9 @@ function TransferModal({ isOpen, onClose, selectedUser }) {
                   readOnly
                   className="w-full px-3 py-2.5 rounded-xl border font-mono pl-10"
                   style={{
-                    background: 'rgba(15, 18, 39, 0.5)',
+                    background: P.fieldBg,
                     color: theme.text.primary,
-                    borderColor: 'rgba(255, 212, 28, 0.2)'
+                    borderColor: P.tint(0.2)
                   }}
                 />
               </div>
@@ -299,7 +301,7 @@ function TransferModal({ isOpen, onClose, selectedUser }) {
               <button
                 onClick={() => setCurrentStep(3)}
                 className="flex-1 py-3 rounded-xl font-bold transition-all hover:opacity-90 flex items-center justify-center gap-2"
-                style={{ background: accentColor, color: '#1E1D40' }}
+                style={{ background: accentColor, color: P.onAccent }}
               >
                 Review →
               </button>
@@ -311,7 +313,7 @@ function TransferModal({ isOpen, onClose, selectedUser }) {
         return (
           <div className="space-y-4">
             <div className="text-center py-8">
-              <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(255, 212, 28, 0.15)' }}>
+              <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: P.tint(0.15) }}>
                 <ArrowRight className="w-8 h-8" style={{ color: accentColor }} />
               </div>
               <h3 className="text-xl font-bold mb-2" style={{ color: theme.text.primary }}>Confirm RFID Transfer</h3>
@@ -321,14 +323,14 @@ function TransferModal({ isOpen, onClose, selectedUser }) {
             </div>
 
             <div className="space-y-3">
-              <div className="p-3 rounded-xl border" style={{ background: 'rgba(15, 18, 39, 0.5)', borderColor: 'rgba(255, 212, 28, 0.2)' }}>
+              <div className="p-3 rounded-xl border" style={{ background: P.fieldBg, borderColor: P.tint(0.2) }}>
                 <p className="text-xs" style={{ color: theme.text.secondary }}>Current RFID</p>
                 <p className="font-mono font-semibold" style={{ color: theme.text.primary }}>{selectedUser?.rfidUId}</p>
               </div>
               <div className="flex justify-center">
                 <ArrowRight className="w-5 h-5" style={{ color: accentColor }} />
               </div>
-              <div className="p-3 rounded-xl border" style={{ background: 'rgba(15, 18, 39, 0.5)', borderColor: 'rgba(255, 212, 28, 0.2)' }}>
+              <div className="p-3 rounded-xl border" style={{ background: P.fieldBg, borderColor: P.tint(0.2) }}>
                 <p className="text-xs" style={{ color: theme.text.secondary }}>New RFID</p>
                 <p className="font-mono font-semibold" style={{ color: theme.text.primary }}>{convertToHexLittleEndian(newRfid)}</p>
               </div>
@@ -346,7 +348,7 @@ function TransferModal({ isOpen, onClose, selectedUser }) {
                 onClick={handleTransfer}
                 disabled={isProcessing}
                 className="flex-1 py-3 rounded-xl font-bold transition-all hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
-                style={{ background: accentColor, color: '#1E1D40' }}
+                style={{ background: accentColor, color: P.onAccent }}
               >
                 {isProcessing ? (
                   <>
@@ -371,7 +373,7 @@ function TransferModal({ isOpen, onClose, selectedUser }) {
             <p className="text-sm mb-4" style={{ color: theme.text.secondary }}>
               {selectedUser?.firstName} {selectedUser?.lastName}'s account has been transferred to the new RFID card.
             </p>
-            <div className="p-3 rounded-xl border mb-6" style={{ background: 'rgba(255, 212, 28, 0.1)', borderColor: 'rgba(255, 212, 28, 0.3)' }}>
+            <div className="p-3 rounded-xl border mb-6" style={{ background: P.tint(0.1), borderColor: P.tint(0.3) }}>
               <p className="text-sm font-semibold mb-2" style={{ color: theme.text.primary }}>📧 Important Information</p>
               <p className="text-xs" style={{ color: theme.text.secondary }}>
                 The account has been set to <strong>inactive</strong> and the old PIN has been cleared. 
@@ -382,7 +384,7 @@ function TransferModal({ isOpen, onClose, selectedUser }) {
             <button
               onClick={onClose}
               className="px-6 py-3 rounded-xl font-bold transition-all hover:opacity-90"
-              style={{ background: accentColor, color: '#1E1D40' }}
+              style={{ background: accentColor, color: P.onAccent }}
             >
               Done
             </button>
@@ -402,7 +404,7 @@ function TransferModal({ isOpen, onClose, selectedUser }) {
         className="relative rounded-2xl shadow-2xl border w-full max-w-2xl overflow-hidden animate-fadeIn"
       >
         {/* Header */}
-        <div className="px-6 py-4 flex items-center justify-between border-b" style={{ background: 'linear-gradient(135deg, rgba(255, 212, 28, 0.2) 0%, rgba(255, 212, 28, 0.1) 100%)', borderColor: 'rgba(255, 212, 28, 0.3)' }}>
+        <div className="px-6 py-4 flex items-center justify-between border-b" style={{ background: `linear-gradient(135deg, ${P.tint(0.2)} 0%, ${P.tint(0.1)} 100%)`, borderColor: P.tint(0.3) }}>
           <div className="flex items-center gap-3">
             <CreditCard className="w-6 h-6" style={{ color: accentColor }} />
             <div>
@@ -424,14 +426,14 @@ function TransferModal({ isOpen, onClose, selectedUser }) {
 
         {/* Progress Steps */}
         {currentStep < 4 && (
-          <div className="flex items-center justify-center gap-3 py-4 px-6" style={{ background: 'rgba(15, 18, 39, 0.5)' }}>
+          <div className="flex items-center justify-center gap-3 py-4 px-6" style={{ background: P.fieldBg }}>
             {steps.map((step, index) => (
               <React.Fragment key={step.id}>
                 <div className="flex items-center gap-2" style={{ opacity: currentStep >= step.id ? 1 : 0.4 }}>
                   <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold border-2 text-sm" style={{
                     background: currentStep >= step.id ? accentColor : 'transparent',
                     borderColor: accentColor,
-                    color: currentStep >= step.id ? '#1E1D40' : theme.text.secondary
+                    color: currentStep >= step.id ? P.onAccent : theme.text.secondary
                   }}>
                     {currentStep > step.id ? (
                       <CheckCircle className="w-4 h-4" />
@@ -444,7 +446,7 @@ function TransferModal({ isOpen, onClose, selectedUser }) {
                   </span>
                 </div>
                 {index < steps.length - 1 && (
-                  <div className="w-8 h-0.5 rounded" style={{ background: currentStep > step.id ? accentColor : 'rgba(255, 212, 28, 0.2)' }} />
+                  <div className="w-8 h-0.5 rounded" style={{ background: currentStep > step.id ? accentColor : P.tint(0.2) }} />
                 )}
               </React.Fragment>
             ))}
@@ -477,6 +479,7 @@ if (!document.head.querySelector('style[data-transfer-modal]')) {
 }
 function TransferConfirmModal({ isOpen, onClose, onConfirm, selectedUser, newCardId }) {
   const { theme, isDarkMode } = useTheme();
+  const P = useThemeColors();
   if (!isOpen) return null;
 
   return (
@@ -549,8 +552,9 @@ function TransferConfirmModal({ isOpen, onClose, onConfirm, selectedUser, newCar
 
 // Role Badge Component
 function RoleBadge({ role, isDarkMode }) {
+  const P = useThemeColors();
   const configs = {
-    sysad: { color: '#FFD41C', bg: isDarkMode ? 'rgba(255,212,28,0.15)' : 'rgba(255,212,28,0.1)', label: 'SysAd' },
+    sysad: { color: P.accent, bg: isDarkMode ? 'rgba(255,212,28,0.15)' : P.tint(0.1), label: 'SysAd' },
     treasury: { color: '#10B981', bg: isDarkMode ? 'rgba(16,185,129,0.15)' : 'rgba(16,185,129,0.1)', label: 'Treasury' },
     accounting: { color: '#F59E0B', bg: isDarkMode ? 'rgba(245,158,11,0.15)' : 'rgba(245,158,11,0.1)', label: 'Accounting' },
     motorpool: { color: '#EF4444', bg: isDarkMode ? 'rgba(239,68,68,0.15)' : 'rgba(239,68,68,0.1)', label: 'Motorpool' },
@@ -594,6 +598,7 @@ function StatusBadge({ isActive }) {
 
 export default function TransferCard() {
   const { theme, isDarkMode } = useTheme();
+  const P = useThemeColors();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -718,7 +723,7 @@ export default function TransferCard() {
               <div className="flex flex-wrap gap-3 items-center flex-1">
                 {/* Search */}
                 <div className="relative flex-1 min-w-[200px] max-w-[300px]">
-                  <Search style={{ color: 'rgba(251, 251, 251, 0.5)' }} className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" />
+                  <Search style={{ color: P.ink(0.5) }} className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" />
                   <input
                     type="text"
                     placeholder="Search by name, ID, email..."
@@ -727,7 +732,7 @@ export default function TransferCard() {
                     style={{ 
                       background: isDarkMode ? 'rgba(30, 35, 71, 0.8)' : '#F9FAFB', 
                       color: isDarkMode ? 'rgba(251, 251, 251, 0.95)' : theme.text.primary, 
-                      borderColor: 'rgba(255, 212, 28, 0.2)' 
+                      borderColor: P.tint(0.2) 
                     }}
                     className="w-full pl-10 pr-4 py-2 rounded-xl border text-sm focus:outline-none transition-all focus:ring-2 focus:ring-opacity-50"
                   />
@@ -770,7 +775,7 @@ export default function TransferCard() {
               {/* Right: Refresh Button */}
               <button
                 onClick={loadUsers}
-                style={{ background: 'rgba(255,212,28,0.15)', color: accentColor }}
+                style={{ background: P.tint(0.15), color: accentColor }}
                 className="p-2 rounded-lg hover:opacity-80 transition-all"
               >
                 <RefreshCw className="w-4 h-4" />

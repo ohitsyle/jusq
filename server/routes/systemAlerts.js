@@ -72,20 +72,38 @@ router.post('/', async (req, res) => {
 });
 
 // PUT /api/system-alerts/:id  -> update (toggle active, edit)
+// expiresAt: omit to keep it, null for "never", or a date.
+const SEVERITIES = ['info', 'warning', 'critical', 'success'];
 router.put('/:id', async (req, res) => {
   try {
-    const { title, message, severity, active } = req.body;
+    const { title, message, severity, active, expiresAt } = req.body;
     const update = {};
-    if (title !== undefined) update.title = title;
-    if (message !== undefined) update.message = message;
-    if (severity !== undefined) update.severity = severity;
-    if (active !== undefined) update.active = active;
+    if (title !== undefined) {
+      if (!String(title).trim()) return res.status(400).json({ error: 'Title is required' });
+      update.title = String(title).trim();
+    }
+    if (message !== undefined) {
+      if (!String(message).trim()) return res.status(400).json({ error: 'Message is required' });
+      update.message = String(message).trim();
+    }
+    if (severity !== undefined) {
+      if (!SEVERITIES.includes(severity)) return res.status(400).json({ error: 'Invalid severity' });
+      update.severity = severity;
+    }
+    if (active !== undefined) update.active = !!active;
+    if (expiresAt !== undefined) {
+      const when = expiresAt === null ? null : new Date(expiresAt);
+      if (when && Number.isNaN(when.getTime())) return res.status(400).json({ error: 'Invalid expiry date' });
+      update.expiresAt = when;
+    }
     const alert = await SystemAlert.findByIdAndUpdate(req.params.id, update, { new: true });
     if (!alert) return res.status(404).json({ error: 'Alert not found' });
-    const act = update.active === true ? 'Alert Shown' : update.active === false ? 'Alert Hidden' : 'Alert Updated';
+    const onlyVisibility = Object.keys(update).length === 1 && 'active' in update;
+    const act = onlyVisibility ? (update.active ? 'Alert Shown' : 'Alert Hidden') : 'Alert Updated';
     logAlertAction(req, act, `${act.toLowerCase()}: "${alert.title}"`, alert._id, 'crud_update');
     res.json(alert);
   } catch (error) {
+    if (error.name === 'CastError') return res.status(404).json({ error: 'Alert not found' });
     console.error('Error updating alert:', error);
     res.status(500).json({ error: 'Failed to update alert' });
   }

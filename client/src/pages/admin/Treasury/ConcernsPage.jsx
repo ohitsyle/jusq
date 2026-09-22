@@ -148,6 +148,7 @@ export default function ConcernsPage() {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       const matchesSearch = (
+        concern.concernId?.toLowerCase().includes(query) ||
         concern._id?.toLowerCase().includes(query) ||
         concern.subject?.toLowerCase().includes(query) ||
         concern.message?.toLowerCase().includes(query) ||
@@ -376,7 +377,7 @@ export default function ConcernsPage() {
                   return (
                     <tr key={concern._id} style={{ borderBottom: `1px solid ${theme.border.primary}`, background: aging ? aging.backgroundColor : 'transparent' }} className="hover:bg-white/5 transition">
                       <td style={{ color: theme.text.primary }} className="p-4 font-mono text-xs">
-                        {concern._id?.slice(-8)}
+                        {concern.concernId || concern._id?.slice(-8)}
                         {aging && aging.badgeText && (
                           <span style={{ background: aging.badgeColor, color: '#FFFFFF', fontSize: '9px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', textTransform: 'uppercase', whiteSpace: 'nowrap', marginLeft: '8px' }}>
                             {aging.badgeText}

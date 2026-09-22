@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { toast } from 'react-toastify';
-import { Bell, Plus, Trash2, X, Loader2, Eye, EyeOff, Info, AlertTriangle, AlertOctagon, CheckCircle2, Clock } from 'lucide-react';
+import { Bell, Plus, Trash2, X, Loader2, Eye, EyeOff, Info, AlertTriangle, AlertOctagon, CheckCircle2, Clock, Pencil, Save } from 'lucide-react';
 import { confirmDialog } from '../../../components/shared/ConfirmDialogHost';
 import ModalShell from '../../../components/shared/ModalShell';
 
@@ -16,7 +16,8 @@ const SEVERITIES = [
 ];
 const sevMeta = (s) => SEVERITIES.find((x) => x.value === s) || SEVERITIES[0];
 
-// Auto-hide choices; value = hours (0 = never expires)
+// Auto-hide choices; value = hours from now (0 = never expires).
+// When editing, 'keep' leaves the alert's current expiry as it is.
 const EXPIRY_OPTIONS = [
   { value: 0, label: 'Never' },
   { value: 1, label: '1 hour' },
@@ -32,8 +33,19 @@ export default function SystemAlerts() {
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing] = useState(null); // the alert being edited, or null for a new one
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ title: '', message: '', severity: 'info', active: true, expiryHours: 0 });
+  const EMPTY = { title: '', message: '', severity: 'info', active: true, expiryHours: 0 };
+  const [form, setForm] = useState(EMPTY);
+
+  const openNew = () => { setEditing(null); setForm(EMPTY); setShowModal(true); };
+  const openEdit = (a) => {
+    setEditing(a);
+    setForm({ title: a.title, message: a.message, severity: a.severity || 'info', active: a.active, expiryHours: a.expiresAt ? 'keep' : 0 });
+    setShowModal(true);
+  };
+  const closeModal = () => { if (!saving) { setShowModal(false); setEditing(null); } };
+  const expiryFromForm = () => (form.expiryHours > 0 ? new Date(Date.now() + form.expiryHours * 3600 * 1000).toISOString() : null);
 
   const load = async () => {
     try {
@@ -48,15 +60,29 @@ export default function SystemAlerts() {
     setSaving(true);
     try {
       const { expiryHours, ...body } = form;
-      await api.post('/system-alerts', {
-        ...body,
-        expiresAt: expiryHours > 0 ? new Date(Date.now() + expiryHours * 3600 * 1000).toISOString() : null,
-      });
+      await api.post('/system-alerts', { ...body, expiresAt: expiryFromForm() });
       toast.success('Alert posted');
       setShowModal(false);
-      setForm({ title: '', message: '', severity: 'info', active: true, expiryHours: 0 });
+      setForm(EMPTY);
       load();
     } catch (e) { toast.error('Failed to post alert'); } finally { setSaving(false); }
+  };
+
+  const saveEdit = async () => {
+    if (!form.title.trim() || !form.message.trim()) { toast.error('Title and message are required'); return; }
+    setSaving(true);
+    try {
+      await api.put(`/system-alerts/${editing._id}`, {
+        title: form.title.trim(),
+        message: form.message.trim(),
+        severity: form.severity,
+        ...(form.expiryHours === 'keep' ? {} : { expiresAt: expiryFromForm() }),
+      });
+      toast.success('Alert updated');
+      setShowModal(false);
+      setEditing(null);
+      load();
+    } catch (e) { toast.error(e?.error || 'Failed to update alert'); } finally { setSaving(false); }
   };
 
   const toggleActive = async (a) => {
@@ -88,7 +114,7 @@ export default function SystemAlerts() {
             Post announcements and alerts shown to all end-users • {alerts.length} alert{alerts.length !== 1 ? 's' : ''}
           </p>
         </div>
-        <button onClick={() => setShowModal(true)} style={{ background: accent, color: isDarkMode ? '#181D40' : '#FFFFFF' }} className="py-3 px-6 rounded-xl text-sm font-bold cursor-pointer flex items-center gap-2 shadow-lg border-none hover:opacity-90 transition">
+        <button onClick={openNew} style={{ background: accent, color: isDarkMode ? '#181D40' : '#FFFFFF' }} className="py-3 px-6 rounded-xl text-sm font-bold cursor-pointer flex items-center gap-2 shadow-lg border-none hover:opacity-90 transition">
           <Plus className="w-5 h-5" /> New Alert
         </button>
       </div>
@@ -139,10 +165,13 @@ export default function SystemAlerts() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => toggleActive(a)} title={a.active ? 'Hide' : 'Show'} style={{ borderColor: theme.border.primary, color: theme.text.secondary }} className="p-2 rounded-lg border hover:opacity-80">
+                  <button onClick={() => openEdit(a)} title="Edit" aria-label={`Edit alert ${a.title}`} style={{ borderColor: theme.border.primary, color: accent }} className="p-2 rounded-lg border hover:opacity-80">
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => toggleActive(a)} title={a.active ? 'Hide' : 'Show'} aria-label={a.active ? `Hide alert ${a.title}` : `Show alert ${a.title}`} style={{ borderColor: theme.border.primary, color: theme.text.secondary }} className="p-2 rounded-lg border hover:opacity-80">
                     {a.active ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
-                  <button onClick={() => remove(a)} title="Delete" style={{ borderColor: 'rgba(239,68,68,0.4)', color: '#EF4444' }} className="p-2 rounded-lg border hover:opacity-80">
+                  <button onClick={() => remove(a)} title="Delete" aria-label={`Delete alert ${a.title}`} style={{ borderColor: 'rgba(239,68,68,0.4)', color: '#EF4444' }} className="p-2 rounded-lg border hover:opacity-80">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
@@ -154,14 +183,25 @@ export default function SystemAlerts() {
       </div>{/* end scrollable list */}
 
       {showModal && (
-        <ModalShell title="New System Alert" icon={Bell} onClose={() => !saving && setShowModal(false)}>
+        <ModalShell title={editing ? 'Edit Alert' : 'New System Alert'} icon={editing ? Pencil : Bell} onClose={closeModal}>
             <label style={{ color: theme.text.tertiary }} className="block text-xs font-bold uppercase mb-1">Title</label>
             <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} style={{ background: isDarkMode ? 'rgba(15,18,39,0.6)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }} className="w-full p-3 rounded-xl border text-sm mb-4 outline-none" placeholder="e.g. Scheduled maintenance" />
 
             <label style={{ color: theme.text.tertiary }} className="block text-xs font-bold uppercase mb-1">Message</label>
             <textarea value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} rows={3} style={{ background: isDarkMode ? 'rgba(15,18,39,0.6)' : '#F9FAFB', color: theme.text.primary, borderColor: theme.border.primary }} className="w-full p-3 rounded-xl border text-sm mb-4 outline-none resize-none" placeholder="What do you want students to know?" />
 
-            <label style={{ color: theme.text.tertiary }} className="block text-xs font-bold uppercase mb-2">Auto-hide After</label>
+            <label style={{ color: theme.text.tertiary }} className="block text-xs font-bold uppercase mb-2">{editing ? 'Auto-hide (from now)' : 'Auto-hide After'}</label>
+            {editing?.expiresAt && (
+              <button onClick={() => setForm({ ...form, expiryHours: 'keep' })}
+                style={{
+                  borderColor: form.expiryHours === 'keep' ? accent : theme.border.primary,
+                  background: form.expiryHours === 'keep' ? `${accent}1A` : 'transparent',
+                  color: form.expiryHours === 'keep' ? accent : theme.text.secondary
+                }}
+                className="w-full py-2 px-3 rounded-xl border-2 text-xs font-bold transition mb-2 text-left">
+                Keep current — {new Date(editing.expiresAt) <= new Date() ? 'already expired' : `auto-hides ${new Date(editing.expiresAt).toLocaleString()}`}
+              </button>
+            )}
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-4">
               {EXPIRY_OPTIONS.map((o) => {
                 const active = form.expiryHours === o.value;
@@ -193,9 +233,9 @@ export default function SystemAlerts() {
             </div>
 
             <div className="flex gap-3">
-              <button onClick={() => setShowModal(false)} disabled={saving} style={{ background: isDarkMode ? 'rgba(71,85,105,0.5)' : '#E5E7EB', color: theme.text.primary }} className="flex-1 py-3 rounded-xl font-semibold hover:opacity-80 transition disabled:opacity-50">Cancel</button>
-              <button onClick={create} disabled={saving} style={{ background: accent, color: isDarkMode ? '#181D40' : '#FFFFFF' }} className="flex-1 py-3 rounded-xl font-bold hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center gap-2">
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />} Post Alert
+              <button onClick={closeModal} disabled={saving} style={{ background: isDarkMode ? 'rgba(71,85,105,0.5)' : '#E5E7EB', color: theme.text.primary }} className="flex-1 py-3 rounded-xl font-semibold hover:opacity-80 transition disabled:opacity-50">Cancel</button>
+              <button onClick={editing ? saveEdit : create} disabled={saving} style={{ background: accent, color: isDarkMode ? '#181D40' : '#FFFFFF' }} className="flex-1 py-3 rounded-xl font-bold hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center gap-2">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : editing ? <Save className="w-4 h-4" /> : <Bell className="w-4 h-4" />} {editing ? 'Save Changes' : 'Post Alert'}
               </button>
             </div>
         </ModalShell>

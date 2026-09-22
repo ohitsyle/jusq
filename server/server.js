@@ -130,7 +130,8 @@ const treasuryAccess = requireRoles(['treasury', 'accounting'], { writeRoles: ['
 app.use('/api/admin/treasury', requireAdminAuth, treasuryAccess, treasuryRoutes);
 app.use('/api/admin/accounting', requireAdminAuth, requireRoles(['accounting']), accountingRoutes);
 app.use('/api/admin/sysad', requireAdminAuthExcept(['/maintenance-status']), requireRoles(['sysad'], { except: ['/maintenance-status'] }), sysadRoutes);
-app.use('/api/system-alerts', requireAdminAuthExcept(['/active']), systemAlertsRoutes);
+// Only System Admin posts, edits or deletes alerts; students read /active.
+app.use('/api/system-alerts', requireAdminAuthExcept(['/active']), requireRoles(['sysad'], { except: ['/active'] }), systemAlertsRoutes);
 app.use('/api/kiosk', kioskRoutes); // public: self-service registration kiosk (rate-limited inside)
 app.use('/api/admin/promotions', requireAdminAuth, requireRoles(['marketing']), promotionsRoutes);
 app.use('/api/admin/configurations', requireAdminAuth, configurationsRoutes);
