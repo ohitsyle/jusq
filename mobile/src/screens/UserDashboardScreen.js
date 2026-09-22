@@ -104,6 +104,16 @@ const AREAS = [
   { value: 'motorpool', label: 'Shuttle Service', Icon: Bus, desc: 'Transportation concerns' },
 ];
 
+// Readable department for a concern's reportTo (code, older office name, or a merchant's name).
+// Mirrors client/src/utils/departments.js.
+const DEPARTMENT_NAMES = {
+  sysad: 'System Administrator', itso: 'System Administrator',
+  treasury: 'Treasury', 'treasury office': 'Treasury',
+  motorpool: 'Motorpool', 'nu shuttle service': 'Motorpool',
+  merchant: 'Merchants', merchants: 'Merchants', 'merchant office': 'Merchants',
+  accounting: 'Accounting', marketing: 'Marketing',
+};
+
 export default function UserDashboardScreen({ navigation, route }) {
   const [isDark, setIsDark] = useState(true);
   const theme = makeTheme(isDark);
@@ -341,7 +351,8 @@ export default function UserDashboardScreen({ navigation, route }) {
   const recentTx = transactions.slice(0, 5);
   const historyTx = transactions.filter(inRange);
 
-  const areaLabel = (val) => AREAS.find((a) => a.value === val)?.label || val;
+  // Where a concern went, by department name (same names as the website)
+  const areaLabel = (val) => DEPARTMENT_NAMES[String(val || '').trim().toLowerCase()] || val;
 
   const concernStatus = (c) => {
     const s = (c.status || '').toLowerCase();

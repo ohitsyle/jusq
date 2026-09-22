@@ -6,6 +6,7 @@ import api from '../../utils/api';
 import { toast } from 'react-toastify';
 import { Search, X, Clock, CheckCircle, AlertCircle, Loader2, ClipboardList, FileText, MessageSquare } from 'lucide-react';
 import { FilterSelect } from '../../components/shared/ThemedControls';
+import { departmentName } from '../../utils/departments';
 
 export default function UserConcerns() {
   const { theme, isDarkMode } = useTheme();
@@ -269,7 +270,7 @@ export default function UserConcerns() {
                     </p>
                     <div className="flex items-center gap-4 mt-2 flex-wrap">
                       <span style={{ color: theme.text.muted }} className="text-xs">
-                        To: {concern.reportTo}
+                        To: {departmentName(concern.reportTo)}
                       </span>
                       <span style={{ color: theme.text.muted }} className="text-xs">
                         {formatDate(concern.submittedAt || concern.createdAt)}
@@ -445,7 +446,7 @@ export default function UserConcerns() {
                     <div className="flex justify-between">
                       <span style={{ color: theme.text.secondary }} className="text-sm">Submitted To</span>
                       <span style={{ color: theme.text.primary }} className="text-sm font-semibold">
-                        {selectedConcern.reportTo || 'N/A'}
+                        {departmentName(selectedConcern.reportTo)}
                       </span>
                     </div>
                     {selectedConcern.plateNumber && (
@@ -487,7 +488,7 @@ export default function UserConcerns() {
                       <div>
                         <p style={{ color: '#FBBF24' }} className="font-semibold">Awaiting Review</p>
                         <p style={{ color: theme.text.secondary }} className="text-sm mt-1">
-                          Your concern has been received and is waiting to be reviewed by the {selectedConcern.reportTo || 'support team'}.
+                          Your concern has been received and is waiting to be reviewed by {selectedConcern.reportTo ? departmentName(selectedConcern.reportTo) : 'the support team'}.
                         </p>
                       </div>
                     </div>
