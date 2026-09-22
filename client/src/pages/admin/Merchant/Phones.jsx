@@ -291,7 +291,7 @@ export default function MerchantPhonesList() {
             </button>
           </div>
         ) : (
-          <div style={{ borderColor: theme.border.primary }} className="overflow-x-auto rounded-xl border">
+          <div className="overflow-x-auto rounded-xl" style={{ background: theme.bg.card, border: `1px solid ${theme.border.primary}`, boxShadow: isDarkMode ? 'none' : '0 1px 3px rgba(24,29,64,0.06)' }}>
             <table className="w-full border-collapse text-[13px]">
               <thead>
                 <tr style={{ background: `${theme.accent.primary}15` }}>

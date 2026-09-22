@@ -2,7 +2,7 @@
 import { toast } from 'react-toastify';
 // Interactive map-based route creation with step-by-step wizard
 import React, { useState, useEffect, useRef } from 'react';
-import { Map } from 'lucide-react';
+import { Map, Check, CheckCircle2, Lightbulb, ArrowLeftRight } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import SearchBar from '../../../components/shared/SearchBar';
@@ -13,6 +13,17 @@ import { ThemedSelect } from '../../../components/shared/ThemedControls';
 import { confirmDialog } from '../../../components/shared/ConfirmDialogHost';
 
 // Single Location Map Picker Component
+// Lettered point marker (A = start, green; B = end, red), used instead of emoji
+function PointTag({ letter }) {
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16, borderRadius: 4,
+      background: letter === 'A' ? '#22C55E' : '#EF4444', color: '#FFFFFF', fontSize: 10, fontWeight: 800,
+      marginRight: 6, verticalAlign: 'middle', lineHeight: 1
+    }}>{letter}</span>
+  );
+}
+
 function LocationMapPicker({ location, onLocationChange, onConfirm, pointLabel, pointColor, apiKey }) {
   const { theme, isDarkMode } = useTheme();
   const mapRef = useRef(null);
@@ -159,37 +170,37 @@ function LocationMapPicker({ location, onLocationChange, onConfirm, pointLabel, 
       {/* Google Places Autocomplete Styles - CRITICAL for dropdown visibility */}
       <style>{`
         .pac-container {
-          background-color: #1E2347 !important;
-          border: 2px solid #FFD41C !important;
+          background-color: ${isDarkMode ? '#1E2347' : '#FFFFFF'} !important;
+          border: 2px solid ${isDarkMode ? '#FFD41C' : 'rgba(59,130,246,0.45)'} !important;
           border-radius: 8px !important;
           margin-top: 4px !important;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+          box-shadow: ${isDarkMode ? '0 4px 12px rgba(0,0,0,0.3)' : '0 8px 24px rgba(24,29,64,0.12)'} !important;
           z-index: 10000 !important;
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
         }
         .pac-item {
           padding: 10px 12px !important;
           cursor: pointer !important;
-          border-top: 1px solid rgba(255,212,28,0.2) !important;
-          color: rgba(251,251,251,0.9) !important;
+          border-top: 1px solid ${isDarkMode ? 'rgba(255,212,28,0.2)' : 'rgba(59,130,246,0.12)'} !important;
+          color: ${isDarkMode ? 'rgba(251,251,251,0.9)' : 'rgba(24,29,64,0.75)'} !important;
           font-size: 14px !important;
         }
         .pac-item:first-child {
           border-top: none !important;
         }
         .pac-item:hover {
-          background-color: rgba(255,212,28,0.1) !important;
+          background-color: ${isDarkMode ? 'rgba(255,212,28,0.1)' : 'rgba(59,130,246,0.08)'} !important;
         }
         .pac-item-selected {
-          background-color: rgba(255,212,28,0.15) !important;
+          background-color: ${isDarkMode ? 'rgba(255,212,28,0.15)' : 'rgba(59,130,246,0.12)'} !important;
         }
         .pac-item-query {
-          color: #FFD41C !important;
+          color: ${isDarkMode ? '#FFD41C' : '#181D40'} !important;
           font-size: 14px !important;
         }
         .pac-matched {
           font-weight: 700 !important;
-          color: #FFD41C !important;
+          color: ${isDarkMode ? '#FFD41C' : '#2563EB'} !important;
         }
         .pac-icon {
           display: none !important;
@@ -199,7 +210,7 @@ function LocationMapPicker({ location, onLocationChange, onConfirm, pointLabel, 
       {/* Search Box */}
       <div className="mb-4">
         <label className="block mb-2 font-semibold text-sm" style={{ color: theme.accent.primary }}>
-          {pointLabel === 'A' ? '🅰️ Search Starting Location' : '🅱️ Search Destination'}
+          <PointTag letter={pointLabel} />{pointLabel === 'A' ? 'Search Starting Location' : 'Search Destination'}
         </label>
         <input
           ref={searchInputRef}
@@ -242,7 +253,8 @@ function LocationMapPicker({ location, onLocationChange, onConfirm, pointLabel, 
       {/* Map */}
       <div
         ref={mapRef}
-        className="w-full h-[400px] rounded-xl border-2 border-[rgba(255,212,28,0.3)] overflow-hidden mb-4"
+        className="w-full h-[400px] rounded-xl border-2 overflow-hidden mb-4"
+        style={{ borderColor: isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)' }}
       />
 
       {/* Selected Location Display */}
@@ -261,7 +273,7 @@ function LocationMapPicker({ location, onLocationChange, onConfirm, pointLabel, 
           <div className={`text-sm font-semibold ${
             pointColor === 'green' ? 'text-[#22C55E]' : 'text-[#EF4444]'
           }`}>
-            ✓ {displayName || tempLocation.name}
+            <Check className="w-4 h-4 inline -mt-0.5 mr-1" /> {displayName || tempLocation.name}
           </div>
           <div className="text-[11px] mt-1" style={{ color: theme.text.secondary }}>
             Full address: {tempLocation.name}
@@ -278,7 +290,7 @@ function LocationMapPicker({ location, onLocationChange, onConfirm, pointLabel, 
         borderColor: isDarkMode ? 'rgba(255,212,28,0.3)' : 'rgba(59,130,246,0.3)',
         color: theme.text.primary
       }}>
-        💡 <strong>Tip:</strong> Search for a location above or drag the {pointLabel === 'A' ? '🅰️ green' : '🅱️ red'} marker on the map to adjust position precisely.
+        <Lightbulb className="w-4 h-4 inline -mt-0.5 mr-1" style={{ color: theme.accent.primary }} /> <strong>Tip:</strong> Search for a location above or drag the {pointLabel === 'A' ? 'green (A)' : 'red (B)'} marker on the map to adjust position precisely.
       </div>
 
       {/* Confirm Button */}
@@ -467,9 +479,9 @@ export default function RoutesList() {
             isActive: active
           };
           await api.post('/admin/routes', reversePayload);
-          setAlert({ type: 'success', message: 'Route and reverse route created successfully! 🎉' });
+          setAlert({ type: 'success', message: 'Route and reverse route created successfully!' });
         } else {
-          setAlert({ type: 'success', message: 'Route created successfully! 🎉' });
+          setAlert({ type: 'success', message: 'Route created successfully!' });
         }
       }
 
@@ -606,11 +618,11 @@ export default function RoutesList() {
       <div className="flex-1 overflow-y-auto pr-2">
       {filteredRoutes.length === 0 ? (
         <div className="text-center py-[60px]" style={{ color: theme.text.tertiary }}>
-          <div className="text-5xl mb-4">🗺️</div>
+          <Map className="w-12 h-12 mx-auto mb-4 opacity-40" />
           <div>No routes found</div>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-[rgba(255,212,28,0.2)]">
+        <div className="overflow-x-auto rounded-xl" style={{ background: theme.bg.card, border: `1px solid ${theme.border.primary}`, boxShadow: isDarkMode ? 'none' : '0 1px 3px rgba(24,29,64,0.06)' }}>
           <table className="w-full border-collapse text-[13px]">
             <thead>
               <tr style={{ background: isDarkMode ? 'rgba(255,212,28,0.1)' : 'rgba(59,130,246,0.1)' }}>
@@ -730,7 +742,7 @@ export default function RoutesList() {
             left: 0,
             width: '100%',
             height: '100%',
-            background: 'rgba(15,18,39,0.9)',
+            background: isDarkMode ? 'rgba(15,18,39,0.9)' : 'rgba(15,18,39,0.45)',
             backdropFilter: 'blur(8px)',
             zIndex: 9999,
             display: 'flex',
@@ -893,14 +905,14 @@ export default function RoutesList() {
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="flex-1">
-                      <div className="text-[11px] text-[#22C55E] mb-1">🅰️ FROM</div>
+                      <div className="text-[11px] text-[#22C55E] mb-1"><PointTag letter="A" />FROM</div>
                       <div style={{ fontSize: '14px', color: theme.text.primary, fontWeight: 600 }}>
                         {fromLocation.displayName || fromLocation.name}
                       </div>
                     </div>
                     <div style={{ fontSize: '20px', color: theme.accent.primary }}>→</div>
                     <div className="flex-1">
-                      <div className="text-[11px] text-[#EF4444] mb-1">🅱️ TO</div>
+                      <div className="text-[11px] text-[#EF4444] mb-1"><PointTag letter="B" />TO</div>
                       <div style={{ fontSize: '14px', color: theme.text.primary, fontWeight: 600 }}>
                         {toLocation.displayName || toLocation.name}
                       </div>
@@ -978,7 +990,7 @@ export default function RoutesList() {
                       />
                       <div style={{ flex: 1 }}>
                         <div style={{ color: theme.text.primary, fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>
-                          🔄 Create Reverse Route
+                          <ArrowLeftRight className="w-4 h-4 inline -mt-0.5 mr-1.5" /> Create Reverse Route
                         </div>
                         <div style={{ fontSize: '12px', color: theme.text.secondary }}>
                           Automatically create: {toLocation.displayName || toLocation.name || 'Point B'} → {fromLocation.displayName || fromLocation.name || 'Point A'}
@@ -1046,7 +1058,7 @@ export default function RoutesList() {
                   marginBottom: '24px'
                 }}>
                   <h4 style={{ margin: '0 0 20px 0', color: theme.accent.primary, fontSize: '18px' }}>
-                    ✓ Route Summary
+                    <CheckCircle2 className="w-5 h-5 inline -mt-1 mr-1.5" /> Route Summary
                   </h4>
 
                   {/* Route Details */}
@@ -1062,14 +1074,14 @@ export default function RoutesList() {
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: '11px', color: '#22C55E', marginBottom: '4px' }}>🅰️ FROM</div>
+                          <div style={{ fontSize: '11px', color: '#22C55E', marginBottom: '4px' }}><PointTag letter="A" />FROM</div>
                           <div style={{ fontSize: '14px', color: theme.text.primary, fontWeight: 600 }}>
                             {fromLocation.displayName || fromLocation.name}
                           </div>
                         </div>
                         <div style={{ fontSize: '20px', color: theme.accent.primary }}>→</div>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: '11px', color: '#EF4444', marginBottom: '4px' }}>🅱️ TO</div>
+                          <div style={{ fontSize: '11px', color: '#EF4444', marginBottom: '4px' }}><PointTag letter="B" />TO</div>
                           <div style={{ fontSize: '14px', color: theme.text.primary, fontWeight: 600 }}>
                             {toLocation.displayName || toLocation.name}
                           </div>
@@ -1108,14 +1120,14 @@ export default function RoutesList() {
                       }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
                           <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: '11px', color: '#EF4444', marginBottom: '4px' }}>🅱️ FROM</div>
+                            <div style={{ fontSize: '11px', color: '#EF4444', marginBottom: '4px' }}><PointTag letter="B" />FROM</div>
                             <div style={{ fontSize: '14px', color: theme.text.primary, fontWeight: 600 }}>
                               {toLocation.displayName || toLocation.name}
                             </div>
                           </div>
                           <div style={{ fontSize: '20px', color: '#3B82F6' }}>→</div>
                           <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: '11px', color: '#22C55E', marginBottom: '4px' }}>🅰️ TO</div>
+                            <div style={{ fontSize: '11px', color: '#22C55E', marginBottom: '4px' }}><PointTag letter="A" />TO</div>
                             <div style={{ fontSize: '14px', color: theme.text.primary, fontWeight: 600 }}>
                               {fromLocation.displayName || fromLocation.name}
                             </div>
@@ -1176,7 +1188,7 @@ export default function RoutesList() {
                       transition: 'all 0.2s'
                     }}
                   >
-                    {createReverse ? '✓ Create Both Routes' : '✓ Create Route'}
+                    <Check className="w-4 h-4 inline -mt-0.5 mr-1.5" /> {createReverse ? 'Create Both Routes' : 'Create Route'}
                   </button>
                 </div>
               </div>

@@ -390,7 +390,7 @@ export default function DriversList() {
           )}
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl" style={{ border: `1px solid ${isDarkMode ? 'rgba(255,212,28,0.2)' : 'rgba(59,130,246,0.2)'}` }}>
+        <div className="overflow-x-auto rounded-xl" style={{ background: theme.bg.card, border: `1px solid ${theme.border.primary}`, boxShadow: isDarkMode ? 'none' : '0 1px 3px rgba(24,29,64,0.06)' }}>
           <table className="w-full border-collapse text-[13px]">
             <thead>
               <tr style={{ background: isDarkMode ? 'rgba(255,212,28,0.1)' : 'rgba(59,130,246,0.1)' }}>
