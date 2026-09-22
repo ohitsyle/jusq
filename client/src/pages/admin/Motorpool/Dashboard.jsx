@@ -1,7 +1,7 @@
 // src/admin/components/Dashboard/Dashboard.jsx
 // Simplified dashboard with live shuttle tracking
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Home } from 'lucide-react';
+import { Home, Map as MapIcon } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { GOOGLE_MAPS_API_KEY } from '../../../config/api.config';
@@ -318,8 +318,8 @@ export default function Dashboard() {
       <div style={{ background: theme.bg.card, borderColor: theme.border.primary }} className="rounded-2xl border overflow-hidden">
         <div style={{ borderColor: theme.border.primary }} className="p-5 border-b flex justify-between items-center">
           <div>
-            <h3 style={{ color: theme.accent.primary }} className="m-0 mb-1 text-lg font-bold">
-              🗺️ Live Shuttle Tracking
+            <h3 style={{ color: theme.accent.primary }} className="m-0 mb-1 text-lg font-bold flex items-center gap-2">
+              <MapIcon className="w-5 h-5" /> Live Shuttle Tracking
             </h3>
             <p style={{ color: theme.text.secondary }} className="m-0 text-xs">
               {shuttlePositions.length} shuttle(s) currently in transit

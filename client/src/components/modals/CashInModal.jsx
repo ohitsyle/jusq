@@ -2,7 +2,7 @@
 // Treasury admin modal for processing cash-in transactions
 
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Wallet, CreditCard, AlertCircle, CheckCircle, User, Loader2, ArrowRight, Clock, UserPlus, Edit3 } from 'lucide-react';
+import { X, Wallet, CreditCard, AlertCircle, CheckCircle, User, Loader2, ArrowRight, Clock, UserPlus, Edit3, GraduationCap, Briefcase } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../utils/api';
 import { toast } from 'react-toastify';
@@ -236,7 +236,6 @@ export default function CashInModal({ isOpen, onClose, onSuccess, onRegisterUser
 
       if (response.success) {
         setTransaction(response.transaction);
-        setUser(prev => ({ ...prev, balance: response.user?.balance || (prev.balance + amount) }));
         setStep(5);
         toast.success('Cash-in successful!');
       } else {
@@ -600,14 +599,9 @@ export default function CashInModal({ isOpen, onClose, onSuccess, onRegisterUser
                     <p style={{ color: theme.text.primary }} className="font-bold text-lg">
                       {user.firstName} {user.lastName}
                     </p>
-                    <p style={{ color: theme.text.secondary }} className="text-sm">
-                      {user.role === 'student' ? '🎓' : '👔'} {user.role?.charAt(0).toUpperCase() + user.role?.slice(1)}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p style={{ color: theme.text.secondary }} className="text-xs">Balance</p>
-                    <p className="text-xl font-bold text-emerald-500">
-                      ₱{parseFloat(user.balance || 0).toLocaleString()}
+                    <p style={{ color: theme.text.secondary }} className="text-sm flex items-center gap-1.5">
+                      {user.role === 'student' ? <GraduationCap className="w-4 h-4" /> : <Briefcase className="w-4 h-4" />}
+                      {user.role?.charAt(0).toUpperCase() + user.role?.slice(1)}
                     </p>
                   </div>
                 </div>
@@ -725,10 +719,6 @@ export default function CashInModal({ isOpen, onClose, onSuccess, onRegisterUser
                     </p>
                     <p style={{ color: theme.text.secondary }} className="text-sm">{user.schoolUId}</p>
                   </div>
-                </div>
-                <div className="text-right">
-                  <p style={{ color: theme.text.secondary }} className="text-xs">Balance</p>
-                  <p className="font-bold text-emerald-500">₱{parseFloat(user.balance || 0).toLocaleString()}</p>
                 </div>
               </div>
 

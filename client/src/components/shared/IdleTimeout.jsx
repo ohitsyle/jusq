@@ -4,7 +4,8 @@
 // with a countdown comes first; only "Stay signed in" dismisses it.
 // Activity in any open NUCash tab counts (shared through localStorage), so
 // working in one tab keeps the others signed in. Background polling (live
-// maps, dashboards) is not activity.
+// maps, dashboards) is not activity; the Motorpool live map page is exempt
+// instead (NO_TIMEOUT_PATHS).
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
@@ -19,7 +20,14 @@ const SIGN_OUT_MS = IDLE_MS + WARNING_SECONDS * 1000;
 const SHARED_KEY = 'nucash_last_activity';
 const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'keydown', 'wheel', 'touchstart', 'scroll'];
 
+// Pages meant to stay open on a screen (the Motorpool live shuttle map) never
+// time out. While one is showing it also keeps the shared activity fresh,
+// because a sign-out in any other NUCash tab would clear this tab's session too.
+const NO_TIMEOUT_PATHS = ['/admin/motorpool'];
+const HEARTBEAT_MS = 30 * 1000;
+
 const isSignedInArea = (path) => /^\/(user|admin)(\/|$)/.test(path) || path === '/faq';
+const isNoTimeoutPage = (path) => NO_TIMEOUT_PATHS.includes(path.replace(/\/+$/, ''));
 const hasSession = () => !!(localStorage.getItem('adminToken') || localStorage.getItem('userToken'));
 const readShared = () => {
   const v = Number(localStorage.getItem(SHARED_KEY));
@@ -31,6 +39,7 @@ export default function IdleTimeout() {
   const { pathname } = useLocation();
   const { theme, isDarkMode } = useTheme();
   const enabled = isSignedInArea(pathname) && hasSession();
+  const noTimeout = enabled && isNoTimeoutPage(pathname);
 
   const [secondsLeft, setSecondsLeft] = useState(null); // null = no warning showing
   const lastLocal = useRef(Date.now());
@@ -83,6 +92,13 @@ export default function IdleTimeout() {
     signingOut.current = false;
     markActive(true); // opening or reloading a signed-in page counts
 
+    if (noTimeout) {
+      warning.current = false;
+      setSecondsLeft(null);
+      const heartbeat = setInterval(() => markActive(true), HEARTBEAT_MS);
+      return () => clearInterval(heartbeat);
+    }
+
     // While the warning is up, only the button counts — a bumped mouse shouldn't.
     const onActivity = () => { if (!warning.current) markActive(); };
     ACTIVITY_EVENTS.forEach((e) => window.addEventListener(e, onActivity, { passive: true, capture: true }));
@@ -107,7 +123,7 @@ export default function IdleTimeout() {
       document.removeEventListener('visibilitychange', tick);
       ACTIVITY_EVENTS.forEach((e) => window.removeEventListener(e, onActivity, { capture: true }));
     };
-  }, [enabled, markActive, signOut]);
+  }, [enabled, noTimeout, markActive, signOut]);
 
   // Countdown in the tab title, so it's visible from another tab
   const showing = secondsLeft !== null;

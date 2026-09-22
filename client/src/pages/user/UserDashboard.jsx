@@ -592,10 +592,10 @@ function ConcernModal({ onClose, theme, isDarkMode }) {
   const [loadingMerchants, setLoadingMerchants] = useState(false);
 
   const departments = [
-    { value: 'sysad', label: 'NUCash System', Icon: Monitor, desc: 'Technical issues, app problems' },
-    { value: 'treasury', label: 'Finance', Icon: Wallet, desc: 'Balance, cash-in, payments' },
+    { value: 'sysad', label: 'System Administrator', Icon: Monitor, desc: 'Technical issues, app problems' },
+    { value: 'treasury', label: 'Treasury', Icon: Wallet, desc: 'Balance, cash-in, payments' },
     { value: 'merchants', label: 'Merchants', Icon: Store, desc: 'Store-related concerns' },
-    { value: 'motorpool', label: 'Shuttle Service', Icon: Bus, desc: 'Transportation concerns' }
+    { value: 'motorpool', label: 'Motorpool', Icon: Bus, desc: 'Transportation concerns' }
   ];
 
   useEffect(() => {
@@ -981,10 +981,10 @@ function FeedbackModal({ onClose, theme, isDarkMode }) {
   const [loadingMerchants, setLoadingMerchants] = useState(false);
 
   const departments = [
-    { value: 'sysad', label: 'NUCash System', Icon: Monitor, desc: 'App experience feedback' },
-    { value: 'treasury', label: 'Finance', Icon: Wallet, desc: 'Service experience' },
+    { value: 'sysad', label: 'System Administrator', Icon: Monitor, desc: 'App experience feedback' },
+    { value: 'treasury', label: 'Treasury', Icon: Wallet, desc: 'Service experience' },
     { value: 'merchants', label: 'Merchants', Icon: Store, desc: 'Store experience' },
-    { value: 'motorpool', label: 'Shuttle Service', Icon: Bus, desc: 'Transport experience' }
+    { value: 'motorpool', label: 'Motorpool', Icon: Bus, desc: 'Transport experience' }
   ];
 
   useEffect(() => {

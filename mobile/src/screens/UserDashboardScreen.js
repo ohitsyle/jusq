@@ -98,10 +98,10 @@ const RANGES = [
 
 // Areas a student can report to (mirrors the web department list).
 const AREAS = [
-  { value: 'sysad', label: 'NUCash System', Icon: Monitor, desc: 'Technical issues, app problems' },
-  { value: 'treasury', label: 'Finance', Icon: Wallet, desc: 'Balance, cash-in, payments' },
+  { value: 'sysad', label: 'System Administrator', Icon: Monitor, desc: 'Technical issues, app problems' },
+  { value: 'treasury', label: 'Treasury', Icon: Wallet, desc: 'Balance, cash-in, payments' },
   { value: 'merchants', label: 'Merchants', Icon: Store, desc: 'Store-related concerns' },
-  { value: 'motorpool', label: 'Shuttle Service', Icon: Bus, desc: 'Transportation concerns' },
+  { value: 'motorpool', label: 'Motorpool', Icon: Bus, desc: 'Transportation concerns' },
 ];
 
 // Readable department for a concern's reportTo (code, older office name, or a merchant's name).

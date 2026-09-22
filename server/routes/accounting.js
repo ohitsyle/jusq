@@ -6,6 +6,7 @@ const router = express.Router();
 import Transaction from '../models/Transaction.js';
 import User from '../models/User.js';
 import Merchant from '../models/Merchant.js';
+import Admin from '../models/Admin.js';
 import { logAdminAction, logAutoExportConfigChange, logManualExport } from '../utils/logger.js';
 import { extractAdminInfo } from '../middlewares/extractAdminInfo.js';
 
@@ -423,6 +424,122 @@ router.get('/merchants/:merchantId/details', async (req, res) => {
       success: false,
       message: error.message
     });
+  }
+});
+
+// ============================================================
+// SEND MONEY (student/employee-to-student/employee transfers)
+// ============================================================
+
+// Dates from the page are Philippine calendar days
+const manilaDayStart = (d) => new Date(`${d}T00:00:00.000+08:00`);
+const manilaDayEnd = (d) => new Date(`${d}T23:59:59.999+08:00`);
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const round2 = (n) => Math.round(n * 100) / 100;
+// No account behind the record any more (deleted) -> say so rather than "Unknown"
+const personName = (u) => (u ? `${u.firstName || ''} ${u.lastName || ''}`.trim() || 'Unknown' : 'Account removed');
+
+/**
+ * GET /api/admin/accounting/transfers
+ * Every Send Money transfer, one row each (the sender's record carries the
+ * reference no.; the receiver has a matching credit), newest first.
+ * Query: startDate, endDate (YYYY-MM-DD), search (reference no., name or
+ * school ID of either person), export=1 (logged as a manual export).
+ */
+router.get('/transfers', async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const search = String(req.query.search || '').trim().slice(0, 80);
+    const forExport = req.query.export === '1';
+
+    const filter = { transactionType: 'debit', transferPeerSchoolId: { $ne: null } };
+    if ((startDate && !DATE_RE.test(startDate)) || (endDate && !DATE_RE.test(endDate))) {
+      return res.status(400).json({ success: false, message: 'Dates must be YYYY-MM-DD' });
+    }
+    if (startDate || endDate) {
+      filter.createdAt = {};
+      if (startDate) filter.createdAt.$gte = manilaDayStart(startDate);
+      if (endDate) filter.createdAt.$lte = manilaDayEnd(endDate);
+    }
+
+    if (search) {
+      const rx = new RegExp(escapeRegex(search), 'i');
+      const digits = search.replace(/\D/g, '');
+      const people = await User.find({
+        $or: [
+          { firstName: rx }, { lastName: rx }, { schoolUId: rx },
+          { $expr: { $regexMatch: { input: { $concat: ['$firstName', ' ', '$lastName'] }, regex: escapeRegex(search), options: 'i' } } },
+          ...(digits.length >= 4 ? [{ schoolUId: new RegExp(escapeRegex(digits)) }] : [])
+        ]
+      }).select('_id schoolUId').limit(200).lean();
+      filter.$or = [
+        { transactionId: rx },
+        { userId: { $in: people.map((p) => p._id) } },
+        { transferPeerSchoolId: { $in: people.map((p) => p.schoolUId) } }
+      ];
+    }
+
+    const limit = forExport ? 5000 : 1000;
+    const [rows, totals] = await Promise.all([
+      Transaction.find(filter).sort({ createdAt: -1 }).limit(limit)
+        .select('transactionId amount status createdAt userId schoolUId transferPeerSchoolId').lean(),
+      Transaction.aggregate([
+        { $match: filter },
+        { $group: { _id: null, count: { $sum: 1 }, total: { $sum: '$amount' }, senders: { $addToSet: '$userId' }, receivers: { $addToSet: '$transferPeerSchoolId' } } }
+      ])
+    ]);
+
+    // Names for both sides. The sender is found by account, or by the school ID
+    // on the record when the account was re-created since (new _id, same person).
+    const senderIds = [...new Set(rows.map((r) => String(r.userId)))];
+    const schoolIds = [...new Set(rows.flatMap((r) => [r.transferPeerSchoolId, r.schoolUId]))];
+    const [byAccount, bySchoolIdList] = await Promise.all([
+      User.find({ _id: { $in: senderIds } }).select('firstName lastName schoolUId role').lean(),
+      User.find({ schoolUId: { $in: schoolIds } }).select('firstName lastName schoolUId role').lean()
+    ]);
+    const senderById = new Map(byAccount.map((u) => [String(u._id), u]));
+    const bySchoolId = new Map(bySchoolIdList.map((u) => [u.schoolUId, u]));
+
+    const transfers = rows.map((r) => {
+      const from = senderById.get(String(r.userId)) || bySchoolId.get(r.schoolUId);
+      const to = bySchoolId.get(r.transferPeerSchoolId);
+      return {
+        referenceNo: r.transactionId,
+        createdAt: r.createdAt,
+        amount: round2(r.amount),
+        status: r.status,
+        from: { name: personName(from), schoolUId: from?.schoolUId || r.schoolUId, role: from?.role || null },
+        to: { name: personName(to), schoolUId: r.transferPeerSchoolId, role: to?.role || null }
+      };
+    });
+
+    const t = totals[0];
+    const summary = {
+      count: t?.count || 0,
+      total: round2(t?.total || 0),
+      senders: t?.senders.length || 0,
+      receivers: t?.receivers.length || 0
+    };
+
+    if (forExport) {
+      const admin = await Admin.findById(req.authAdmin?.id).select('firstName lastName adminId role').lean();
+      logManualExport({
+        adminId: admin?.adminId || req.authAdmin?.adminId,
+        adminName: admin ? `${admin.firstName} ${admin.lastName}`.trim() : undefined,
+        adminRole: admin?.role || 'accounting',
+        department: 'accounting',
+        exportType: 'Send Money transfers',
+        dateRange: startDate || endDate ? `${startDate || 'start'} to ${endDate || 'today'}` : 'all time',
+        recordCount: transfers.length,
+        timestamp: new Date()
+      }).catch(() => {});
+    }
+
+    res.json({ success: true, transfers, summary, truncated: summary.count > transfers.length });
+  } catch (error) {
+    console.error('❌ Accounting transfers error:', error);
+    res.status(500).json({ success: false, message: 'Could not load transfers' });
   }
 });
 

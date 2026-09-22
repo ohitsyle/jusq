@@ -5,7 +5,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
-import { ClipboardList, Home, Settings, Store } from 'lucide-react';
+import { ArrowLeftRight, ClipboardList, Home, Settings, Store } from 'lucide-react';
 import AccountingHeader from './AccountingHeader';
 import Footer from './Footer';
 import TabStrip from './TabStrip';
@@ -38,6 +38,7 @@ export default function AccountingLayout({ children }) {
   const accountingTabs = [
     { path: '/admin/accounting/home', icon: Home, label: 'Home' },
     { path: '/admin/accounting/transactions', icon: ClipboardList, label: 'Transactions' },
+    { path: '/admin/accounting/transfers', icon: ArrowLeftRight, label: 'Send Money' },
     { path: '/admin/accounting/merchants', icon: Store, label: 'Merchants' },
   ];
 

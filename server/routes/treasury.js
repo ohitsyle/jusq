@@ -529,7 +529,6 @@ router.get('/search-user/:rfid', async (req, res) => {
         lastName: user.lastName,
         middleName: user.middleName,
         email: user.email,
-        balance: user.balance,
         role: user.role,
         isActive: user.isActive,
         isVerified: user.isVerified
@@ -589,7 +588,6 @@ router.get('/users/search-rfid', async (req, res) => {
         lastName: user.lastName,
         fullName: user.fullName || `${user.firstName} ${user.lastName}`.trim(),
         email: user.email,
-        balance: user.balance,
         role: user.role,
         isActive: user.isActive,
         isDeactivated: user.isDeactivated || false
@@ -730,7 +728,6 @@ router.post('/cash-in', async (req, res) => {
         transactionId: transaction.transactionId,
         transaction_id: transaction.transactionId, // alias for client compatibility
         amount: transaction.amount,
-        newBalance: creditedUser.balance,
         status: transaction.status,
         createdAt: transaction.createdAt
       },
@@ -739,8 +736,7 @@ router.post('/cash-in', async (req, res) => {
         schoolUId: user.schoolUId,
         firstName: user.firstName,
         lastName: user.lastName,
-        email: user.email,
-        balance: creditedUser.balance
+        email: user.email
       }
     });
   } catch (error) {

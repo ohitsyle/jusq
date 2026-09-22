@@ -54,6 +54,7 @@ const TreasuryConfigPage = lazy(() => import('./pages/admin/Treasury/ConfigPage'
 
 // Accounting Pages
 const AccountingHome = lazy(() => import('./pages/admin/Accounting/AccountingHome'));
+const AccountingTransfers = lazy(() => import('./pages/admin/Accounting/Transfers'));
 // Accounting reuses the Treasury merchants page (read-only GETs) so both roles see identical data/UI.
 const AccountingMerchantsPage = lazy(() => import('./pages/admin/Treasury/MerchantsPage'));
 // Reuse Treasury pages for read-only views
@@ -384,6 +385,14 @@ function AppContent() {
         element={
           <AccountingProtectedRoute>
             <AccountingTransactionsPage />
+          </AccountingProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/accounting/transfers"
+        element={
+          <AccountingProtectedRoute>
+            <AccountingTransfers />
           </AccountingProtectedRoute>
         }
       />
