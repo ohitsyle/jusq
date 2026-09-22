@@ -3,8 +3,8 @@
 // (client/src/pages/kiosk/Kiosk.jsx) on the student's own phone, same look
 // and steps: tap your ID -> not registered yet? -> details -> review ->
 // a temporary PIN is emailed -> sign in here to set your own PIN.
-// Uses the kiosk endpoints with source: 'phone' (same checks: school email
-// only, one account per card / school ID / email).
+// Uses the kiosk endpoints with source: 'phone' (same checks: the account email
+// rule, one account per card / school ID / email).
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -20,6 +20,7 @@ import {
 } from 'lucide-react-native';
 import api from '../services/api';
 import NFCService from '../services/NFCService';
+import maskCard from '../utils/maskCard';
 
 const NAVY = '#0F1227';
 const NAVY2 = '#181D40';
@@ -31,7 +32,6 @@ const GREEN = '#22C55E';
 const RED = '#F87171';
 
 const EMAIL_RE = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
-const SCHOOL_DOMAINS = ['students.nu-laguna.edu.ph', 'nu-laguna.edu.ph', 'nu.edu.ph'];
 const NAME_RE = /^[A-Za-zÀ-ÿÑñ' .-]{1,40}$/;
 const TAGLINES = [
   'Tap. Pay. Go.',
@@ -42,7 +42,6 @@ const TAGLINES = [
 ];
 const EMPTY_FORM = { email: '', firstName: '', middleName: '', lastName: '', schoolId: '' };
 
-const maskCard = (raw) => (raw && raw.length > 4 ? `•••• •••• ${raw.slice(-4)}` : '••••••••');
 const fmtSchoolId = (digits) => (digits.length > 4 ? `${digits.slice(0, 4)}-${digits.slice(4, 10)}` : digits);
 
 // ---- background -------------------------------------------------------------
@@ -217,6 +216,12 @@ export default function SelfRegisterScreen({ navigation }) {
   const [known, setKnown] = useState(null); // { firstName, activated }
   const [errorMsg, setErrorMsg] = useState('');
   const [form, setForm] = useState(EMPTY_FORM);
+  // Which emails can register ([] = any) — the server's account email rule
+  const [emailDomains, setEmailDomains] = useState([]);
+  useEffect(() => {
+    api.get('/system/email-policy').then((r) => setEmailDomains(r?.data?.domains || [])).catch(() => {});
+  }, []);
+  const emailWord = emailDomains.length ? 'school email' : 'email';
   const [fieldErr, setFieldErr] = useState({});
   const [nfc, setNfc] = useState('checking'); // checking | on | off | missing
   const [emailSent, setEmailSent] = useState(true);
@@ -298,7 +303,7 @@ export default function SelfRegisterScreen({ navigation }) {
     const errs = {};
     const email = form.email.trim().toLowerCase();
     if (!EMAIL_RE.test(email)) errs.email = 'Enter a valid email address.';
-    else if (!SCHOOL_DOMAINS.includes(email.split('@')[1])) errs.email = `Use your school email (…@${SCHOOL_DOMAINS[0]}).`;
+    else if (emailDomains.length && !emailDomains.includes(email.split('@')[1])) errs.email = `Use your school email (…@${emailDomains.join(' or …@')}).`;
     if (!form.firstName.trim() || !NAME_RE.test(form.firstName.trim())) errs.firstName = 'Enter your first name (letters only).';
     if (form.middleName.trim() && !NAME_RE.test(form.middleName.trim())) errs.middleName = 'Letters only.';
     if (!form.lastName.trim() || !NAME_RE.test(form.lastName.trim())) errs.lastName = 'Enter your last name (letters only).';
@@ -411,8 +416,8 @@ export default function SelfRegisterScreen({ navigation }) {
                   <Text style={s.h2}>{known?.firstName ? `Hi ${known.firstName}, you're registered!` : "You're already registered!"}</Text>
                   <Text style={s.body}>
                     {known?.activated
-                      ? 'This ID is active and ready to use. Sign in with your school email and PIN.'
-                      : "Your account exists but isn't activated yet. Check your school email for the temporary PIN, then sign in here — you'll set your own PIN right after."}
+                      ? `This ID is active and ready to use. Sign in with your ${emailWord} and PIN.`
+                      : `Your account exists but isn't activated yet. Check your ${emailWord} for the temporary PIN, then sign in here — you'll set your own PIN right after.`}
                   </Text>
                   <View style={s.btnCol}>
                     <Btn onPress={toLogin}><BtnText>Go to sign in</BtnText><ArrowRight size={20} color={NAVY2} /></Btn>
@@ -467,8 +472,8 @@ export default function SelfRegisterScreen({ navigation }) {
                 <View style={s.note}>
                   <ShieldCheck size={24} color={YELLOW} />
                   <Text style={s.noteText}>
-                    Use your real name and school-issued email exactly as they appear in school records. Your temporary PIN is sent only
-                    to your school email, and your details help keep shuttle rides and payments safe and traceable.
+                    Use your real name{emailDomains.length ? ' and school-issued email' : ''} exactly as they appear in school records. Your temporary PIN is sent only
+                    to your {emailWord}, and your details help keep shuttle rides and payments safe and traceable.
                   </Text>
                 </View>
 

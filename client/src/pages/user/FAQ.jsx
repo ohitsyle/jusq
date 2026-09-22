@@ -148,7 +148,7 @@ export default function FAQ() {
       id: 20,
       category: 'technical',
       question: 'Who do I contact for technical support?',
-      answer: 'For technical issues, use the "Report a Concern" feature and select "NUCash System". For urgent matters, visit the IT Service Office (ITSO) or email support@nu.edu.ph.'
+      answer: 'For technical issues, use the "Report a Concern" feature and select "System Administrator". For urgent matters, visit the IT Service Office (ITSO) or email support@nu.edu.ph.'
     }
   ];
 

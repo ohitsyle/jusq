@@ -7,6 +7,7 @@ import api from '../../../utils/api';
 import { Search, Download, Plus, Edit, Trash2, Users, UserCheck, UserX, Shield, GraduationCap, Briefcase, X, Check, Loader2, CreditCard, AlertCircle, CheckCircle, XCircle, AlertTriangle, Info, Link2, Wallet, KeyRound, Ban } from 'lucide-react';
 import { exportToCSV, downloadServerExport } from '../../../utils/csvExport';
 import { convertToHexLittleEndian } from '../../../utils/rfidConverter';
+import RfidInput from '../../../components/shared/RfidInput';
 import { toast } from 'react-toastify';
 import AddUserModal from './AddUserModal';
 import { FilterSelect } from '../../../components/shared/ThemedControls';
@@ -771,7 +772,7 @@ function EditUserModal({ theme, isDarkMode, user, onClose, onSuccess, onResetPin
                       No NUCash wallet yet. Tap or enter their NU ID card to give them an employee wallet (uses their current PIN).
                     </p>
                     <div className="flex gap-2">
-                      <input
+                      <RfidInput
                         value={cardInput}
                         onChange={(e) => setCardInput(e.target.value.toUpperCase())}
                         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); linkCard(); } }}

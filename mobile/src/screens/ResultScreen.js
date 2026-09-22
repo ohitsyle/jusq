@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native
 
 // ✅ NEW IMPORT
 import { SafeAreaView } from 'react-native-safe-area-context';
+import maskCard from '../utils/maskCard';
 
 export default function ResultScreen({ navigation, route }) {
   const {
@@ -164,7 +165,7 @@ export default function ResultScreen({ navigation, route }) {
                   <View style={styles.divider} />
                   <View style={styles.cardIdRow}>
                     <Text style={styles.cardIdLabel}>Card ID:</Text>
-                    <Text style={styles.cardIdValue}>{rfidUId}</Text>
+                    <Text style={styles.cardIdValue}>{maskCard(rfidUId)}</Text>
                   </View>
                 </>
               )}

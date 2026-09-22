@@ -4,6 +4,13 @@
 import express from 'express';
 const router = express.Router();
 import Setting from '../models/Setting.js';
+import { accountEmailDomains } from '../utils/emailPolicy.js';
+
+// Which emails new accounts may use ([] = any) — read by the kiosk, the app's
+// registration and the admin forms (see utils/emailPolicy.js). Public.
+router.get('/email-policy', (req, res) => {
+  res.json({ domains: accountEmailDomains() });
+});
 
 // Get current settings
 router.get('/config', async (req, res) => {

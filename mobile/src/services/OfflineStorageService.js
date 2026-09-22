@@ -1,6 +1,7 @@
 // src/services/OfflineStorageService.js
 // Enhanced offline storage service with automatic data caching and sync
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import maskCard from '../utils/maskCard';
 
 const STORAGE_KEYS = {
   ROUTES: 'cached_routes',
@@ -389,7 +390,7 @@ const OfflineStorageService = {
       };
 
       await AsyncStorage.setItem(STORAGE_KEYS.CACHED_CARDS, JSON.stringify(cards));
-      console.log('✅ Cached card data for:', cardData.fullName || cardData.rfidUId);
+      console.log('✅ Cached card data for:', cardData.fullName || maskCard(cardData.rfidUId));
     } catch (error) {
       console.error('❌ Failed to cache card data:', error);
     }
@@ -416,7 +417,7 @@ const OfflineStorageService = {
           }
         }
 
-        console.log('❌ User not found in cache for RFID:', rfidUId);
+        console.log('❌ User not found in cache for card:', maskCard(rfidUId));
       } else {
         console.log('❌ No cached card data found');
       }
@@ -445,7 +446,7 @@ const OfflineStorageService = {
       );
 
       if (recentTransaction) {
-        console.log('🚫 Recent transaction found for:', rfidUId, 'at:', recentTransaction.timestamp);
+        console.log('🚫 Recent transaction found for:', maskCard(rfidUId), 'at:', recentTransaction.timestamp);
         return {
           hasRecent: true,
           transaction: recentTransaction,
@@ -484,7 +485,7 @@ const OfflineStorageService = {
       }
 
       await AsyncStorage.setItem(STORAGE_KEYS.OFFLINE_TRANSACTIONS, JSON.stringify(transactions));
-      console.log('📦 Added offline transaction for:', transaction.studentName || transaction.rfidUId);
+      console.log('📦 Added offline transaction for:', transaction.studentName || maskCard(transaction.rfidUId));
     } catch (error) {
       console.error('❌ Failed to add offline transaction:', error);
     }

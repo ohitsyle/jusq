@@ -7,7 +7,8 @@ import { useTheme } from '../../context/ThemeContext';
 import api from '../../utils/api';
 import { toast } from 'react-toastify';
 
-import { convertToHexLittleEndian } from '../../utils/rfidConverter';
+import { convertToHexLittleEndian, maskRfid } from '../../utils/rfidConverter';
+import RfidInput from '../shared/RfidInput';
 const normalizeRfidHex = convertToHexLittleEndian;
 
 // Format school ID for display based on role
@@ -35,11 +36,6 @@ const getSchoolIdLength = (role) => role === 'employee' ? 8 : 10;
 // Get max display length for role (includes dash)
 const getSchoolIdMaxLength = (role) => role === 'employee' ? 9 : 11;
 
-// Mask RFID for display
-const maskRfid = (rfid) => {
-  if (!rfid || rfid.length < 4) return '***';
-  return '****' + rfid.slice(-4);
-};
 
 export default function RegisterUserModal({ isOpen, onClose, onSuccess, prefillRfid = '', onSwitchToCashIn }) {
   const { theme, isDarkMode } = useTheme();
@@ -394,9 +390,8 @@ export default function RegisterUserModal({ isOpen, onClose, onSuccess, prefillR
                 <label style={{ color: theme.text.primary }} className="font-semibold mb-2 block">
                   RFID Tag
                 </label>
-                <input
+                <RfidInput
                   ref={rfidInputRef}
-                  type="text"
                   value={rfidInput}
                   onChange={handleRfidChange}
                   onKeyDown={handleRfidKeyDown}
@@ -411,7 +406,7 @@ export default function RegisterUserModal({ isOpen, onClose, onSuccess, prefillR
                 />
                 {rfidInput && !rfidError && (
                   <p style={{ color: theme.text.tertiary }} className="text-xs mt-2">
-                    Will be stored as: <span className="font-mono">{normalizeRfidHex(rfidInput)}</span>
+                    Will be stored as: <span className="font-mono">{maskRfid(normalizeRfidHex(rfidInput))}</span>
                   </p>
                 )}
                 {rfidError && (

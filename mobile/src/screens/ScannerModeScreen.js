@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Nfc, ArrowLeft, CheckCircle2, XCircle, Send, Wifi, Monitor, Wallet, UserPlus } from 'lucide-react-native';
 import NFCService from '../services/NFCService';
 import api from '../services/api';
+import maskCard from '../utils/maskCard';
 
 const NAVY = '#0F1227';
 const NAVY2 = '#181D40';
@@ -160,7 +161,7 @@ export default function ScannerModeScreen({ navigation }) {
           <>
             <ActivityIndicator size="large" color={YELLOW} />
             <Text style={styles.big}>Sending to {dest.name}…</Text>
-            <Text style={styles.uid}>{uid}</Text>
+            <Text style={styles.uid}>{maskCard(uid)}</Text>
           </>
         )}
 
@@ -170,7 +171,7 @@ export default function ScannerModeScreen({ navigation }) {
               <CheckCircle2 size={64} color="#22C55E" />
             </View>
             <Text style={styles.big}>Sent to {dest.name}!</Text>
-            <Text style={styles.uid}>{uid}</Text>
+            <Text style={styles.uid}>{maskCard(uid)}</Text>
             <Text style={styles.hint}>{dest.sent}</Text>
           </>
         )}

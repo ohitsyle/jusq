@@ -1,5 +1,6 @@
 // src/services/NFCService.js
 import NfcManager, { NfcTech } from 'react-native-nfc-manager';
+import maskCard from '../utils/maskCard';
 
 class NFCService {
   constructor() {
@@ -40,7 +41,7 @@ class NFCService {
       
       const uid = this.bytesToHex(tag.id);
       
-      console.log('Converted UID:', uid);
+      console.log('Card read:', maskCard(uid));
       console.log('UID length:', uid.length);
       console.log('======================');
       

@@ -8,6 +8,7 @@ import api from './api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import OfflineStorageService from './OfflineStorageService';
 import NetworkService from './NetworkService';
+import maskCard from '../utils/maskCard';
 
 const DEVICE_ID = 'SHUTTLE_01';
 const DEFAULT_FARE = 15; // Fallback if no fare specified
@@ -54,7 +55,7 @@ const PaymentService = {
     // Keep NetworkService in sync
     NetworkService.isConnected = isOnline;
 
-    console.log('💸 Processing refund: ₱', fareAmount, 'for:', rfidUId);
+    console.log('💸 Processing refund: ₱', fareAmount, 'for:', maskCard(rfidUId));
 
     // Validate student status — use cache-only when offline to avoid timeouts
     const statusValidation = isOnline
@@ -790,7 +791,7 @@ const PaymentService = {
         // Track retry count - give up after MAX_RETRIES to prevent infinite loop
         const retryCount = transaction._retryCount || 0;
         if (retryCount >= MAX_RETRIES) {
-          console.error(`🚫 Giving up on transaction for ${transaction.studentName || transaction.rfidUId} after ${MAX_RETRIES} retries`);
+          console.error(`🚫 Giving up on transaction for ${transaction.studentName || maskCard(transaction.rfidUId)} after ${MAX_RETRIES} retries`);
           // Mark as permanently failed so it stops retrying
           transaction._permanentlyFailed = true;
           transaction._failReason = 'Max retries exceeded';
@@ -799,7 +800,7 @@ const PaymentService = {
         }
 
         try {
-          console.log(`📤 Syncing transaction for ${transaction.studentName || transaction.rfidUId} (attempt ${retryCount + 1})`);
+          console.log(`📤 Syncing transaction for ${transaction.studentName || maskCard(transaction.rfidUId)} (attempt ${retryCount + 1})`);
 
           let res;
 
@@ -833,12 +834,12 @@ const PaymentService = {
 
           if (responseData.success) {
             processed++;
-            console.log(`✅ Synced transaction for ${transaction.studentName || transaction.rfidUId}${responseData.duplicate ? ' (server detected duplicate)' : ''}`);
+            console.log(`✅ Synced transaction for ${transaction.studentName || maskCard(transaction.rfidUId)}${responseData.duplicate ? ' (server detected duplicate)' : ''}`);
           } else {
             failed++;
             transaction._retryCount = retryCount + 1;
             failedTransactions.push(transaction);
-            console.error(`❌ Failed to sync for ${transaction.studentName || transaction.rfidUId}:`, responseData?.error || 'Unknown error');
+            console.error(`❌ Failed to sync for ${transaction.studentName || maskCard(transaction.rfidUId)}:`, responseData?.error || 'Unknown error');
           }
         } catch (error) {
           failed++;
@@ -847,7 +848,7 @@ const PaymentService = {
           if (error.response && error.response.status >= 400 && error.response.status < 500) {
             transaction._retryCount = retryCount + 1;
             failedTransactions.push(transaction);
-            console.error(`❌ Client error syncing for ${transaction.studentName || transaction.rfidUId}: ${error.response.status} - ${error.response.data?.error || error.message}`);
+            console.error(`❌ Client error syncing for ${transaction.studentName || maskCard(transaction.rfidUId)}: ${error.response.status} - ${error.response.data?.error || error.message}`);
           } else if (error.message.includes('Network') || error.message.includes('timeout') || !error.response) {
             // Network error - keep current retry count and stop trying the rest
             transaction._retryCount = retryCount;
@@ -865,7 +866,7 @@ const PaymentService = {
             // Other server errors (5xx) - increment retry but don't stop
             transaction._retryCount = retryCount + 1;
             failedTransactions.push(transaction);
-            console.error(`❌ Server error syncing for ${transaction.studentName || transaction.rfidUId}:`, error.message);
+            console.error(`❌ Server error syncing for ${transaction.studentName || maskCard(transaction.rfidUId)}:`, error.message);
           }
         }
       }

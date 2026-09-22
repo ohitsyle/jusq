@@ -7,6 +7,7 @@ import api from '../../../utils/api';
 import { toast } from 'react-toastify';
 
 import { convertToHexLittleEndian } from '../../../utils/rfidConverter';
+import RfidInput from '../../../components/shared/RfidInput';
 
 export default function RegistrationForm() {
   const navigate = useNavigate();
@@ -124,7 +125,6 @@ export default function RegistrationForm() {
 
     // Ensure RFID is in hex little-endian format
     const rfidHex = convertToHexLittleEndian(formData.rfidUId);
-    console.log('📤 Sending registration with RFID:', rfidHex);
 
     setSubmitting(true);
     try {
@@ -270,9 +270,8 @@ export default function RegistrationForm() {
                 RFID <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <input
+                <RfidInput
                   ref={rfidInputRef}
-                  type="text"
                   value={formData.rfidUId}
                   onChange={(e) => handleRfidInput(e.target.value)}
                   onBlur={() => {

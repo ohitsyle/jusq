@@ -7,7 +7,8 @@ import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { toast } from 'react-toastify';
 import { Users, UserCheck, UserX, Shield, GraduationCap, Briefcase, Clock, Plus, CreditCard, Search, Check, Loader2, AlertCircle, X, ArrowRight, CheckCircle, ClipboardList, Home, Server, Wrench, FileDown, CalendarClock, UserPlus } from 'lucide-react';
-import { convertToHexLittleEndian } from '../../../utils/rfidConverter';
+import { convertToHexLittleEndian, maskRfid } from '../../../utils/rfidConverter';
+import RfidInput from '../../../components/shared/RfidInput';
 import AddUserModal from './AddUserModal';
 
 const fmtUptime = (s) => {
@@ -417,7 +418,7 @@ function DashboardTransferModal({ theme, isDarkMode, onClose }) {
                       className="w-full p-3 rounded-xl border flex items-center justify-between hover:border-emerald-500 transition-all text-left">
                       <div>
                         <p style={{ color: theme.text.primary }} className="font-semibold">{user.firstName} {user.lastName}</p>
-                        <p style={{ color: theme.text.secondary }} className="text-xs">{user.schoolUId || user.email} • RFID: {user.rfidUId || 'None'}</p>
+                        <p style={{ color: theme.text.secondary }} className="text-xs">{user.schoolUId || user.email} • RFID: {maskRfid(user.rfidUId) || 'None'}</p>
                       </div>
                       <ArrowRight className="w-4 h-4 text-emerald-500" />
                     </button>
@@ -432,11 +433,11 @@ function DashboardTransferModal({ theme, isDarkMode, onClose }) {
               <div style={{ background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB', borderColor: theme.border.primary }} className="p-4 rounded-xl border">
                 <p style={{ color: theme.text.secondary }} className="text-xs uppercase font-semibold mb-1">Selected User</p>
                 <p style={{ color: theme.text.primary }} className="font-bold">{selectedUser?.firstName} {selectedUser?.lastName}</p>
-                <p style={{ color: theme.text.muted }} className="text-xs">Current RFID: {selectedUser?.rfidUId || 'N/A'}</p>
+                <p style={{ color: theme.text.muted }} className="text-xs">Current RFID: {maskRfid(selectedUser?.rfidUId) || 'N/A'}</p>
               </div>
               <div>
                 <label style={{ color: theme.text.secondary }} className="block text-xs font-semibold uppercase mb-2">New RFID Tag</label>
-                <input type="text" value={newRfid} onChange={e => setNewRfid(e.target.value.toUpperCase())} placeholder="Scan or enter new RFID..."
+                <RfidInput value={newRfid} onChange={e => setNewRfid(e.target.value.toUpperCase())} placeholder="Scan or enter new RFID..."
                   style={{ background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB', color: theme.text.primary, borderColor: 'rgba(16,185,129,0.3)' }}
                   className="w-full px-4 py-3 rounded-xl border text-sm focus:outline-none font-mono text-lg" autoFocus />
               </div>
@@ -459,12 +460,12 @@ function DashboardTransferModal({ theme, isDarkMode, onClose }) {
               <div className="space-y-3 text-left">
                 <div style={{ background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB', borderColor: theme.border.primary }} className="p-3 rounded-xl border">
                   <p style={{ color: theme.text.secondary }} className="text-xs">Current RFID</p>
-                  <p style={{ color: theme.text.primary }} className="font-mono font-semibold">{selectedUser?.rfidUId}</p>
+                  <p style={{ color: theme.text.primary }} className="font-mono font-semibold">{maskRfid(selectedUser?.rfidUId) || 'None'}</p>
                 </div>
                 <div className="flex justify-center"><ArrowRight className="w-5 h-5 text-emerald-500" /></div>
                 <div style={{ background: isDarkMode ? 'rgba(15,18,39,0.5)' : '#F9FAFB', borderColor: 'rgba(16,185,129,0.3)' }} className="p-3 rounded-xl border">
                   <p style={{ color: theme.text.secondary }} className="text-xs">New RFID</p>
-                  <p className="font-mono font-semibold text-emerald-500">{convertToHex(newRfid)}</p>
+                  <p className="font-mono font-semibold text-emerald-500">{maskRfid(convertToHex(newRfid))}</p>
                 </div>
               </div>
               <div className="flex gap-3">

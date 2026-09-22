@@ -8,7 +8,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import api from '../../../utils/api';
 import { toast } from 'react-toastify';
 import { Plus, X, Check, Loader2, CreditCard, AlertCircle, GraduationCap, Briefcase, Shield, Link2 } from 'lucide-react';
-import { convertToHexLittleEndian } from '../../../utils/rfidConverter';
+import { convertToHexLittleEndian, maskRfid } from '../../../utils/rfidConverter';
+import RfidInput from '../../../components/shared/RfidInput';
 
 const normalizeRfidHex = convertToHexLittleEndian;
 
@@ -56,7 +57,8 @@ export default function AddUserModal({ theme, isDarkMode, onClose, onSuccess }) 
   const [checkingSchoolId, setCheckingSchoolId] = useState(false);
   const [rfidStatus, setRfidStatus] = useState(null); // 'available', 'taken', null
   const [rfidOwner, setRfidOwner] = useState(null); // who already has this card (name, schoolUId, email, linked)
-  const [emailStatus, setEmailStatus] = useState(null);
+  const [emailStatus, setEmailStatus] = useState(null); // 'available' | 'taken' | 'invalid' | null
+  const [emailProblem, setEmailProblem] = useState(''); // why an 'invalid' email can't be used
   const [schoolIdStatus, setSchoolIdStatus] = useState(null);
   const [validationError, setValidationError] = useState(null);
   const rfidInputRef = useRef(null);
@@ -140,7 +142,8 @@ export default function AddUserModal({ theme, isDarkMode, onClose, onSuccess }) 
         setCheckingEmail(true);
         try {
           const response = await api.get(`/admin/sysad/users/check-email?email=${encodeURIComponent(value.trim())}`);
-          setEmailStatus(response.available === true ? 'available' : 'taken');
+          setEmailProblem(response.problem || '');
+          setEmailStatus(response.problem ? 'invalid' : response.available === true ? 'available' : 'taken');
         } catch (error) {
           console.error('Email check error:', error);
           setEmailStatus(null);
@@ -210,6 +213,10 @@ export default function AddUserModal({ theme, isDarkMode, onClose, onSuccess }) 
       return;
     }
 
+    if (emailStatus === 'invalid') {
+      setValidationError(emailProblem);
+      return;
+    }
     // Validate email status (the wallet being linked may already use it)
     if (emailStatus === 'taken' && !(linksOwnWallet && sameEmail)) {
       setValidationError('This email is already registered');
@@ -267,7 +274,7 @@ export default function AddUserModal({ theme, isDarkMode, onClose, onSuccess }) 
   const linksOwnWallet = formData.role === 'admin' && !!rfidOwner && !rfidOwner.linked && (sameEmail || sameSchoolId);
   const emailIsWallets = emailStatus === 'taken' && linksOwnWallet && sameEmail;
   const schoolIdIsWallets = schoolIdStatus === 'taken' && linksOwnWallet && sameSchoolId;
-  const emailBlocked = emailStatus === 'taken' && !emailIsWallets;
+  const emailBlocked = (emailStatus === 'taken' && !emailIsWallets) || emailStatus === 'invalid';
   const schoolIdBlocked = schoolIdStatus === 'taken' && !schoolIdIsWallets;
 
   return (
@@ -368,9 +375,8 @@ export default function AddUserModal({ theme, isDarkMode, onClose, onSuccess }) 
             )}
             <div className="relative">
               <CreditCard style={{ color: theme.text.tertiary }} className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5" />
-              <input
+              <RfidInput
                 ref={rfidInputRef}
-                type="text"
                 value={formData.rfidUId}
                 onChange={handleRfidChange}
                 onBlur={() => {
@@ -418,7 +424,7 @@ export default function AddUserModal({ theme, isDarkMode, onClose, onSuccess }) 
             )}
             {formData.rfidUId && !rfidStatus && (
               <p style={{ color: theme.text.tertiary }} className="text-xs mt-1">
-                Will be stored as: <span className="font-mono">{storedRfid()}</span>
+                Will be stored as: <span className="font-mono">{maskRfid(storedRfid())}</span>
               </p>
             )}
           </div>
@@ -483,7 +489,7 @@ export default function AddUserModal({ theme, isDarkMode, onClose, onSuccess }) 
               )}
             </div>
             {emailBlocked && (
-              <p className="text-red-500 text-xs mt-1">This email is already registered</p>
+              <p className="text-red-500 text-xs mt-1">{emailStatus === 'invalid' ? emailProblem : 'This email is already registered'}</p>
             )}
             {emailIsWallets && (
               <p className="text-blue-500 text-xs mt-1">Matches their existing wallet</p>

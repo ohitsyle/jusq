@@ -15,6 +15,7 @@ import Shuttle from '../models/Shuttle.js';
 import Driver from '../models/Driver.js';
 import Route from '../models/Route.js';
 import { requireDeviceAuth } from '../middlewares/requireDeviceAuth.js';
+import { maskRfid } from '../utils/rfidConverter.js';
 
 // Every endpoint here moves money or shuttle state, so it needs a signed-in
 // driver phone (the card list is also used by merchant phones).
@@ -64,7 +65,7 @@ router.post('/pay', driverOnly, async (req, res) => {
   try {
     const { rfidUId, driverId, shuttleId, routeId, tripId, fareAmount, deviceTimestamp, offlineMode } = req.body;
 
-    console.log('💳 Processing payment:', { rfidUId, driverId, shuttleId, routeId, tripId, fareAmount });
+    console.log('💳 Processing payment:', { card: maskRfid(rfidUId), driverId, shuttleId, routeId, tripId, fareAmount });
 
     // ===== DUPLICATE DETECTION =====
     // For offline transactions being synced, check if this exact transaction already exists
@@ -124,7 +125,7 @@ router.post('/pay', driverOnly, async (req, res) => {
     // Find user by rfidUId
     const user = await User.findOne({ rfidUId });
     if (!user) {
-      console.log('❌ Card not found:', rfidUId);
+      console.log('❌ Card not found:', maskRfid(rfidUId));
       return res.status(404).json({ error: 'Card not recognized' });
     }
 
@@ -258,7 +259,7 @@ router.post('/refund', driverOnly, async (req, res) => {
     // Refunds exactly one real fare: the latest un-refunded shuttle payment on
     // this card from the last 24h. The device's fareAmount is ignored.
     if (rfidUId) {
-      console.log('💸 Processing direct refund for:', rfidUId);
+      console.log('💸 Processing direct refund for:', maskRfid(rfidUId));
 
       // Find user by RFID
       const user = await User.findOne({ rfidUId });
@@ -681,7 +682,7 @@ router.post('/sync', driverOnly, async (req, res) => {
         console.log(`✅ Synced: ${user.fullName} - ₱${fare}`);
 
       } catch (err) {
-        console.error('❌ Sync error for', tx.rfidUId, err.message);
+        console.error('❌ Sync error for', maskRfid(tx.rfidUId), err.message);
         rejected.push({ rfidUId: tx.rfidUId, error: err.message });
       }
     }

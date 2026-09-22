@@ -19,6 +19,8 @@ import { logAdminAction, logMaintenanceMode, logStudentDeactivation, logAutoExpo
 import { extractAdminInfo } from '../middlewares/extractAdminInfo.js';
 import { requireAdminAuthForMutations } from '../middlewares/requireAdminAuth.js';
 import { takeScan } from '../utils/scanRelay.js';
+import { maskRfid } from '../utils/rfidConverter.js';
+import { accountEmailProblem } from '../utils/emailPolicy.js';
 
 // Apply admin info extraction middleware to all sysad routes
 router.use(extractAdminInfo);
@@ -336,6 +338,9 @@ router.get('/users/check-email', async (req, res) => {
     if (!email) {
       return res.status(400).json({ success: false, message: 'Email is required' });
     }
+    // problem: why this email can't be used at all (format, or not a school email)
+    const problem = accountEmailProblem(email);
+    if (problem) return res.json({ success: true, available: false, problem });
     const existingUser = await User.findOne({ email: email.toLowerCase() });
     const existingAdmin = await Admin.findOne({ email: email.toLowerCase() });
     res.json({ success: true, available: !existingUser && !existingAdmin });
@@ -426,6 +431,9 @@ router.post('/users', async (req, res) => {
         });
       }
     }
+
+    const emailProblem = accountEmailProblem(email);
+    if (emailProblem) return res.status(400).json({ success: false, message: emailProblem });
 
     // Check if email already exists in both User and Admin collections
     // (the admin's own wallet being linked may share it)
@@ -661,6 +669,11 @@ router.put('/users/:userId', async (req, res) => {
     }
     if (user.linkedAdminId && email && email.toLowerCase() !== user.email) {
       return res.status(400).json({ success: false, message: "This wallet belongs to an admin — its email follows the admin account" });
+    }
+
+    if (email && email.toLowerCase() !== user.email) {
+      const emailProblem = accountEmailProblem(email);
+      if (emailProblem) return res.status(400).json({ success: false, message: emailProblem });
     }
 
     // Check email uniqueness if changed
@@ -965,7 +978,7 @@ router.post('/users/:adminId/link-wallet', async (req, res) => {
     } else {
       const clash = await User.findOne({ $or: [{ email: admin.email }, { schoolUId: admin.schoolUId }] }).lean();
       if (clash) {
-        return res.status(400).json({ success: false, message: `${clash.firstName} ${clash.lastName} already has a NUCash wallet with a different card (${clash.rfidUId}) — use that card` });
+        return res.status(400).json({ success: false, message: `${clash.firstName} ${clash.lastName} already has a NUCash wallet with a different card (${maskRfid(clash.rfidUId)}) — use that card` });
       }
       const lastUser = await User.findOne().sort({ userId: -1 });
       wallet = await User.create({
@@ -1226,13 +1239,13 @@ router.post('/transfer-card', async (req, res) => {
     // Log action
     await SystemLog.create({
       eventType: 'card_transferred',
-      description: `RFID transferred for ${user.firstName} ${user.lastName}: ${oldRfid} -> ${newCardUid}. Account set to inactive, new OTP sent.`,
+      description: `RFID transferred for ${user.firstName} ${user.lastName}: ${maskRfid(oldRfid)} -> ${maskRfid(newCardUid)}. Account set to inactive, new OTP sent.`,
       severity: 'info',
       metadata: {
         userId: user._id,
         userType: isAdmin ? 'admin' : 'user',
-        oldRfidUId: oldRfid,
-        newRfidUId: newCardUid,
+        oldRfidUId: maskRfid(oldRfid),
+        newRfidUId: maskRfid(newCardUid),
         adminId,
         adminAction: true,
         otpSent: true
@@ -1244,7 +1257,7 @@ router.post('/transfer-card', async (req, res) => {
       adminRole: req.adminRole || 'sysad',
       department: 'system',
       action: 'Card Transferred',
-      description: `transferred RFID for ${user.firstName} ${user.lastName}: ${oldRfid} → ${newCardUid}`,
+      description: `transferred RFID for ${user.firstName} ${user.lastName}: ${maskRfid(oldRfid)} → ${maskRfid(newCardUid)}`,
       targetEntity: 'user',
       targetId: user._id?.toString(),
       crudOperation: 'admin_action',

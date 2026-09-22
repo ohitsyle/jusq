@@ -17,6 +17,7 @@ import UserConcern from '../models/UserConcern.js';
 import Merchant from '../models/Merchant.js';
 import Admin from '../models/Admin.js';
 import { buildDepartmentLogQuery, buildDepartmentConcernQuery, buildDepartmentPhoneQuery } from './exportScopes.js';
+import { maskRfid } from './rfidConverter.js';
 
 // ---------------------------------------------------------------------------
 // Shared CSV builder — mirrors client/src/utils/csvExport.js exactly so a
@@ -245,7 +246,7 @@ export async function exportUsers(dateFilter = {}) {
   const headers = ['ID Number', 'RFID', 'Name', 'Email', 'Role', 'Status', 'Deactivated', 'Balance', 'Created'];
   const rows = users.map((u) => ({
     'ID Number': u.schoolUId || '',
-    'RFID': u.rfidUId || '',
+    'RFID': maskRfid(u.rfidUId),
     'Name': `${u.firstName || ''} ${u.lastName || ''}`.trim(),
     'Email': u.email || '',
     'Role': u.role || '',

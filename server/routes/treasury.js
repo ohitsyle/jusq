@@ -9,8 +9,9 @@ import Merchant from '../models/Merchant.js';
 import UserConcern from '../models/UserConcern.js';
 import { logAdminAction, logCashIn, logAutoExportConfigChange, logManualExport } from '../utils/logger.js';
 import { sendTemporaryPIN, sendConcernInProgressEmail, sendConcernResolvedEmail } from '../services/emailService.js';
-import { convertRfidToHexLittleEndian, validateRfidFormat, rfidLookupValues } from '../utils/rfidConverter.js';
+import { convertRfidToHexLittleEndian, validateRfidFormat, rfidLookupValues, maskRfid } from '../utils/rfidConverter.js';
 import { takeScan } from '../utils/scanRelay.js';
+import { accountEmailProblem } from '../utils/emailPolicy.js';
 import { extractAdminInfo } from '../middlewares/extractAdminInfo.js';
 import { requireAdminAuthForMutations } from '../middlewares/requireAdminAuth.js';
 
@@ -791,7 +792,7 @@ router.post('/register', async (req, res) => {
     }
 
     const convertedRfidUId = convertRfidToHexLittleEndian(rfidUId);
-    console.log(`🔄 RFID conversion: ${rfidUId} → ${convertedRfidUId}`);
+    console.log(`🔄 RFID conversion: ${maskRfid(rfidUId)} → ${maskRfid(convertedRfidUId)}`);
 
     // Check if RFID already exists (using converted format)
     const existingRFID = await User.findOne({ rfidUId: convertedRfidUId });
@@ -810,6 +811,9 @@ router.post('/register', async (req, res) => {
         message: 'School ID already registered'
       });
     }
+
+    const emailProblem = accountEmailProblem(email);
+    if (emailProblem) return res.status(400).json({ success: false, message: emailProblem });
 
     // Check if email already exists
     const existingEmail = await User.findOne({ email });
@@ -1010,7 +1014,7 @@ router.post('/users/register', async (req, res) => {
     }
 
     const convertedRfidUId = convertRfidToHexLittleEndian(rfidUId);
-    console.log(`🔄 RFID conversion: ${rfidUId} → ${convertedRfidUId}`);
+    console.log(`🔄 RFID conversion: ${maskRfid(rfidUId)} → ${maskRfid(convertedRfidUId)}`);
 
     // Check if RFID or School ID already exists (using converted format)
     const existingRFID = await User.findOne({ rfidUId: convertedRfidUId });
@@ -1032,6 +1036,9 @@ router.post('/users/register', async (req, res) => {
     // Generate userId (auto-increment)
     const lastUser = await User.findOne().sort({ userId: -1 });
     const userId = lastUser ? lastUser.userId + 1 : 100000;
+
+    const emailProblem = accountEmailProblem(email);
+    if (emailProblem) return res.status(400).json({ success: false, message: emailProblem });
 
     // Check if email already exists
     const existingEmail = await User.findOne({ email: email.toLowerCase() });

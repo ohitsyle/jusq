@@ -6,7 +6,8 @@ import React, { useState, useEffect } from 'react';
 import { useTheme, useThemeColors } from '../../../context/ThemeContext';
 import api from '../../../utils/api';
 import { CreditCard, ArrowRight, Search, AlertTriangle, CheckCircle, Loader2, User, RefreshCw, Users, Download, GraduationCap, Briefcase } from 'lucide-react';
-import { convertToHexLittleEndian } from '../../../utils/rfidConverter';
+import { convertToHexLittleEndian, maskRfid } from '../../../utils/rfidConverter';
+import RfidInput from '../../../components/shared/RfidInput';
 import { FilterSelect } from '../../../components/shared/ThemedControls';
 
 // Custom Notification Modal for TransferCard
@@ -113,7 +114,7 @@ function TransferModal({ isOpen, onClose, selectedUser }) {
             
             <div>
               <label className="font-semibold mb-2 block" style={{ color: theme.text.primary }}>New RFID Tag</label>
-              <input
+              <RfidInput
                 placeholder="Scan or enter new RFID..."
                 value={newRfid}
                 onChange={(e) => setNewRfid(e.target.value)}
@@ -165,7 +166,7 @@ function TransferModal({ isOpen, onClose, selectedUser }) {
                 <div>
                   <p className="text-xs" style={{ color: theme.text.secondary }}>New RFID Tag</p>
                   <p className="font-mono font-semibold" style={{ color: theme.text.primary }}>
-                    {convertToHexLittleEndian(newRfid)}
+                    {maskRfid(convertToHexLittleEndian(newRfid))}
                   </p>
                 </div>
               </div>
@@ -325,14 +326,14 @@ function TransferModal({ isOpen, onClose, selectedUser }) {
             <div className="space-y-3">
               <div className="p-3 rounded-xl border" style={{ background: P.fieldBg, borderColor: P.tint(0.2) }}>
                 <p className="text-xs" style={{ color: theme.text.secondary }}>Current RFID</p>
-                <p className="font-mono font-semibold" style={{ color: theme.text.primary }}>{selectedUser?.rfidUId}</p>
+                <p className="font-mono font-semibold" style={{ color: theme.text.primary }}>{maskRfid(selectedUser?.rfidUId) || 'None'}</p>
               </div>
               <div className="flex justify-center">
                 <ArrowRight className="w-5 h-5" style={{ color: accentColor }} />
               </div>
               <div className="p-3 rounded-xl border" style={{ background: P.fieldBg, borderColor: P.tint(0.2) }}>
                 <p className="text-xs" style={{ color: theme.text.secondary }}>New RFID</p>
-                <p className="font-mono font-semibold" style={{ color: theme.text.primary }}>{convertToHexLittleEndian(newRfid)}</p>
+                <p className="font-mono font-semibold" style={{ color: theme.text.primary }}>{maskRfid(convertToHexLittleEndian(newRfid))}</p>
               </div>
             </div>
 
@@ -515,7 +516,7 @@ function TransferConfirmModal({ isOpen, onClose, onConfirm, selectedUser, newCar
             </div>
             <div className="flex justify-between items-center">
               <span style={{ color: theme.text.secondary }} className="text-sm">New Card ID</span>
-              <span className="font-mono text-emerald-500 font-semibold">{newCardId}</span>
+              <span className="font-mono text-emerald-500 font-semibold">{maskRfid(newCardId)}</span>
             </div>
           </div>
 
@@ -691,8 +692,8 @@ export default function TransferCard() {
           <div style={{ background: 'rgba(59,130,246,0.1)', borderColor: 'rgba(59,130,246,0.3)' }} className="rounded-xl border p-4 mb-6">
             <p className="text-blue-500 text-sm">
               <strong>Transfer Details:</strong><br />
-              Old RFID: {selectedUser?.rfidUId}<br />
-              New RFID: {newCardId}<br />
+              Old RFID: {maskRfid(selectedUser?.rfidUId) || 'None'}<br />
+              New RFID: {maskRfid(newCardId)}<br />
               User: {selectedUser?.firstName} {selectedUser?.lastName}
             </p>
           </div>
@@ -823,7 +824,7 @@ export default function TransferCard() {
                         className="border-b hover:bg-white/5 transition-all duration-200"
                       >
                         <td style={{ color: theme.text.primary }} className="p-4 font-mono font-semibold">
-                          {user.cardUid || user.schoolUId || user.adminId || 'N/A'}
+                          {user.schoolUId || user.adminId || 'N/A'}
                         </td>
                         <td style={{ color: theme.text.primary }} className="p-4 font-semibold">
                           {`${user.firstName || ''} ${user.lastName || ''}`.trim() || 'N/A'}

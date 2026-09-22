@@ -104,8 +104,23 @@ export function formatRfidForDisplay(rfid) {
   return hexRfid.match(/.{2}/g)?.join(' ') || hexRfid;
 }
 
+/**
+ * A card ID with all but its last 4 characters hidden ("•••• •••• 1A2B"), for
+ * anything a person reads: log text, exports, messages, console output. Card
+ * IDs are what the readers trust, so the full value is never shown.
+ * Same format as the website's maskRfid (client/src/utils/rfidConverter.js).
+ * @param {string} rfid
+ * @returns {string}
+ */
+export function maskRfid(rfid) {
+  const cleaned = String(rfid || '').replace(/[\s:-]/g, '').toUpperCase();
+  if (!cleaned) return '';
+  return cleaned.length > 4 ? `•••• •••• ${cleaned.slice(-4)}` : '••••••••';
+}
+
 export default {
   convertRfidToHexLittleEndian,
   validateRfidFormat,
-  formatRfidForDisplay
+  formatRfidForDisplay,
+  maskRfid
 };

@@ -7,6 +7,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Alert, ScrollView } from 'react-native';
 import NFCService from '../services/NFCService';
+import maskCard from '../utils/maskCard';
 import PaymentService from '../services/PaymentService';
 import api from '../services/api';
 import useOfflineMode from '../hooks/useOfflineMode';
@@ -275,7 +276,7 @@ export default function PaymentScreen({ navigation, route }) {
                 // Process each passenger refund
                 for (const passenger of passengersBoarded) {
                   try {
-                    console.log(`💸 Refunding passenger: ${passenger.studentName || passenger.rfidUId}, Amount: ₱${passenger.fareAmount}`);
+                    console.log(`💸 Refunding passenger: ${passenger.studentName || maskCard(passenger.rfidUId)}, Amount: ₱${passenger.fareAmount}`);
                     
                     const refundResult = await PaymentService.processRefund(
                       passenger.rfidUId,

@@ -65,4 +65,16 @@ export function formatRfidDisplay(hex) {
   return hex.match(/.{2}/g)?.join(' ') || hex;
 }
 
-export default { convertToHexLittleEndian, validateRfid, formatRfidDisplay };
+/**
+ * A card ID with all but its last 4 characters hidden ("•••• •••• 1A2B").
+ * Card IDs are what the readers trust, so the full value is never shown.
+ * @param {string} id
+ * @returns {string}
+ */
+export function maskRfid(id) {
+  const cleaned = String(id || '').replace(/[\s:-]/g, '').toUpperCase();
+  if (!cleaned) return '';
+  return cleaned.length > 4 ? `•••• •••• ${cleaned.slice(-4)}` : '••••••••';
+}
+
+export default { convertToHexLittleEndian, validateRfid, formatRfidDisplay, maskRfid };

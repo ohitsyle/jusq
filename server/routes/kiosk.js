@@ -7,7 +7,8 @@
 // can register on their own phone instead of queueing at the kiosk.
 //
 // Identity controls (see user manual):
-//  - Email MUST be a school-issued address (allow-listed domains). The
+//  - Email follows the account email rule (utils/emailPolicy.js: any address
+//    for now, school domains only once ACCOUNT_EMAIL_DOMAINS is set). The
 //    temporary PIN is delivered ONLY to that mailbox, so an account can't be
 //    activated by anyone but the mailbox owner.
 //  - RFID is validated/normalized with the same converter Treasury uses, and
@@ -20,18 +21,12 @@ import { sendTemporaryPIN } from '../services/emailService.js';
 import { convertRfidToHexLittleEndian, validateRfidFormat } from '../utils/rfidConverter.js';
 import { logAdminAction } from '../utils/logger.js';
 import { pushScan, takeScan, RELAY_TARGETS } from '../utils/scanRelay.js';
+import { accountEmailProblem } from '../utils/emailPolicy.js';
 
 const router = express.Router();
 
-// School-issued email domains accepted at the kiosk.
-const ALLOWED_EMAIL_DOMAINS = [
-  'students.nu-laguna.edu.ph',
-  'nu-laguna.edu.ph',
-  'nu.edu.ph'
-];
 
 const NAME_RE = /^[A-Za-zÀ-ÿÑñ' .-]{1,40}$/;
-const EMAIL_RE = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
 
 // ---- simple per-IP rate limiting (kiosk is a public endpoint) --------------
 const hits = new Map(); // key -> { count, windowStart }
@@ -149,15 +144,8 @@ router.post('/register', async (req, res) => {
     if (!converted) {
       return res.status(400).json({ error: 'Card not recognized. Please restart and tap your school ID again.' });
     }
-    if (!EMAIL_RE.test(email)) {
-      return res.status(400).json({ error: 'Please enter a valid email address.' });
-    }
-    const domain = email.split('@')[1];
-    if (!ALLOWED_EMAIL_DOMAINS.includes(domain)) {
-      return res.status(400).json({
-        error: `Please use your school-issued email (e.g. yourname@${ALLOWED_EMAIL_DOMAINS[0]}).`
-      });
-    }
+    const emailProblem = accountEmailProblem(email);
+    if (emailProblem) return res.status(400).json({ error: emailProblem });
     if (!NAME_RE.test(firstName)) return res.status(400).json({ error: 'Please enter a valid first name.' });
     if (!NAME_RE.test(lastName)) return res.status(400).json({ error: 'Please enter a valid last name.' });
     if (middleName && !NAME_RE.test(middleName)) return res.status(400).json({ error: 'Please enter a valid middle name.' });

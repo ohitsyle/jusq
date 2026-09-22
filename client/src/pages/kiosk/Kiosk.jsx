@@ -17,7 +17,6 @@ const MUTED = 'rgba(251,251,251,0.6)';
 const FAINT = 'rgba(251,251,251,0.35)';
 
 const EMAIL_RE = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
-const SCHOOL_DOMAINS = ['students.nu-laguna.edu.ph', 'nu-laguna.edu.ph', 'nu.edu.ph'];
 const NAME_RE = /^[A-Za-zÀ-ÿÑñ' .-]{1,40}$/;
 
 const TAGLINES = [
@@ -83,6 +82,13 @@ export default function Kiosk() {
     setForm({ email: '', firstName: '', middleName: '', lastName: '', schoolId: '' });
     setFieldErr({});
   }, []);
+
+  // Which emails can register ([] = any) — the server's account email rule
+  const [emailDomains, setEmailDomains] = useState([]);
+  useEffect(() => {
+    api.get('/system/email-policy').then((r) => setEmailDomains(r?.domains || [])).catch(() => {});
+  }, []);
+  const emailWord = emailDomains.length ? 'school email' : 'email';
 
   // rotate taglines on the attract screen
   useEffect(() => {
@@ -172,7 +178,7 @@ export default function Kiosk() {
     const errs = {};
     const email = form.email.trim().toLowerCase();
     if (!EMAIL_RE.test(email)) errs.email = 'Enter a valid email address.';
-    else if (!SCHOOL_DOMAINS.includes(email.split('@')[1])) errs.email = `Use your school email (…@${SCHOOL_DOMAINS[0]}).`;
+    else if (emailDomains.length && !emailDomains.includes(email.split('@')[1])) errs.email = `Use your school email (…@${emailDomains.join(' or …@')}).`;
     if (!NAME_RE.test(form.firstName.trim()) || !form.firstName.trim()) errs.firstName = 'Enter your first name (letters only).';
     if (form.middleName.trim() && !NAME_RE.test(form.middleName.trim())) errs.middleName = 'Letters only.';
     if (!NAME_RE.test(form.lastName.trim()) || !form.lastName.trim()) errs.lastName = 'Enter your last name (letters only).';
@@ -340,7 +346,7 @@ export default function Kiosk() {
             <p style={{ color: MUTED, fontSize: 17, lineHeight: 1.6, margin: '0 0 26px' }}>
               {known?.activated
                 ? 'This ID is active and ready to use. Manage your wallet on the NUCash website.'
-                : 'Your account exists but isn\'t activated yet — check your school email for the temporary PIN, then activate it on the NUCash website.'}
+                : `Your account exists but isn't activated yet — check your ${emailWord} for the temporary PIN, then activate it on the NUCash website.`}
             </p>
             <Btn onClick={reset}>Done ({countdown ?? ''})</Btn>
           </div>
@@ -408,8 +414,8 @@ export default function Kiosk() {
 
           <p style={{ color: FAINT, fontSize: 12.5, lineHeight: 1.55, margin: '4px 0 22px', display: 'flex', gap: 8 }}>
             <ShieldCheck style={{ width: 26, height: 26, color: YELLOW, flexShrink: 0 }} />
-            Use your real name and school-issued email exactly as they appear in school records. Your temporary PIN is sent only
-            to your school email, and your details help keep shuttle rides and payments safe and traceable.
+            Use your real name{emailDomains.length ? ' and school-issued email' : ''} exactly as they appear in school records. Your temporary PIN is sent only
+            to your {emailWord}, and your details help keep shuttle rides and payments safe and traceable.
           </p>
 
           <div className="kBtnRow">

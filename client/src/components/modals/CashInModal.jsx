@@ -6,16 +6,13 @@ import { X, Wallet, CreditCard, AlertCircle, CheckCircle, User, Loader2, ArrowRi
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../utils/api';
 import { toast } from 'react-toastify';
-import { convertToHexLittleEndian } from '../../utils/rfidConverter';
+import { convertToHexLittleEndian, maskRfid } from '../../utils/rfidConverter';
+import RfidInput from '../shared/RfidInput';
 
 // Use shared RFID converter
 const normalizeRfidHex = convertToHexLittleEndian;
 
 // Mask RFID for display
-const maskRfid = (rfid) => {
-  if (!rfid || rfid.length < 4) return '***';
-  return '****' + rfid.slice(-4);
-};
 
 // Default preset amounts for quick selection
 const DEFAULT_PRESET_AMOUNTS = [100, 200, 300, 500, 1000];
@@ -459,9 +456,8 @@ export default function CashInModal({ isOpen, onClose, onSuccess, onRegisterUser
                 <label style={{ color: theme.text.primary }} className="font-semibold mb-2 block">
                   RFID Tag
                 </label>
-                <input
+                <RfidInput
                   ref={rfidInputRef}
-                  type="text"
                   value={rfidInput}
                   onChange={(e) => { setRfidInput(e.target.value.toUpperCase()); setTappedOnPhone(false); }}
                   onKeyDown={handleRfidKeyDown}
@@ -476,7 +472,7 @@ export default function CashInModal({ isOpen, onClose, onSuccess, onRegisterUser
                 />
                 {rfidInput && (
                   <p style={{ color: theme.text.tertiary }} className="text-xs mt-2">
-                    Will search as: <span className="font-mono">{tappedOnPhone ? rfidInput : normalizeRfidHex(rfidInput)}</span>
+                    Will search as: <span className="font-mono">{maskRfid(tappedOnPhone ? rfidInput : normalizeRfidHex(rfidInput))}</span>
                   </p>
                 )}
               </div>
@@ -535,7 +531,7 @@ export default function CashInModal({ isOpen, onClose, onSuccess, onRegisterUser
               >
                 <p style={{ color: theme.text.secondary }} className="text-sm">Scanned RFID:</p>
                 <p style={{ color: theme.text.primary }} className="font-mono font-semibold mt-1">
-                  {normalizedRfid}
+                  {maskRfid(normalizedRfid)}
                 </p>
               </div>
 
