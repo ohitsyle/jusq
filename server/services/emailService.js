@@ -1,32 +1,10 @@
 // nucash-server/services/emailService.js
 // FIXED: Added sendPinChangeOtpEmail function for PIN change with OTP
 
-import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
+import transporter from './mailer.js';
 
 dotenv.config();
-
-// Create email transporter (using Gmail - you can change this)
-// Pooled connections, starting at most 1 email/second: bursts (e.g. a full
-// shuttle boarding, or test runs) look like bulk mail to Gmail and push our
-// messages toward spam (a burst on 2026-09-18 got "421 try again later").
-// 3 connections so the queue still drains when Gmail is slow to accept.
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD
-  },
-  pool: true,
-  maxConnections: 3,
-  rateDelta: 1000,
-  rateLimit: 1
-});
-
-// EMAIL_DISABLED=1 (test servers): log instead of sending
-if (process.env.EMAIL_DISABLED === '1') {
-  transporter.sendMail = async (opts) => { const code = String(opts.text || opts.html || '').match(/\b\d{6}\b/); console.log('[EMAIL_DISABLED] would send:', opts.to, '|', opts.subject, code ? `| code ${code[0]}` : ''); return { messageId: 'disabled' }; };
-}
 
 // Plain-text copy of an HTML email — HTML-only messages score worse with spam filters.
 const htmlToText = (html) => String(html)
@@ -39,18 +17,6 @@ const htmlToText = (html) => String(html)
   .replace(/[ \t]+/g, ' ')
   .replace(/\n\s*\n+/g, '\n\n')
   .trim();
-
-// Verify transporter on startup
-transporter.verify((error, success) => {
-  if (error) {
-    console.error('❌ Email transporter verification failed:', error.message);
-    console.error('   Check EMAIL_USER and EMAIL_PASSWORD in .env file');
-    console.error('   For Gmail, you need an App Password (not your regular password)');
-    console.error('   Go to: https://myaccount.google.com/apppasswords');
-  } else {
-    console.log('✅ Email transporter is ready to send emails');
-  }
-});
 
 /**
  * Send payment receipt email

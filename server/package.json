@@ -19,6 +19,7 @@
   "author": "NUCash Team",
   "license": "MIT",
   "dependencies": {
+    "@aws-sdk/client-ses": "^3.1137.0",
     "adm-zip": "^0.5.16",
     "bcrypt": "^5.1.1",
     "body-parser": "^1.20.2",

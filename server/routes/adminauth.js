@@ -6,7 +6,7 @@ import express from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import Admin from '../models/Admin.js';
-import nodemailer from 'nodemailer';
+import transporter from '../services/mailer.js';
 import { logLogin, logLogout, logAdminAction } from '../utils/logger.js';
 import { sessionCutoff, copyPinToWallet, walletOf, walletUnavailable, issueWalletSession, issueAdminSession } from '../utils/linkedAccounts.js';
 
@@ -47,19 +47,6 @@ async function authenticateAdmin(req, res, next) {
   }
   req.admin = decoded;
   next();
-}
-
-// Email transporter configuration
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER || 'your-email@gmail.com',
-    pass: process.env.EMAIL_PASSWORD || 'your-app-password'
-  }
-});
-// EMAIL_DISABLED=1 (test servers): log instead of sending
-if (process.env.EMAIL_DISABLED === '1') {
-  transporter.sendMail = async (opts) => { const code = String(opts.text || opts.html || '').match(/\b\d{6}\b/); console.log('[EMAIL_DISABLED] would send:', opts.to, '|', opts.subject, code ? `| code ${code[0]}` : ''); return { messageId: 'disabled' }; };
 }
 
 // ============================================================================

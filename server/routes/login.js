@@ -9,7 +9,7 @@ import express from 'express';
 const router = express.Router();
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
-import nodemailer from 'nodemailer';
+import mailer from '../services/mailer.js';
 import Driver from '../models/Driver.js';
 import { issueActivationToken } from './activation.js';
 import { walletOf, walletUnavailable, issueWalletSession, copyPinToAdmin } from '../utils/linkedAccounts.js';
@@ -390,27 +390,6 @@ router.post('/', async (req, res) => {
 // OTP storage (in production, use Redis or database)
 const userOtpStore = new Map();
 
-// Email transporter - created lazily to ensure env vars are loaded
-let _transporter = null;
-const getTransporter = () => {
-  if (!_transporter) {
-    console.log('📧 Creating email transporter with:', {
-      user: process.env.EMAIL_USER,
-      passLength: process.env.EMAIL_PASSWORD?.length || 0
-    });
-    _transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER || 'nucashsystem@gmail.com',
-        pass: process.env.EMAIL_PASSWORD || 'your-app-password'
-      }
-    });
-    if (process.env.EMAIL_DISABLED === '1') {
-      _transporter.sendMail = async (opts) => { const code = String(opts.text || opts.html || '').match(/\b\d{6}\b/); console.log('[EMAIL_DISABLED] would send:', opts.to, '|', opts.subject, code ? `| code ${code[0]}` : ''); return { messageId: 'disabled' }; };
-    }
-  }
-  return _transporter;
-};
 
 /**
  * POST /login/forgot-pin
@@ -520,7 +499,7 @@ router.post('/forgot-pin', async (req, res) => {
     };
 
     try {
-      await getTransporter().sendMail(mailOptions);
+      await mailer.sendMail(mailOptions);
       console.log(`📧 PIN reset OTP sent to ${normalizedEmail}`);
     } catch (emailError) {
       console.error('❌ Failed to send email:', emailError);

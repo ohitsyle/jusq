@@ -55,7 +55,8 @@ const EventLogSchema = new mongoose.Schema({
       'config_updated',
       'shuttle_selection',
       'auto_export_config_change',
-      'manual_export'
+      'manual_export',
+      'account_switch'
     ],
     index: true
   },

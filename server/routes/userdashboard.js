@@ -1402,16 +1402,7 @@ router.post('/request-transaction-history', verifyUserToken, async (req, res) =>
       .limit(500)
       .lean();
 
-    // Import nodemailer
-    const nodemailer = await import('nodemailer');
-    
-    const transporter = nodemailer.default.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER || 'nucashsystem@gmail.com',
-        pass: process.env.EMAIL_PASSWORD || 'your-app-password'
-      }
-    });
+    const { default: transporter } = await import('../services/mailer.js');
 
     // Format transactions for email
     const userName = user.fullName || `${user.firstName} ${user.lastName}`.trim();
